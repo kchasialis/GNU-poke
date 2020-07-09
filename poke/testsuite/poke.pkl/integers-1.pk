@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { 6n } } */
+/* { dg-output 6N } */

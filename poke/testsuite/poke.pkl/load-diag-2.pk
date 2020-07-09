@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+defvar foo = 10;
+load "___foobar___.pk"; /* { dg-error "" } */
+defvar bar = 20;

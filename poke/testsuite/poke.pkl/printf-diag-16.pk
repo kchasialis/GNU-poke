@@ -1,0 +1,3 @@
+/* { dg-do compile} */
+
+printf "foo%9i32d", 12; /* { dg-error "invalid numerical prefix" } */

@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+deftype Packet = struct { int i; long j; };
+
+defvar p = Packet @ 0#B;
+Packet @ 0#B = p;  /* { dg-error "l-value.*simple type" } */

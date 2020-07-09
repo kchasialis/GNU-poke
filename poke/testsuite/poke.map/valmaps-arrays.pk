@@ -1,0 +1,14 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command {.set obase 16} } */
+
+/* { dg-command {defvar a = byte[2][2] @ 4#B } } */
+/* { dg-command {a[0] = [0xaaUB, 0xbbUB] } } */
+/* { dg-command { a } } */
+/* { dg-output "\\\[\\\[0xaaUB,0xbbUB\\\],\\\[0x70UB,0x80UB\\\]\\\]" } */
+
+/* { dg-command {defvar b = byte[16#b][4#B] @ 4#B } } */
+/* { dg-command {b[1] = [0x11UB, 0x22UB] } } */
+/* { dg-command { b } } */
+/* { dg-output "\n\\\[\\\[0xaaUB,0xbbUB\\\],\\\[0x11UB,0x22UB\\\]\\\]" } */

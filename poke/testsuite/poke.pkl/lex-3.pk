@@ -1,0 +1,21 @@
+/* { dg-do run } */
+
+defvar global = 0;
+
+defun increase = (int n) int:
+  {
+   global = global + n;
+   return 0;
+  }
+
+defun indirect = (int n) int:
+  {
+   return increase (n);
+  }
+
+/* { dg-command {  increase (1) } } */
+/* { dg-command {  increase (2) } } */
+/* { dg-command {  global } } */
+/* { dg-command {  indirect (3) } } */
+/* { dg-command {  global } } */
+/* { dg-output "0\n0\n3\n0\n6" } */

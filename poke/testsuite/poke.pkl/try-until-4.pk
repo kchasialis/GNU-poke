@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { try { print "foo\n"; break; } until E_eof; } } */
+/* { dg-output "foo" } */

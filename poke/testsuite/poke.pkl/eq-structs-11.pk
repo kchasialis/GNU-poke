@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar N = 10;
+deftype Foo = struct { int a if N == 10; int b; };
+
+defvar f1 = Foo {};
+defvar f2 = Foo {};
+
+/* { dg-command { f1 == f2 } } */
+/* { dg-output "1" } */

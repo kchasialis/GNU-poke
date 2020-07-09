@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = -2#int;
+
+/* { dg-command {  x * 3 } } */
+/* { dg-output "-6#32" } */
+
+/* For constant folding: */
+/* { dg-command {  -2#int * 3 } } */
+/* { dg-output "\n-6#32" } */

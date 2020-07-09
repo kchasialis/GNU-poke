@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar foo = [1,2,3] in "foo"; /* { dg-error "wrong type.*expected array" } */

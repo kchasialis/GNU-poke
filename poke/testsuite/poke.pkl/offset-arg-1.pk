@@ -1,0 +1,12 @@
+/* { dg-do compile } */
+
+deftype xxx = struct
+{
+  char[10] c;
+};
+
+defun foo = (offset<char, xxx> input) void:
+{
+    defvar h = xxx @ input + 1#xxx;
+    return;
+}

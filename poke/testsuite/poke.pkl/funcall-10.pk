@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defun quux = (offset<uint,B> o) offset<long,b>: { return o; }
+
+/* Coercion of offset return value.  */
+/* { dg-command {  quux ((2 as uint<3>)#B) } } */
+/* { dg-output "16L#b" } */

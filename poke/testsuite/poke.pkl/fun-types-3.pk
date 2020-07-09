@@ -1,0 +1,30 @@
+/* { dg-do run } */
+
+deftype Callback = (int,int?)int;
+
+defun add = (int a, int b = 0) int: { return a + b; }
+defun sub = (int a, int b = 0) int: { return a - b; }
+
+defun apply = (Callback[] callbacks, int data) int:
+  {
+   defvar sum = 0;
+
+   for (e in callbacks)
+     sum = sum + e (data);
+   return sum;
+  }
+
+/* { dg-command {  apply ([add,sub], 10) } } */
+/* { dg-output "20" } */
+
+defun apply2 = (Callback[] callbacks, int a, int b) int:
+  {
+   defvar sum = 0;
+
+   for (e in callbacks)
+     sum = sum + e (a, b);
+   return sum;
+  }
+
+/* { dg-command {  apply2 ([add,sub], 10, 20) } } */
+/* { dg-output "\n20" } */

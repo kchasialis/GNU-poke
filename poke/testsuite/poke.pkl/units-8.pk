@@ -1,0 +1,49 @@
+/* { dg-do run } */
+
+/* This tests that the standard units defined in std.pk are recognized
+   by the PVM value printer.  */
+
+/* { dg-command { 1#b } } *
+/* { dg-output "1#b" } */
+
+/* { dg-command { 1#N } } *
+/* { dg-output "\n1#N" } */
+
+/* { dg-command { 1#B } } *
+/* { dg-output "\n1#B" } */
+
+/* { dg-command { 1#Kb } } *
+/* { dg-output "\n1#Kb" } */
+
+/* { dg-command { 1#KB } } *
+/* { dg-output "\n1#KB" } */
+
+/* { dg-command { 1#Mb } } *
+/* { dg-output "\n1#Mb" } */
+
+/* { dg-command { 1#MB } } *
+/* { dg-output "\n1#MB" } */
+
+/* { dg-command { 1#Gb } } *
+/* { dg-output "\n1#Gb" } */
+
+/* { dg-command { 1#GB } } *
+/* { dg-output "\n1#GB" } */
+
+/* { dg-command { 1#Kib } } *
+/* { dg-output "\n1#Kib" } */
+
+/* { dg-command { 1#KiB } } *
+/* { dg-output "\n1#KiB" } */
+
+/* { dg-command { 1#Mib } } *
+/* { dg-output "\n1#Mib" } */
+
+/* { dg-command { 1#MiB } } *
+/* { dg-output "\n1#MiB" } */
+
+/* { dg-command { 1#Gib } } *
+/* { dg-output "\n1#Gib" } */
+
+/* { dg-command { 1#GiB } } *
+/* { dg-output "\n1#GiB" } */

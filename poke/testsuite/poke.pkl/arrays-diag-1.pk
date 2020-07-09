@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+defun foo = (int[2+1] a) void:
+  {
+   a = [0,1,.[2*2]=66]; /* { dg-error "\n.*got int<32>\\\[5\\\]" } */
+  }

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+defun foo = (any v) int: { return v'mapped; }
+
+/* { dg-command { foo (int[2] @ 0#B) } } */
+/* { dg-output "1" } */

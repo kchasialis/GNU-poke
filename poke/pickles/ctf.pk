@@ -1,0 +1,294 @@
+/* ctf.pk - CTF implementation for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Oracle Inc.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* This file contains a Poke description of the CTF format, version 3.
+
+   The Compact ANSI-C Type Format is described in
+   https://github.com/oracle/libdtrace-ctf  */
+
+load elf;
+
+defvar CTF_MAX_SIZE = 0xfffffffe;
+defvar CTF_LSIZE_SENT = 0xffffffff;
+
+defvar CTF_MAGIC = 0xdff2;
+defvar CTF_VERSION = 3;
+
+defvar CTF_K_UNKNOWN  = 0U;
+defvar CTF_K_INTEGER  = 1U;
+defvar CTF_K_FLOAT    = 2U;
+defvar CTF_K_POINTER  = 3U;
+defvar CTF_K_ARRAY    = 4U;
+defvar CTF_K_FUNCTION = 5U;
+defvar CTF_K_STRUCT   = 6U;
+defvar CTF_K_UNION    = 7U;
+defvar CTF_K_ENUM     = 8U;
+defvar CTF_K_FORWARD  = 9U;
+defvar CTF_K_TYPEDEF  = 10U;
+defvar CTF_K_VOLATILE = 11U;
+defvar CTF_K_CONST    = 12U;
+defvar CTF_K_RESTRICT = 13U;
+defvar CTF_K_MAX = 63U;
+
+defvar CTF_STRTAB_0 = 0; /* Name is in the in-CTF string table.  */
+defvar CTF_STRTAB_1 = 1; /* Name is in an ELF strtab.  */
+
+defvar CTF_KIND_UNKNOWN  = 0;
+defvar CTF_KIND_INTEGER  = 1;
+defvar CTF_KIND_FLOAT    = 2;
+defvar CTF_KIND_POINTER  = 3;
+defvar CTF_KIND_ARRAY    = 4;
+defvar CTF_KIND_FUNCTION = 5;
+defvar CTF_KIND_STRUCT   = 6;
+defvar CTF_KIND_UNION    = 7;
+defvar CTF_KIND_ENUM     = 8;
+defvar CTF_KIND_FORWARD  = 9;
+defvar CTF_KIND_TYPEDEF  = 10;
+defvar CTF_KIND_VOLATILE = 11;
+defvar CTF_KIND_CONST    = 12;
+defvar CTF_KIND_RESTRICT = 13;
+defvar CTF_KIND_SLICE    = 14;
+
+defvar ctf_kind_str =
+  ["unknown", "integer", "float", "pointer", "array",
+   "function", "struct", "union", "enum", "forward",
+   "typedef", "volatile", "const", "restrict"];
+
+deftype CTF_Name =
+  struct
+  {
+    uint<1> stid
+       @ get_endian == ENDIAN_LITTLE ? 31#b : 0#b;
+    offset<uint<31>,B> offset
+       @ get_endian == ENDIAN_LITTLE ? 0#b : 31#b;
+
+    method _print = void:
+      {
+       print "#<";
+       printf "%u1d,%u31d", stid, offset/#B;
+       print ">";
+      }
+  };
+
+deftype CTF_Type_Id =
+  struct
+  {
+    uint<31> index
+       @ get_endian == ENDIAN_LITTLE ? 1#b : 0#b;
+    uint<1> is_parent
+       @ get_endian == ENDIAN_LITTLE ? 0#b : 1#b;
+  };
+
+deftype CTF_Preamble =
+  struct
+  {
+    uint<16> ctp_magic = CTF_MAGIC;
+    byte ctp_version;
+    byte ctp_flags;
+  };
+
+deftype CTF_Header =
+  struct
+  {
+    CTF_Preamble cth_preamble;
+    CTF_Name cth_parlabel;		/* Ref to name of parent lbl uniq'd against.  */
+    CTF_Name cth_parname;		/* Ref to basename of parent.  */
+    CTF_Name cth_cuname;		/* Ref to CU name (may be 0).  */
+    CTF_Name cth_lbloff;		/* Offset of label section.  */
+    offset<uint32,B> cth_objtoff;	/* Offset of object section.  */
+    offset<uint32,B> cth_funcoff;	/* Offset of function section.  */
+    offset<uint32,B> cth_objtidxoff;	/* Offset of object index section.  */
+    offset<uint32,B> cth_funcidxoff;	/* Offset of function index section.  */
+    offset<uint32,B> cth_varoff;	/* Offset of variable section.  */
+    offset<uint32,B> cth_typeoff;	/* Offset of type section.  */
+    offset<uint32,B> cth_stroff;	/* Offset of string section.  */
+    offset<uint32,B> cth_strlen;	/* Length of string section in bytes.  */
+  };
+
+deftype CTF_Lblent =
+  struct
+  {
+    CTF_Name ctl_label;
+    CTF_Type_Id ctl_type;
+  };
+
+deftype CTF_Varent =
+  struct
+  {
+    CTF_Name ctv_name;
+    CTF_Type_Id ctv_type;
+  };
+
+deftype CTF_Info =
+  struct
+  {
+    uint<6> kind
+      @ get_endian == ENDIAN_BIG ? 0#b : 32#b - 6#b;
+    uint<1> isroot
+      @ get_endian == ENDIAN_BIG ? 6#b : 32#b - 7#b;
+    uint<25> vlen
+      @ get_endian == ENDIAN_BIG ? 7#b : 0#b;
+
+    method _print = void:
+      {
+       print "#<";
+       printf "%s", ctf_kind_str[kind];
+       if (isroot)
+         print ",root";
+       if (kind in [CTF_KIND_STRUCT,
+                    CTF_KIND_UNION,
+                    CTF_KIND_FUNCTION])
+         printf ",len=%u25d", vlen;
+       print ">";
+      }
+  };
+
+defvar CTF_INT_SIGNED  = 0x01UB;
+defvar CTF_INT_CHAR    = 0x02UB;
+defvar CTF_INT_BOOL    = 0x04UB;
+defvar CTF_INT_VARARGS = 0x08UB;
+
+deftype CTF_Integer_Type =
+  struct
+  {
+    uint<8> encoding : encoding <= CTF_INT_VARARGS;
+    offset<uint<8>,b> offset;
+    offset<uint<16>,b> bits;
+  };
+
+defvar CTF_FP_SINGLE = 1UB;
+defvar CTF_FP_DOUBLE = 2UB;
+defvar CTF_FP_CPLX   = 3UB;
+defvar CTF_FP_DCPLX  = 4UB;
+defvar CTF_FP_LDCPLX = 5UB;
+defvar CTF_FP_LDOUBLE = 6UB;
+defvar CTF_FP_INTRVL = 7UB;
+defvar CTF_FP_DINTRVL = 8UB;
+defvar CTF_FP_LDINTRVL = 9UB;
+defvar CTF_FP_IMAGRY = 10UB;
+defvar CTF_FP_DIMAGRY = 11UB;
+defvar CTF_FP_LDIMAGRY = 12UB;
+
+deftype CTF_Float_Type =
+  struct
+  {
+    uint<8> encoding: encoding <= CTF_FP_LDIMAGRY;
+    offset<uint<8>,b> offset;
+    offset<uint<16>,b> bits;
+  };
+
+deftype CTF_Array =
+  struct
+  {
+    CTF_Type_Id cta_contents;
+    CTF_Type_Id cta_index;
+    uint<32> cta_nelems;
+  };
+
+deftype CTF_Member =
+  struct
+  {
+    CTF_Name ctm_name;
+    offset<uint32,b> ctm_offset;
+    CTF_Type_Id ctm_type;
+  };
+
+deftype CTF_Lmember =
+  struct
+  {
+    CTF_Name ctlm_name;
+    uint32 ctlm_offsethi;
+    CTF_Type_Id ctlm_type;
+    uint32 ctlm_offsetlo;
+  };
+
+deftype CTF_Enum =
+  struct
+  {
+    CTF_Name cte_name;
+    int<32> cte_value;
+  };
+
+deftype CTF_Type =
+  struct
+  {
+    CTF_Name name;
+    CTF_Info info;
+
+    /* Some types have a size.  Others refer to other types.  */
+    union
+    {
+      uint32 type : info.kind in [CTF_KIND_POINTER,
+                                  CTF_KIND_FUNCTION,
+                                  CTF_KIND_TYPEDEF,
+                                  CTF_KIND_VOLATILE,
+                                  CTF_KIND_CONST,
+                                  CTF_KIND_RESTRICT];
+      union
+      {
+        uint32 normal : normal <= CTF_MAX_SIZE;
+        struct
+        {
+          uint32 sentinel : sentinel == CTF_LSIZE_SENT;
+          uint32 lsizehi;
+          uint32 lsizelo;
+
+          method _print = void:
+            {
+             print "#<";
+             printf "%v", lsizehi:::lsizelo;
+             print ">";
+            }
+        } huge;
+      } size;
+    } common;
+
+    /* Data, that depends on the kind of the type.  */
+    union
+    {
+      CTF_Integer_Type integer         : info.kind == CTF_KIND_INTEGER;
+      CTF_Float_Type float             : info.kind == CTF_KIND_FLOAT;
+      CTF_Array array                  : info.kind == CTF_KIND_ARRAY;
+      CTF_Member[info.vlen] members    : info.kind in [CTF_KIND_STRUCT,CTF_KIND_UNION];
+      CTF_Enum enum                    : info.kind == CTF_KIND_ENUM;
+      CTF_Type_Id[info.vlen] arg_types : info.kind == CTF_KIND_FUNCTION;
+      struct {};
+    } data;
+  };
+
+defun ctf_string = (Elf64_File elf,
+                    CTF_Header header,
+                    CTF_Name name) string:
+{
+ if (name.stid == CTF_STRTAB_0)
+   return string @ (header.cth_stroff + name.offset);
+ else
+   return elf.get_string (name.offset);
+}
+
+defun ctf_get_header = (Elf64_File elf) CTF_Header:
+{
+  return CTF_Header
+   @ (elf.get_section_by_name (".ctf")).sh_offset;
+}
+
+defun ctf_get_types = (CTF_Header ctf) CTF_Type[]:
+{
+  return CTF_Type[ctf.cth_stroff - ctf.cth_typeoff]
+     @ (ctf'offset + ctf'size + ctf.cth_typeoff);
+}

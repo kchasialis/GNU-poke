@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+load color;
+
+/* { dg-command { try color_name (color_num_colors); catch if E_out_of_bounds { print "caught\n"; } } } */
+/* { dg-output {caught} } */

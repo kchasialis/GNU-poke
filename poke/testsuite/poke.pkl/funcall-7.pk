@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defun foo = (long l) long: { return l; }
+
+/* Coercion from small int.  */
+/* { dg-command {  foo (2 as uint<3>) } } */
+/* { dg-output "2L" } */

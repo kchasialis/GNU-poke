@@ -1,0 +1,11 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    method foo = void:
+      {
+        method bar = void: {} /* { dg-error "method" } */
+        bar;
+      }
+  };

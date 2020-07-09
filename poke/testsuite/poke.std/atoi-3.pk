@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { atoi("01010101", 2) } } */
+/* { dg-output "85L" } */

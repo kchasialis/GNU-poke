@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar n = -1;
+
+/* { dg-command { try "foo"[n]; catch if E_out_of_bounds { print "caught\n"; } } } */
+/* { dg-output "caught" } */

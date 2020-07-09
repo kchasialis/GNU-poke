@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+defun foo = (int[] array) int:
+  {
+   defvar sum = 0;
+
+   for (a in array where a % 2 == 0)
+     sum = sum + a;
+
+   return sum;
+  }
+
+/* { dg-command {  foo ([1,2,3,4]) } } */
+/* { dg-output "6" } */

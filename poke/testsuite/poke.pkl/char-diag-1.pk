@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar foo = '\129'; /* { dg-error "" } */

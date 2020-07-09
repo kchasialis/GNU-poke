@@ -1,0 +1,189 @@
+/* pkl-rt.pkl - Run-time library for the poke compiler.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* Compiler built-ins. */
+
+defun rand = int<32>: __PKL_BUILTIN_RAND__;
+defun get_endian = int<32>: __PKL_BUILTIN_GET_ENDIAN__;
+defun set_endian = (int<32> endian) int<32>: __PKL_BUILTIN_SET_ENDIAN__;
+defun get_ios = int<32>: __PKL_BUILTIN_GET_IOS__;
+defun set_ios = (int<32> ios) int<32>: __PKL_BUILTIN_SET_IOS__;
+defun open = (string handler, uint<64> flags = 0) int<32>: __PKL_BUILTIN_OPEN__;
+defun close = (int<32> ios) void: __PKL_BUILTIN_CLOSE__;
+defun iosize = (int<32> ios = get_ios) offset<uint<64>,1>: __PKL_BUILTIN_IOSIZE__;
+defun getenv = (string name) string: __PKL_BUILTIN_GETENV__;
+
+defvar ENDIAN_LITTLE = 0;
+defvar ENDIAN_BIG = 1;
+
+/* IOS flags and modes.
+
+   There is space for 64 flags in the uint<64> optional argument to
+   `open'.  The flags in the least-significative 32 bits are valid for
+   all IOD backends and are defined below.  The most-significative 32
+   bits are reserved for backend-specific flags.
+
+   Please keep these values in sync with the constants in ios.c.  */
+
+defvar IOS_F_READ   = 1;
+defvar IOS_F_WRITE  = 2;
+defvar IOS_F_TRUNCATE = 8;
+defvar IOS_F_CREATE = 16;
+
+defvar IOS_M_RDONLY = IOS_F_READ;
+defvar IOS_M_WRONLY = IOS_F_WRITE;
+defvar IOS_M_RDWR = IOS_F_READ | IOS_F_WRITE;
+
+/* Exceptions.  */
+
+/* IMPORTANT: if you make changes to the Exception struct, please
+   update the pvm_make_exception function in pvm-val.c
+   accordingly.  */
+
+deftype Exception =
+  struct
+  {
+    int<32> code;
+    string msg;
+    int<32> exit_status;
+  };
+
+/* Standard exception codes.
+   Note that user-defined exceptions must have codes starting with
+   255.
+   Note also that EC_generic _must_ be zero.  */
+
+defvar EC_generic       = 0;
+defvar EC_div_by_zero   = 1;
+defvar EC_no_ios        = 2;
+defvar EC_no_return     = 3;
+defvar EC_out_of_bounds = 4;
+defvar EC_map_bounds    = 5;
+defvar EC_eof           = 6;
+defvar EC_map           = 7;
+defvar EC_conv          = 8;
+defvar EC_elem          = 9;
+defvar EC_constraint    = 10;
+defvar EC_io            = 11;
+defvar EC_signal        = 12;
+defvar EC_io_flags      = 13;
+defvar EC_inval         = 14;
+defvar EC_exit          = 15;
+
+/* Standard exceptions.  */
+
+defvar E_generic
+  = Exception {code = EC_generic, msg = "generic", exit_status = 1};
+defvar E_div_by_zero
+  = Exception {code = EC_div_by_zero, msg = "division by zero", exit_status = 1};
+defvar E_no_ios
+  = Exception {code = EC_no_ios, msg = "no IOS", exit_status = 1};
+defvar E_no_return
+  = Exception {code = EC_no_return, msg = "no return", exit_status = 1};
+defvar E_out_of_bounds
+  = Exception {code = EC_out_of_bounds, msg = "out of bounds", exit_status = 1};
+defvar E_map_bounds
+  = Exception {code = EC_map_bounds, msg = "out of map bounds", exit_status = 1};
+defvar E_eof
+  = Exception {code = EC_eof, msg = "EOF", exit_status = 0 };
+defvar E_map
+  = Exception {code = EC_map, msg = "no map", exit_status = 1};
+defvar E_conv
+  = Exception {code = EC_conv, msg = "conversion error", exit_status = 1};
+defvar E_elem
+  = Exception {code = EC_elem, msg = "invalid element", exit_status = 1};
+defvar E_constraint
+  = Exception {code = EC_constraint, msg = "constraint violation", exit_status = 1};
+defvar E_io
+  = Exception {code = EC_io, msg = "generic IO", exit_status = 1};
+defvar E_signal
+  = Exception {code = EC_signal, exit_status = 1};
+defvar E_io_flags
+  = Exception {code = EC_io_flags, msg = "invalid IO flags", exit_status = 1};
+defvar E_inval
+  = Exception {code = EC_inval, msg = "invalid argument", exit_status = 1};
+defvar E_exit
+  = Exception {code = EC_exit, msg = "exit", exit_status = 0};
+
+/* Default exception handler.
+
+   Note that the code in this function should NOT raise any exception,
+   or be ready to underflow the exception handlers stack and face some
+   ugly shit.  You have been warned!  */
+
+defun _pkl_exception_handler = (Exception exception) int<32>:
+  {
+   if (exception.code != EC_exit && exception.code != EC_signal)
+     {
+       print ("unhandled "
+              + (exception.msg == "" ? "unknown" : exception.msg)
+              + " exception\n");
+     }
+
+   return exception.exit_status;
+  }
+
+/* Exit a Poke program with the given exit status code.  This is equivalent
+   to raise an E_exit exception, but provides a more conventional
+   syntax.  */
+
+defun exit = (int<32> exit_code = 0) void:
+  {
+    raise Exception { code = EC_exit, exit_status = exit_code };
+  }
+
+/* Find the greatest common divisor of two unsigned 64-bit integrals A
+   and B using the Euclidean algorithm.  */
+
+defun _pkl_gcd = (uint<64> a, uint<64> b) uint<64>:
+  {
+   if (b == 0)
+     return a;
+   else
+     return _pkl_gcd (b, a % b);
+  }
+
+
+/**** Set the default load path ****/
+
+defvar load_path = "";
+
+/* First, add the system-wide locations.  */
+
+try load_path = getenv ("POKEDATADIR");
+catch if E_inval { load_path = "%DATADIR%"; }
+
+try load_path = getenv ("POKEPICKLESDIR") + ":" + load_path;
+catch if E_inval { load_path = "%DATADIR%/pickles" + ":" + load_path; }
+
+/* Add the directories prescribed by the XDG Base Directory
+   Specification as described in
+   https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html */
+
+try load_path = getenv ("XDG_DATA_HOME") + ":" + load_path;
+catch if E_inval { load_path = getenv ("HOME") + "/.local/share/poke:" + load_path; }
+
+try load_path = getenv ("XDG_DATA_DIRS") + ":" + load_path;
+catch if E_inval { }
+
+/* Add the directories in POKE_LOAD_PATH, if defined.  */
+try load_path = getenv ("POKE_LOAD_PATH") + ":" + load_path;
+catch if E_inval { }
+
+/* Add the current working directory.  */
+load_path = ".:" + load_path;

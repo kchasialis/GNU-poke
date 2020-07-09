@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {"foo\nbar"} } */
+/* { dg-output {"foo\\nbar"} } */

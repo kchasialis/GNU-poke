@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+/* { dg-command {  12#Mb } } */
+/* { dg-output "12#Mb" } */
+
+/* { dg-command {  12#MB } } */
+/* { dg-output "\n12#MB" } */

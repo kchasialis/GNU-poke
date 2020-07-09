@@ -1,0 +1,16 @@
+/* { dg-do run } */
+
+/* Optargs in methods.  */
+
+deftype Foo =
+  struct
+  {
+    int x;
+    method foo = (int j, int i = 10) int:
+      {
+        return i + j + x;
+      }
+  };
+
+/* { dg-command {(Foo{}).foo (2)} } */
+/* { dg-output "12" } */

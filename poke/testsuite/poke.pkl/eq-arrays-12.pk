@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { [1,2,3] as int[3] == [1,2,3] as int[3] } } */
+/* { dg-output "1" } */

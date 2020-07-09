@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  #bit } } */
+/* { dg-output 1#b } */

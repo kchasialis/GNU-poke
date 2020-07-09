@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+/* Malformed tag class.  */
+
+printf "xxx%<fooxxx%<bar:xxx%>xxx"; /* { dg-error "" } */

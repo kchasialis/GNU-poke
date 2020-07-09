@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+defvar x = 1H;
+defvar y = 2B;
+
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { x:::y } } */
+/* { dg-output "\\(int<24>\\) 0x102" } */
+
+/* For constant folding:  */
+/* { dg-command { 1H:::2B } } */
+/* { dg-output "\n\\(int<24>\\) 0x102" } */

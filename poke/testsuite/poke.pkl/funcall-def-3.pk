@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun def2 = (int a, int b = 1, int c = 0) int: { return a + b + c; }
+
+/* { dg-command { def2 (10, 20, 30) } } */
+/* { dg-output "60" } */

@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+
+/* { dg-command {([1] + [3,4])'length} } */
+/* { dg-output "3" } */

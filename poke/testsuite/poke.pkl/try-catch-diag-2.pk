@@ -1,0 +1,12 @@
+/* { dg-do compile } */
+
+defun foo = int:
+  {
+   try
+     raise Exception { code = 1 };
+   catch (string e)
+   {
+     raise e;  /* { dg-error "" } */
+   }
+   return 666;
+  }

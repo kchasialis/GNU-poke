@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 10U;
+defvar y = 10U;
+
+/* { dg-command { x as int<1> == y } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command { 10U as int<1> == 10U } } */
+/* { dg-output "\n0" } */

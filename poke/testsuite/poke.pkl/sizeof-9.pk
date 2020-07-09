@@ -1,0 +1,17 @@
+/* { dg-do run } */
+
+deftype struct_with_struct_2 =
+  struct
+  {
+    int;
+
+    struct
+    {
+      int;
+      int;
+      long;
+    };
+  };
+
+/* { dg-command {  sizeof (struct_with_struct_2) } } */
+/* { dg-output "160UL#b" } */

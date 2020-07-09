@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+deftype Packet = struct { int i; long j; };
+deftype List = byte[2];
+
+defvar x = 4#Packet;
+defvar y = 1#List;
+
+/* { dg-command {  x + y } } */
+/* { dg-output "25#16" } */
+
+/* For constant folding:  */
+/* { dg-command {  4#Packet + 1#List } } */
+/* { dg-output "\n25#16" } */

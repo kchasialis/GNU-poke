@@ -1,0 +1,51 @@
+#!/bin/sh
+# 'run' an uninstalled poke -*- sh-mode -*-
+
+# Copyright (C) 2020 Eric Blake
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# All child processes of this script will run with your just-built but
+# still uninstalled poke.  For example:
+#
+#   ./run poke
+#
+# or:
+#
+#  ./run my_script   # where my_script in turn calls poke
+
+s=$(cd @abs_srcdir@ && pwd)
+b=$(cd @abs_builddir@ && pwd)
+
+# setup to run uninstalled poke
+PATH=$b/poke:$b/gui:$PATH
+POKEDATADIR=$s/libpoke
+POKEINFODIR=$s/doc
+POKEPICKLESDIR=$s/pickles
+POKEMAPSDIR=$s/maps
+POKEDOCDIR=$b/doc
+POKESTYLESDIR=$s/etc
+POKEGUIDIR=$s/gui
+POKE_LOAD_PATH=$s/poke
+export PATH POKEDATADIR POKEPICKLESDIR POKECMDSDIR POKESTYLESDIR POKEINFODIR
+export POKE_LOAD_PATH POKEDOCDIR POKEGUIDIR POKEMAPSDIR
+
+# Cheap way to find some use-after-free and uninit read problems with glibc
+MALLOC_CHECK_=1
+random_val="$(@AWK@ 'BEGIN{srand(); print 1+int(255*rand())}' < /dev/null)"
+MALLOC_PERTURB_=$random_val
+export MALLOC_CHECK_ MALLOC_PERTURB_
+
+# Now run the program
+exec "$@"

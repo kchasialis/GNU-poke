@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+defun uno = int: { return 1; }
+defun sum = (int a, int b) int: { return a + b; }
+
+defun bleh = void:
+  {
+   defvar a = sum (uno, sum); /* { dg-error "\n" } */
+  }

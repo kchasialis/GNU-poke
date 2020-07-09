@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { try atoi("1234", 3); catch if E_generic { print("pass"); } } } */
+/* { dg-output "pass" } */

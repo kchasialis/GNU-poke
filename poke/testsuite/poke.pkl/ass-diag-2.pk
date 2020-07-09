@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+10 = 20;  /* { dg-error "" } */

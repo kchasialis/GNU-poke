@@ -1,0 +1,5 @@
+/* { dg-run } */
+
+/* { .set obase 10 } */
+/* { dg-command {__LINE__} } */
+/* { dg-output "1" } */

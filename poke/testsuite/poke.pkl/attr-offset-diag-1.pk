@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {try [1,2,3]'offset; catch if E_map { print "caught\n"; } } } */
+/* { dg-output "caught" } */

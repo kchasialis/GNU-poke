@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+deftype Foo = struct {};
+deftype Bar = struct {};
+
+defvar i = Foo {} == Bar {}; /* { dg-error "invalid.*\n.*expected Foo" } */

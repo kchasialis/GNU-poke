@@ -1,0 +1,118 @@
+/* bmp.pk - BMP support for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* Compression methods.  */
+
+defvar BI_RGB = 0;  /* No compression.  */
+defvar BI_RLE8 = 1; /* 8 bit RLE encoding.  */
+defvar BI_RLE4 = 2; /* 4 bit RLE encoding.  */
+
+/* The size of the info header depends on the type of BMP file.  */
+
+defvar IHS_BMP_V2 = 12#B;
+defvar IHS_BMP_V3 = 40#B;
+
+deftype BMP_Header =
+  struct
+  {
+    byte[2] magic = ['B','M'];
+    offset<uint<32>,B> file_size;
+    uint<16>; /* Reserved.  */
+    uint<16>; /* Reserved.  */
+    offset<uint<32>,B> data_offset;
+  };
+
+deftype BMP_Info_Header =
+  struct
+  {
+    offset<uint<32>,B> info_header_size
+      : info_header_size in [IHS_BMP_V3];
+    uint<32> width;      /* Horizontal width of bitmap in pixels.  */
+    uint<32> height;     /* Vertical height of bitmap in pixels.  */
+    uint<16> planes;     /* Number of planes. (=1) XXX */
+
+    uint<16> bits_per_pixel;
+    defun num_colors = int: { return 2 ** bits_per_pixel; }
+
+    uint<32> compression; /* Type of compression.  */
+
+    offset<uint<32>,B> image_size: (image_size > 0#B
+                                    || compression == 0);
+
+    uint<32> x_pixels_per_meter; /* Horizontal resolution.  */
+    uint<32> y_pixels_per_meter; /* Vertical resolution.  */
+    uint<32> colors_used;
+    uint<32> colors_important;   /* 0 => all colors are important.  */
+  };
+
+deftype BMP_RGB_Quad =
+  struct
+  {
+    byte blue;
+    byte green;
+    byte red;
+    byte; /* Reserved.  */
+  };
+
+deftype BMP_RGB_Triplet =
+  struct
+  {
+    byte blue;
+    byte green;
+    byte red;
+  };
+
+deftype BMP =
+  struct
+  {
+    BMP_Header header;
+    BMP_Info_Header info_header;
+
+    /* Color table.  */
+    BMP_RGB_Quad[(info_header.bits_per_pixel < 8
+                  ? info_header.num_colors() : 0)] color_table;
+
+    /* The contents of a BMP line depend on the bits per pixel.  */
+    deftype BMP_Line =
+      struct
+      {
+        defvar bytes_per_line
+          = (info_header.width * info_header.bits_per_pixel / 8);
+        defvar tmp = 4 - (bytes_per_line % 4);
+        defvar padding = tmp == 4 ? 0U : tmp;
+
+        union
+        {
+          byte[bytes_per_line] image_data : info_header.bits_per_pixel < 8;
+          byte[info_header.width] color_index : info_header.bits_per_pixel == 8;
+          BMP_RGB_Triplet[info_header.width] triplets : info_header.bits_per_pixel == 24;
+          BMP_RGB_Quad[info_header.width] quads : info_header.bits_per_pixel == 32;
+        } pixels;
+
+        byte[padding] pad_bytes;
+      };
+
+    /* Data.  */
+    union
+    {
+      /* Compressed: data is an array of bytes.  */
+      byte[info_header.image_size] rle_data : (info_header.compression > 0);
+      /* Not compressed: data is organized in lines.  */
+      BMP_Line[info_header.height] lines;
+    } data;
+  };

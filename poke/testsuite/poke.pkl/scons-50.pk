@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Foo = struct { byte[] d : d'length == 2; };
+
+/* { dg-command { try Foo { }; catch if E_constraint { printf "caught\n"; } } } */
+/* { dg-output "caught" } */

@@ -1,0 +1,195 @@
+/* flv.pk - FLV (flash video files) support for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* This implementation follows the FLV specification documented in:
+
+   Video File Format Specification
+   Version 10.
+
+   Published by Adobe Systems Incorporated.  */
+
+deftype flv_type_flags =
+  bitmask<uint8>
+  {
+    FLV_F_AUDIO = 0x4;
+    FLV_F_VIDEO = 0x1;
+  };
+
+deftype flv_header =
+  struct
+  {
+    char[3] signature = ['F','L','V'];
+    ubyte version;
+    
+    flv_type_flags flags;
+    
+    uint64 data_offset = 9;
+    uint64 zero;
+  };
+
+defset flv_sound_format =
+  enum
+  {
+    FLV_PCM_PE = 0,
+    FLV_ADPCM = 1,
+    FLV_MP3 = 2,
+    FLV_PCM_LE = 3,
+    FLV_NELLYMOSER16KMONO = 4,
+    FLV_NELLYMOSER8KMONO = 5,
+    FLV_NELLYMOSER = 6,
+    FLV_G711ALAW_PCM = 7,
+    FLV_G711MLAW_PCM = 8,
+    FLV_AAC = 10,
+    FLV_SPEEX = 11,
+    FLV_MP3_8K = 14,
+    FLV_DEV_SPECIFIC = 15
+  };
+
+deftype flv_sound_rate =
+  enum<uint8>
+  {
+    FLV_RATE_5_5K = 0,
+    FLV_RATE_11K = 1,
+    FLV_RATE_22K = 2,
+    FLV_RATE_44K = 3
+  };
+
+deftype flv_sound_size =
+  enum<uint8>
+  {
+    FLV_SND_8BIT = 0,
+    FLV_SND_16BIT = 1
+  };
+
+deftype flv_sound_type =
+  enum<uint8>
+  {
+    FLV_SND_MONO = 0,
+    FLV_SND_STEREO = 1
+  };
+
+deftype flv_aac_packet_type =
+  enum<uint8>
+    {
+      FLV_AAC_SEQ_HDR = 0,
+      FLV_AAC_RAW = 1
+    };
+
+deftype flv_audio =
+  union (uint32 data_size)
+  {
+    deftype sound_props =
+    struct
+      {
+        flv_sound_format<uint<4>> format;
+        flv_sound_rate<uint<2>> rate;
+        flv_sound_size<uint<1>> size;
+        flv_sound_type<uint<1>> type;
+      };
+    
+    struct
+    {
+      sound_props : (format == FLV_AAC
+                     && rate == FLV_RATE_44K
+                     && type == FLV_SND_STEREO);
+      flv_aac_packet_type packet_type;
+      uint8[data_size - 8] packet;
+    } aac;
+    
+    struct
+    {
+      sound_props;
+      flv_sound_type packet_type;
+      uint8[data_size] data;
+    } other;
+  };
+
+deftype flv_video =
+  struct
+  {
+    uint16 frmtype;
+    uint16 codecid;
+    
+    struct
+    {
+      uint8 pkttype;
+      struct
+      {
+        uint8 hi8;
+        uint16 low16;
+      } compotime;
+    } if codec_id == 4;
+  };
+
+deftype flv_script =
+  struct
+  {
+    uint8 fristbyte;
+  };
+
+deftype flv_tag =
+  union
+  {
+    /* See the union below for the different supported tag types.  */
+    uint8 type;
+  
+    /* Length of `data' below.  */
+    struct
+    {
+      int8 hi8;
+      uint16 lo16;
+    } data_size;
+
+    /* The tag timestamp contains the time in milliseconds at which
+       the data in this tag applies.  This value is relative to the
+       first tag in the FLV file.  The information is splitted in
+       several fields.  */
+    struct
+    {
+      uint16 lo16;
+      uint8 med8;
+      uint8 hi8;
+    } time_stamp;
+
+    /* These fields are not used, and are always 0.  */
+    struct
+    {
+      uint8 hi8;
+      uint16 lo16;
+    } stream_id = {0UB, 0UH};
+
+    union
+    {
+      flv_audio (data_size.hi8::data_size.lo16) audio : type == 8;
+      flv_video (data_size.hi8::data_size.lo16) video : type == 10;
+      flv_script script { type == 18 };
+    } data;
+    
+    uint8[taglen];
+    uint32 last_size;
+  };
+
+deftype flv =
+  struct
+  {
+    flv_header header;
+
+  header.data_offset:
+    uint32 always_0 = 0;
+    flv_tag[] tags;
+  };

@@ -1,0 +1,8 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x02 0x20 0x30 0x40  0x66 0x6f 0x6f 0x00   0x62 0x61 0x72 0x73} } */
+
+/* { dg-command { try string[2] @ 4#B; catch if E_eof { print "caught!\n"; } } } */
+/* { dg-output  "caught!" */
+
+/* { dg-command { string[] @ 4#B } } */
+/* { dg-output "\\\[\"foo\"\\\]" } */

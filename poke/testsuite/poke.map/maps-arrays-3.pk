@@ -1,0 +1,15 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Foo = struct { byte b : b < 0x40; };
+
+/* { dg-command {.set obase 16} } */
+
+/* { dg-command { Foo[1] @ 0#B } } */
+/* { dg-output "\\\[Foo \\{b=0x10UB\\}\\\]" } */
+
+/* { dg-command { try Foo[4] @ 0#B; catch if E_constraint { print "caught\n"; } } } */
+/* { dg-output "\ncaught" } */
+
+/* { dg-command { Foo[] @ 0#B } } */
+/* { dg-output "\n\\\[Foo \\{b=0x10UB\\},Foo \\{b=0x20UB\\},Foo \\{b=0x30UB\\}\\\]" } */

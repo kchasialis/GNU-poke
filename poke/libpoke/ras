@@ -1,0 +1,826 @@
+#!/usr/bin/env awk -f
+
+# ras - The Retarded Poke Assembler
+#
+# Copyright (C) 2019, 2020 Jose E. Marchesi
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This assembler translates Poke Assembly code into C macros.  The
+# resulting C macros are designed to be used in the PKL compiler.  See
+# the Documentation section below for more details.
+#
+# ras may not be the smartest assembler in the class, but we love it
+# very much because it saves us a lot of work.  So please be gentle
+# and don't break it.
+#
+# This code is supposed to run well on GNU awk, and other reasonably
+# modern AWK implementations.  In particular, it requires support for
+# gensub.
+
+### Documentation
+
+# Invoking RAS
+# ------------
+#
+# The environment variable `srcdir' should be set before running ras,
+# and it should contain the path of the poke src/ directory.
+#
+# Usage: ras [FILE]
+#
+# Where FILE is a Poke assembly program, which usually use the file
+# extension .pks.  The assembler will write the translated program to
+# the standard output.
+#
+# If FILE is not specified then ras will read the assembly program in
+# the standard input.
+#
+# In the C code, define the assembler to be used by RAS and include
+# the compiled pkc files.  Then use the macros at pleasure.  For
+# example:
+#
+#  #define RAS_ASM PKL_GEN_ASM
+#  #include <pkl-gen.pkc>
+#
+#  ...
+#
+#  RAS_MACRO_OFFSET_CAST;
+#
+# Defining Macros and Functions
+# -----------------------------
+#
+# A .pks file defines zero or more entities, which can be _functions_
+# and _macros_.  Macros are defined using .macro/.end pairs of
+# assembler directives, and look like this:
+#
+#  .macro NAME [(@ARG|#ARG)]...
+#  ...
+#  .end
+#
+# This translates into a C macro RAS_MACRO_NAME, with the given
+# arguments.  The arguments use the prefix @ when they are AST nodes
+# (pkl_ast_node) and # when they are PVM values.
+#
+# Likewise, functions can be defined using .function/.end pairs of
+# assembler directives:
+#
+#  .function NAME
+#  ...
+#  .end
+#
+# This translates into a C macro RAS_FUNCTION_NAME(CLOSURE), with a
+# single argument which should be an l-value.  The macro will compile
+# the function into a pvm_program, and install it into a PVM closure
+# value that is assigned to CLOSURE.
+#
+# Expanding Macros
+# ----------------
+#
+# Once defined, a macro NAME can be expanded using the .e
+# assembler directive:
+#
+# .e NAME [(@ARG|#ARG), ...]
+#
+# In the C level, this will expand RAS_MACRO_NAME (ARG, ...)
+#
+# Literal C Code
+# --------------
+#
+# Sometimes we need to insert C code at some point of our assembly
+# programs.  This is achieved by using the .c assembler directive.
+#
+# A typical example is to invoke a GEN subpass, like:
+#
+#  .c PKL_GEN_PAYLOAD->in_mapper = 0;
+#  .c PKL_PASS_SUBPASS (PKL_AST_TYPE_A_ETYPE (array_type));
+#  .c PKL_GEN_PAYLOAD->in_mapper = 1;
+#
+# The directives above will generate the literal C code.  The C code
+# is copied verbatim and ras knows nothing about its contents, so
+# please be careful.
+#
+# Loops
+# -----
+#
+# Loops can be constructed like:
+#
+# .while
+#  ... condition ...
+# .loop
+#  ... body ...
+# .endloop
+#
+# Instructions
+# ------------
+#
+# An instruction line looks like:
+#
+#       MNEMONIC [ARG,...]  [; comment]
+#
+# i.e. zero or more blank characters followed by a mnemonic, followed
+# by zero or more instruction arguments separated by commas,
+# optionally followed by a comment that spans to the end of the line.
+#
+# ras supports the PVM instructions as they are defined in the
+# pkl-insn.def file.  Arguments of the following types are supported:
+#
+# Immediate numbers are written like C decimal immediates, for example
+# 1, 0, -1.
+#
+# PVM integers are written like int<M>N or uint<M>N, depending whether
+# they are signed or unsigned.  M is the number of bits, and N an
+# immediate number with the value.  M should be in the range 1 <= M <=
+# 32.  N is a C numeric literal, such as 0, -1, or -0x32.
+#
+# Similarly, PVM longs are written like long<M>N or ulong<M>N.  This
+# time, M should be in the range 1 <= M <= 64.
+#
+# PVM strings are written like C strings, i.e. "foo" or "" or
+# "two\nlines".
+#
+# Exception Arguments are written like PVM_E_*.  See the file pvm.h
+# for the set of valid exceptions.
+#
+# PVM values passed as arguments to the current entity are written
+# like #this.
+#
+# AST node arguments passed as arguments to the current entity are
+# written like @this.
+#
+# Labels
+# ------
+#
+# Label names start with a dot, like .a_label
+#
+# In PVM instructions getting labels as arguments, just write the name
+# of the label, including the dot.  Example:
+#
+#   ba .do_whatever
+#
+# To define the label, write it in its own line and postfix with a `:'
+# character.  Example:
+#
+# .do_whatever:
+#
+# Labels are local to the current entity, i.e. the macro or function
+# being assembled.  It is an error to define two labels having the
+# same name in the same entity.
+#
+# In most cases, you don't need to declare labels: just use them.
+# However, if you are including literal C code that can be executed
+# more than once, like for example a loop, you will get an error:
+#
+#  .function foo
+#  ...
+#  .c for (...)
+#  .c {
+#       ba .bar
+#       ...
+#  .bar:
+#       ...
+#  .c }
+#
+# The above will trigger run-time errors, because the bar_label PVM
+# label is used multiple times.  The solution is to declare the label
+# in the inner context using the .label directive, like this:
+#
+#  .function foo
+#  ...
+#  .c for (...)
+#  .c {
+#      .label .bar
+#      ...
+#  .bar:
+#      ...
+#  .c }
+#
+# Variables
+# ---------
+#
+# Wherever a lexical address (a pair of BACK, OVER numbers) is
+# expected in a program, ras allows you to specify a variable name
+# instead.  Variable names are identifiers that start with the $
+# character.
+#
+# For example, both forms of pushvar are allowed:
+#
+#   pushvar 0,3
+#   pushvar $foo
+#
+# Using variable names eases writing PVM assembly code by a lot, for
+# several reasons.
+#
+# First, the location of a given variable in a given lexical frame
+# depends on how many other variables have been registered before.
+# For example, consider a function that gets two arguments, and also
+# uses local variables:
+#
+#   .function FOO
+#   prolog
+#   pushf 0
+#   regvar      ; Argument2, 0,0
+#   regvar      ; Argument1, 0,1
+#   ...
+#   regvar      ; Local1, 0,2
+#   regvar      ; Local2, 0,3
+#   ...
+#   pushvar 0,2 ; Use Local1
+#
+# Now, we want to modify FOO to get an extra argument.  Boom! This
+# changes the lexical addresses of literally everything, and thus we
+# need to adjust them manually:
+#
+#   .function FOO
+#   prolog
+#   pushf 0
+#   regvar      ; Argument3, 0,0
+#   regvar      ; Argument2, 0,1
+#   regvar      ; Argument1, 0,2
+#   ...
+#   regvar      ; Local1, 0,3
+#   regvar      ; Local2, 0,4
+#   ...
+#   pushvar 0,3 ; Use Local1
+#
+# This is VERY error prone and mistakes are laborious to debug, not to
+# mention it is a pain in the ass and a waste of time.  It also makes
+# it difficult to re-use the same code in different contexts.
+#
+# Fortunately, ras comes to the rescue.  If you use variable names
+# instead of lexical addresses, the assembler will do the boring work
+# for you.  The original function would now read like:
+#
+#  .function FOO
+#  prolog
+#  pushf 0
+#  regvar $arg2
+#  regvar $arg1
+#  ...
+#  regvar $local1
+#  regvar $local2
+#
+# And the updated function getting an extra argument:
+#
+#  .function FOO
+#  prolog
+#  pushf 0
+#  regvar $arg3
+#  regvar $arg2
+#  regvar $arg1
+#  ...
+#  regvar $local1
+#  regvar $local2
+#
+# Hell yeah, finally some sanity.
+#
+# Another difficulty when dealing with lexical addresses is that
+# different addresses are required to refer to the same variable,
+# depending on the context.  For example, consider the following PVM
+# program:
+#
+# pushf 0
+# regvar        ; A
+# pushvar 0,0   ; A
+# pushf 0
+# pushvar 1,0   ; Also A!
+# popf 2
+#
+# In this case, it is simple: a quick glimpse at the code is enough to
+# determine the lexical addresses of the desired variable (A) in both
+# program points.  However, in real programs this quickly degenerates
+# and gets really confusing.  Once again, it is much better to let ras
+# do the tracking job:
+#
+# pushf 0
+# regvar %a
+# pushvar %a
+# pushf 0
+# pushvar %a
+# popf 2
+#
+# Summarizing: ultimately it is up to you to decide when to use
+# explicit lexical addresses instead of variable names.  But I
+# strongly recommend using variable names unless you have a _very_
+# good reason not to... like a gun aiming at your head for example.
+
+### Some useful misc functions, used in the rules below
+
+# Emit an error message
+function error(msg)
+{
+    errors[++num_errors] = FILENAME ":" msg
+    errors[++num_errors] = $0
+}
+
+# Append a line to the assembled output.
+function out(line)
+{
+    output[output_line++] = line
+}
+
+### Functions to manage the lexical environment
+
+function init_lexenv()
+{
+    for (key in frame_nvars) delete frame_nvars[key]
+    for (key in lexenv) delete lexenv[key]
+    cur_frame = -1
+}
+
+function push_frame()
+{
+    cur_frame++
+    frame_nvars[cur_frame] = 0
+}
+
+function pop_frame()
+{
+    if (cur_frame == -1)
+    {
+        error(FNR " frame underflow")
+        return
+    }
+    cur_frame--
+}
+
+function register_var(name)
+{
+    # Make sure the variable doesn't exist already, in the current
+    # frame.
+    for (on = 0; on < frame_nvars[cur_frame]; on++)
+        if (lexenv[cur_frame,on] == name)
+        {
+            error(FNR " variable `" name "' already defined")
+            return
+        }
+
+    # Add the variable to the current frame
+    lexenv[cur_frame,frame_nvars[cur_frame]] = varname
+    frame_nvars[cur_frame] = frame_nvars[cur_frame] + 1
+}
+
+# Lookup for a variable in the lexical environment.
+# Set the global `lookup_var_found'.
+function lookup_var(name)
+{
+    if (cur_frame < 0)
+        error(FNR ": at least a PUSHF is required to access variables")
+
+    lookup_var_found["back"] = -1
+    lookup_var_found["over"] = -1
+    for (fn = cur_frame; fn >= 0; fn--)
+    {
+        for (on = 0; on < frame_nvars[fn]; on++)
+        {
+            if (lexenv[fn,on] == name)
+            {
+                lookup_var_found["back"] = cur_frame - fn
+                lookup_var_found["over"] = on
+                break;
+            }
+        }
+        if (lookup_var_found["back"] != -1)
+            break;
+    }
+}
+
+# Initialize the global state to start processing a new function or
+# macro.
+function init_entity()
+{
+    # Reset the output
+    for (lineno in output) delete output[lineno]
+    # Reset the line number of the entity
+    output_line = 1
+    # Reset the labels table
+    for (label in labels) delete labels[label]
+    # Reset the lexical environment state
+    init_lexenv()
+}
+
+### There we go...
+
+BEGIN {
+    srcdir = ENVIRON["srcdir"]
+    num_errors=0
+    current_entity = ""
+
+    # This is to pacify make syntax-check.
+    EXIT_FAILURE = 1
+
+    # Read the instructions from pkl-insn.def and build the
+    # instructions hashes:
+    #
+    # insn_id[NAME] contains the PKL_INSN_* identifier for the
+    # instructions.
+    #
+    # insn_re[NAME] contains a regular expression matching an
+    # instruction.
+    null_re="null"
+    int_re="(u?int)<([0-9]+)>(-?(0x)?[0-9]+)"
+    long_re="(u?long)<([0-9]+)>(-?(0x)?[0-9]+)"
+    string_re="(\"[^\"]*\")"
+    var_re="(\\$[a-zA-Z][0-9a-zA-Z_]*)"
+    expt_re="(PVM_E_[A-Z_]+)"
+    anode_re="@([a-zA-Z_][0-9a-zA-Z_]*)"
+    aval_re="#([a-zA-Z_][0-9a-zA-Z_]*)"
+    marg_re= "(@|#)([a-zA-Z_][0-9a-zA-Z_]*)"
+
+    ideffile = srcdir "/pkl-insn.def"
+    if (system ("test -r " ideffile) == 1)
+        fatal("fatal: cannot read instruction definition file " ideffile)
+
+    cmd = "cpp -D'PKL_DEF_INSN(M,A,N)=M:A:N' -P " ideffile
+    while ((cmd | getline line) > 0)
+    {
+        name = gensub (/.*:.*: *(".*") */, "\\1", "g", line)
+        args = gensub (/.*: *(".*") *:.*/, "\\1", "g", line)
+        id   = gensub (/ *([^ ]+) *:.*:.*/, "\\1", "g", line)
+
+        # Remove leading and trailing double-quotes wherever
+        # appropriate
+        name = substr (name, 2, length (name) - 2)
+        args = substr (args, 2, length (args) - 2)
+
+        # Build the instruction's regexp.
+        iregexp = name
+
+        if (id == "PKL_INSN_PUSHVAR" \
+            || id == "PKL_INSN_POPVAR")
+            iregexp \
+                = iregexp "[ \t]+((\\$([a-zA-Z][0-9a-zA-Z_]*))"\
+                          "|((-?[0-9][0-9]*)[ \t]*,[ \t]*(-?[0-9][0-9]*)))"
+        else if (id == "PKL_INSN_REGVAR")
+            iregexp = iregexp "[ \t]+\\$([a-zA-Z][0-9a-zA-Z_]*)"
+        else
+        {
+            for (ia = 1; ia <= length (args); ia++)
+            {
+                a = substr (args, ia, 1)
+
+                if (ia == 1)
+                    iregexp = iregexp "[ \t]+"
+                if (ia != 1)
+                    iregexp = iregexp "[ \t]*,[ \t]*"
+
+                switch (a)
+                {
+                    case "n":
+                        re="(-?(0x)?[0-9][0-9]*)"
+                        break
+                    case "l":
+                        re="(\\.[a-zA-Z][0-9a-zA-Z_]*)"
+                        break
+                    case "v":
+                        re="(" null_re "|" int_re "|" long_re \
+                           "|" string_re "|" expt_re "|" aval_re ")"
+                        break
+                    case "r":
+                        break
+                    case "a":
+                        re=anode_re
+                        break
+                    default:
+                        error(" unknown insn argument type " a)
+                }
+                iregexp = iregexp re
+            }
+        }
+
+        # Ok, set the entries for the instruction
+        insn_id[name] = id
+        insn_re[name] = iregexp
+    }
+
+    print "/* THIS FILE HAS BEEN AUTOMATICALLY GENERATED BY RAS"  \
+        "-- DO NOT EDIT */\n\n"
+}
+
+### Line matching rules
+
+# Every line in the assembly program is expected to match one of the
+# rules below.  In case a line isn't recognized by any rule, it will
+# choke on the catch-all centinel at the end of the file, and that
+# ain't be fun.
+#
+# In what probably is terrible awk style, each rule below uses `next'
+# in order to prevent other rules to match the just processed line.
+# This keeps things simple.
+
+## Miscellaneous rules
+
+# Keep blank lines (to improve readability)
+/^[ \t]*$/ {
+    if (current_entity == "")
+        out("")
+    else
+        out("\t                                                          \\")
+    next
+}
+
+# Process lines containing only comments
+/^[ \t]*;.*/ {
+    if (current_entity == "")
+        out("/* " $0 " */")
+    else
+        out("/* " $0 " */ \\")
+    next
+}
+
+## Rules for assembler directives
+
+# .c RESTOFLINE
+/^[ \t]*\.c( .*|)$/ {
+    $0 = gensub (/\.c$/, "", "g", $0)
+    $0 = gensub (/.*\.c (.*)$/, "\\1", "g", $0)
+    out("\t" $0 " \\")
+    next
+}
+
+# .macro NAME
+/^[ \t]*\.macro[ \t]+[a-zA-Z][0-9a-zA-Z_]*[ \t]*((@|#)[a-zA-Z_][0-9a-zA-Z_]*[ \t]*)*[ \t]*(;.*)?$/ {
+    # Get the macro name
+    macro_name = $2
+    if (match (macro_name, /^[a-zA-Z][0-9a-zA-Z_]*$/) == 0)
+        fatal(FNR ": invalid macro name.  This should NOT happen.")
+
+    # Build the list of arguments
+    macro_args=""
+    for (i = 3; i <= NF; i++)
+    {
+        if (i == 3)
+            macro_args = "("
+        if (match ($i, /^;.*$/) == 0)
+        {
+            if (i != 3)
+                macro_args = macro_args ","
+            macro_args = macro_args gensub (marg_re, "\\2_arg", "g", $i);
+        }
+        if (i == NF)
+            macro_args = macro_args ")"
+    }
+
+    init_entity()
+    out("#define RAS_MACRO_" toupper($2) macro_args " \\")
+    out("\tdo {                                                     \\")
+    out("---LABELDECLS---")
+
+    current_entity = "macro"
+    next
+}
+
+# .function NAME
+/^[ \t]*\.function[ \t]+[a-zA-Z][0-9a-zA-Z_]*[ \t]*(;.*)?$/ {
+    # Get the function name
+    function_name = $2
+    if (match (function_name, /^[a-zA-Z][0-9a-zA-Z_]*$/) == 0)
+        fatal(FNR ": invalid function name. This should NOT happen.")
+
+    init_entity()
+
+    out("#define RAS_FUNCTION_" toupper($2) "(CLOSURE)  \\")
+    out("\tdo {                                         \\")
+    out("\tpvm_program program;                         \\")
+    out("\t                                             \\")
+    out("\tPKL_GEN_PUSH_ASM (pkl_asm_new (PKL_PASS_AST, \\")
+    out("\t                               PKL_GEN_PAYLOAD->compiler, \\")
+    out("\t                               0 /* prologue */));        \\")
+    out("\t                                                          \\")
+    out("---LABELDECLS---")
+
+    current_entity = "function"
+    next
+}
+
+# .end
+/^[ \t]*\.end[ \t]*(;.*)?$/ {
+    # Check that the previous entity finished any opened
+    # lexical frame.
+    if (cur_frame != -1)
+        error(FNR ": unbalanced PUSHF and POPF in closing entity")
+
+    if (current_entity == "function")
+    {
+        out("\t{                                                       \\")
+        out("\t  program = pkl_asm_finish (RAS_ASM,                    \\")
+        out("\t                            0 /* epilogue */);          \\")
+        out("\t  PKL_GEN_POP_ASM;                                      \\")
+        out("\t  pvm_program_make_executable (program);                \\")
+        out("\t  (CLOSURE) = pvm_make_cls (program);                   \\")
+        out("\t}                                                       \\")
+    }
+    out("\t} while (0)")
+
+    # If there has been errors while processing the entity, print them
+    # and do not continue processing further entities.
+    if (num_errors > 0)
+    {
+        for (nerror = 1; nerror <= num_errors; nerror++)
+            print errors[nerror] | "cat 1>&2"
+        exit (EXIT_FAILURE);
+    }
+
+    # Output the entity
+    for (lineno = 1; lineno <= output_line; lineno++)
+    {
+        line = output[lineno]
+        if (match (line, "---LABELDECLS---") == 1)
+        {
+            # Emit label declarations
+            for (label in labels)
+                print "\t__attribute__((unused)) pvm_program_label " label \
+                      "_label = pkl_asm_fresh_label (RAS_ASM); \\"
+        }
+        else
+            print output[lineno]
+    }
+
+    for (line in output) delete output[line]
+    current_entity = ""
+    next
+}
+
+# .e NAME
+/^[ \t]*\.e / {
+    # Validate the entry
+    if (match ($0, "^[ \t]*.e[ \t]+"        \
+               "[a-zA-Z_][0-9a-zA-Z_]*" \
+               "([ \t]+" marg_re "([ \n\t]*,[ \n\t]*" marg_re ")*)?" \
+               "([ \t]*;.*)?" \
+               "$") != 1)
+        error(FNR ": malformed .e")
+
+    # Remove the optional line comment.
+    $0 = gensub (/(.*);(.*)$/, "\\1", "g", $0)
+
+    # Process the macro name
+    $0 = gensub (/^[ \t]*.e[ \t]+([a-zA-Z][0-9a-zA-Z_]*)/, "\t\\1", 1, $0)
+    $1 = "\tRAS_MACRO_" toupper($1)
+
+    # Process the macro arguments, if there is at least one
+    if (match ($0, marg_re) != 0)
+    {
+        # Add parenthesis
+        $0 = gensub (anode_re, "(@\\1", 1, $0)
+        $0 = gensub (aval_re, "(#\\1", 1, $0)
+        $0 = $0 ")"
+        # Process the macro arguments
+        $0 = gensub (marg_re, "(\\2_arg)", "g", $0)
+    }
+    out($0 ";  \\")
+    next
+}
+
+# .while
+/^[ \t]*\.while[ \t]*(;.*)?$/ {
+    out("\tpkl_asm_while (RAS_ASM);                              \\")
+    out("\t{                                                         \\")
+    next
+}
+
+# .loop
+/^[ \t]*\.loop[ \t]*(;.*)?$/ {
+    out("\t}                                                         \\")
+    out("\tpkl_asm_while_loop (RAS_ASM);                               \\")
+    out("\t{                                                         \\")
+    next
+}
+
+# .endloop
+/^[ \t]*\.endloop[ \t]*(;.*)?$/ {
+    out("\t}                                                         \\")
+    out("\tpkl_asm_while_endloop (RAS_ASM);                            \\")
+    next
+}
+
+# .label
+/^[ \t]*\.label[ \t]+\.[a-zA-Z][0-9a-zA-Z_]*[ \t]*(;.*)?$/ {
+    labelname = gensub (/^[ \t]*\.label[ \t]+\.([a-zA-Z][0-9a-zA-Z_]*)[ \t]*(;.*)?$/, \
+                        "\\1", 1, $0) "_label"
+    out("\tpvm_program_label " labelname " = pkl_asm_fresh_label (RAS_ASM); \\")
+    next
+}
+
+# Process a label
+/^[ \t]*\.[a-zA-Z][0-9a-zA-Z_]*:[ \t]*(;.*)?$/ {
+    labelname = substr ($1, 2, length($1) - 2)
+
+    if (labels[labelname] == labelname)
+    {
+        error(FNR ": label already defined in the current entity")
+        next
+    }
+
+    labels[labelname] = labelname
+    out("\tpkl_asm_label (RAS_ASM," labelname "_label); \\")
+    next
+}
+
+## Rules to process instructions
+
+/^[ \t]*[a-zA-Z][0-9a-zA-Z]+/ {
+
+    # Lookup the instruction in the instructions hash and complain if
+    # the instruction is unknown.
+    insn = $1
+    i_id = insn_id[insn]
+    i_re = insn_re[insn]
+
+    if (i_id == "")
+    {
+        error(FNR ": unknown instruction")
+        next
+    }
+
+    # Check that the instruction is well-formed
+    if (match ($0, "^[ \t]*" i_re "[ \t]*(;.*)?$") != 1)
+        error(FNR ": malformed instruction " insn)
+
+    # Remove the optional line comment.
+    $0 = gensub (/(.*);(.*)$/, "\\1", "g", $0)
+
+    # Substitute and check integer arguments.
+    $0 = gensub (int_re, "pvm_make_\\1 (\\3, \\2)", "g", $0)
+
+    # Substitute and check long arguments.
+    $0 =gensub (long_re, "pvm_make_\\1 (\\3, \\2)", "g", $0)
+
+    # Substitute and check string arguments.
+    $0 = gensub (string_re, "pvm_make_string (\\1)", "g", $0);
+
+    # Substitute and check null arguments.
+    $0 = gensub (null_re, "PVM_NULL", "g", $0)
+
+    # Substitute and check label arguments.
+    $0 = gensub ("\\.([a-zA-Z][0-9a-zA-Z_]*)", "\\1_label", "g", $0);
+
+    # Substitute and check exception arguments.
+    $0 = gensub (expt_re, "pvm_make_exception (\\1, \\1_MSG, \\1_ESTATUS)", "g", $0);
+
+    # Substitute and check macro arguments.
+    $0 = gensub (marg_re, "(\\2_arg)", "g", $0);
+
+    # Substitute variable arguments and perform side-effects.
+    # This assumes instructions have at most one variable argument.
+    if (i_id == "PKL_INSN_REGVAR")
+    {
+        # Remove the leading $ from the variable name
+        varname = substr ($2, 2, length ($2) - 1)
+        register_var(varname)
+
+        $0 = gensub (var_re, "", "g", $0)
+    }
+    else
+    {
+        varloc = match ($0, /\$[a-zA-Z][0-9a-zA-Z_]*/)
+        if (varloc != 0)
+        {
+            vname = substr ($0, RSTART + 1, RLENGTH - 1);
+            lookup_var(vname)
+            vback = lookup_var_found["back"]
+            vover = lookup_var_found["over"]
+
+            if (vback == -1 || vover == -1)
+                error(FNR ": unknown variable $" vname)
+
+            $0 = gensub ("\\$" vname, vback "," vover, "g", $0);
+        }
+    }
+
+    # Some instructions have side-effects in the lexical environment.
+    # Proces them.
+    if (i_id == "PKL_INSN_PUSHF")
+        push_frame()
+    if (i_id == "PKL_INSN_POPF")
+    {
+        popf_frames = $2
+        for (i = 0; i < popf_frames; i++)
+            pop_frame()
+    }
+
+    # Build the call to pkl_asm_insn.
+    $0 = gensub (insn, "pkl_asm_insn (RAS_ASM, " i_id ",", "g", $0);
+    $0 = $0 "); \\"
+    $0 = gensub (",[ \t]*\\)", ")", "g", $0);
+
+    # Ok, emit the line
+    out($0)
+    next
+}
+
+## Catch-all centinel rule
+
+{
+    error(FNR ": Excuse me: What is this crap?")
+}

@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+/* Either a constraint or an initializer can be specified, but no
+   both.  */
+
+deftype Foo = struct { int a = 10 : a == 20; }; /* { dg-error "" } */

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Packet = struct { byte a; byte b; };
+
+/* { dg-command { (Packet @ 4#B)'offset as offset<int,B> } } */
+/* { dg-output "4#B" } */

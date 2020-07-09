@@ -1,0 +1,7 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x51 0x23 0x45 0x67 0x89 0xab 0xcd 0xef 0x51 0x23 0x45 0x67} } */
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { .set endian big } } */
+/* { dg-command { offset<int,b> @ 4#B } } */
+/* { dg-output "0x89abcdef#b" } */

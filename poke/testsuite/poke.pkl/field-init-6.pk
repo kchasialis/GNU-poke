@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* Test promotion of struct type field initializers.  */
+
+deftype Foo = struct { offset<int,B> o = 8UL#b; };
+
+/* { dg-command { Foo {} } } */
+/* { dg-output "Foo \{o=1#B\}" } */

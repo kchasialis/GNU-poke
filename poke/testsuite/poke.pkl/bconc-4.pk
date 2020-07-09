@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+defvar x = 0xcdUH;
+
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { x:::0xab } } */
+/* { dg-output "\\(uint<48>\\) cd000000ab" } */
+
+/* For constant folding:  */
+/* { dg-command { 0xcdUH:::0xab } } */
+/* { dg-output "\n\\(uint<48>\\) cd000000ab" } */

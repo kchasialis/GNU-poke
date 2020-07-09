@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 666#B;
+
+/* { dg-command { +x } } */
+/* { dg-output "666#B" } */
+
+/* For constant folding: */
+/* { dg-command { +(666#B)} } */
+/* { dg-output "\n666#B" } */

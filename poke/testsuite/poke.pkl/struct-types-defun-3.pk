@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int a;
+    defun twoa = int: { return a * 2; }
+    defun bleh = int: { return twoa; }
+    int b : b == bleh;
+  };
+
+/* { dg-command { Foo {a = 1, b = 2} } } */
+/* { dg-output "Foo \{a=1,b=2\}" } */

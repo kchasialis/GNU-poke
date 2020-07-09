@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+"abc"[1] = 2UB;  /* { dg-error "" } */

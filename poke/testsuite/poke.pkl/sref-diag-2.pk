@@ -1,0 +1,10 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    defun f = int: { return 10; }
+    int c;
+  };
+
+defvar n = (Foo{}).f; /* { dg-error "exist" } */

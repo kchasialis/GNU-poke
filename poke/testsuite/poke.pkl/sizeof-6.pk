@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype struct_empty = struct {};
+
+/* { dg-command {  sizeof (struct_empty) } } */
+/* { dg-output "0UL#b" } */

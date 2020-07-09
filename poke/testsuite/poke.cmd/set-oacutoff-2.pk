@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set oacutoff 3 } } */
+/* { dg-command { [1,2,3,4,5] } } */
+/* { dg-output "\\\[1,2,3,...\\\]" } */

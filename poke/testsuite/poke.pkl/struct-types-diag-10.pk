@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+deftype Bar =
+  struct
+  {
+    int i;
+    void j; /* { dg-error "invalid type" } */
+    defun ja = void: {}
+  };

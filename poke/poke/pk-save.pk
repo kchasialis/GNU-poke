@@ -1,0 +1,52 @@
+/* pk-save.pk - `save' command.  */
+
+/* Copyright (C) 2020 Jose E. Marchesi */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+pk_help_str = pk_help_str
+  + "\nsave\t\tSave a range of an IO space to a file.";
+
+defun save = (int ios = get_ios,
+              string file = "",
+              off64 from = 0#B,
+              off64 size = 0#B,
+              int append = 0,
+              int verbose = 0) void:
+{
+ if (file == "" || size == 0#B)
+   return;
+
+ /* Determine the proper mode for the output IOS and open it.  */
+ defvar flags = IOS_F_WRITE;
+
+ if (append)
+   flags = flags | IOS_F_READ;
+ else
+   flags = flags | IOS_F_TRUNCATE | IOS_F_CREATE;
+
+ defvar file_ios = open (file, flags);
+
+ /* Determine the output offset.  */
+ defvar output_offset = 0#B;
+ if (append)
+   output_offset = iosize (file_ios);
+
+ /* Copy the stuff.  */
+ copy :from_ios ios :to_ios file_ios :from from :size size;
+
+ /* Cleanup.  */
+ close (file_ios);
+}

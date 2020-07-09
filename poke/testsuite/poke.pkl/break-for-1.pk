@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+for (i in [1,2,3,4])
+  {
+    if (i > 2)
+      break;
+    print "foo\n";
+  }
+
+/* { dg-output "foo\nfoo" } */

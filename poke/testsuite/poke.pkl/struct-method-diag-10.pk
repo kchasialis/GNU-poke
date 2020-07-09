@@ -1,0 +1,12 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    defvar n = 10;
+    int i;
+    method foo = int:
+      {
+        return n + i; /* { dg-error "invalid.*variable" } */
+      }
+  };

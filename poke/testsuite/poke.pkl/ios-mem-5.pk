@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+/* The purpose of this test is to prove that mem buffer auto-growth does
+   not allow arbitrary memory allocation (rather, you can only grow
+   by MEM_STEP bytes at a time, from src/ios-dev-mem.c).  */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar buffer = open ("*foo*") } } */
+/* { dg-command { try byte @ 1024 * 1024#B = 1; catch if E_io { printf "caught\n"; } } } */
+/* { dg-output "caught" } */
+/* { dg-command { close (buffer) } } */

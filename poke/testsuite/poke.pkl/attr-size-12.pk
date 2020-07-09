@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+/* { dg-command { defun fff = (any a) offset<int,B>: { return a'size; } } } */
+/* { dg-command { fff (10) } } */
+/* { dg-output "4#B" } */
+/* { dg-command { try fff (fff); catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "\ncaught" } */

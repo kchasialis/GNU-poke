@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+deftype Bar =
+  struct
+  {
+    int i;
+    int j;
+    int i; /* { dg-error "duplicated" } */
+  };

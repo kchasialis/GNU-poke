@@ -1,0 +1,98 @@
+/* elf.pk - MP3 implementation for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* Implemented as specified in http://id3.org/mp3frame.html  */
+
+load id3v1;
+load id3v2;
+
+deftype mp3_frame_hdr =
+  struct
+  {
+    struct
+    {
+      uint<12> frame_sync;
+      uint<1> mpeg_id;
+      uint<1> layer_id;
+      uint<1> protection_bit;
+      uint<4> bitrate_index;
+      uint<2> frequency_index;
+      uint<1> padding_bit;
+      uint<1> private_bit;
+      uint<2> channel_mode;
+      uint<2> mode_extension;
+      uint<1> copyright;
+      uint<1> original;
+      uint<2> emphasis;
+    } : (frame_sync >= 0xffe /* Note this distinguishes frames from
+                                id3v1 tags.  */
+         && layer_id != 0
+         && bitrate_index != 0
+         && bitrate_index != 15
+         && frequency_index != 3);
+
+    uint16 checksum if protection_bit == 0;
+
+    defun bitrate = () : uint32
+    {
+      /* MPEG-1,2 Layer 1  */
+      if (layer_id == 3)
+        return bitrate_index << 5;
+      
+      /* MPEG-1,2 Layer 2  */
+      if (layer_id == 2)
+        return (bitrate_index == 1
+                ? 32
+                : ((1 << 5 + bitrate_index / 4)
+                   + (((bitrate_index & 3) << 3)
+                      + bitrate_index / 4)));
+      
+      /* MPEG-1 (Layer 3) */
+      if (mpeg_id == 1)
+        return ((1 << 5 + (bitrate_index - 1) / 4)
+                + (bitrate_index - 1 & 3) << 3
+                + (bitrate_index - 1) / 4);
+      
+      /* MPEG-2 (Layer 3) */
+      return ((bitrate_index << 4)
+              ? (8 * bitrate_index)
+              : ((1 << 4 + bitrate_index / 4)
+                 + ((bitrate_index & 3) == 0
+                    ? 0
+                    : (((bitrate_index & 3) == 1)
+                       ? (1 << 4 + bitrate_index / 4)))));
+    };
+  };
+
+deftype mp3_frame =
+  struct
+  {
+    mp3_frame_hdr hdr;
+
+    let frame_size = (hdr.bitrate () * 14400
+                      / [2205, 2400, 1600] [hdr.frequency_index]);
+    byte[frame_size] frame_data;
+  };
+
+deftype mp3 =
+  struct
+  {
+    id3v2_tag id3v2_tag optional;
+    mp3_frame[] mpeg_frames;
+    id3v1_tag id3v1_tag optional;
+  };

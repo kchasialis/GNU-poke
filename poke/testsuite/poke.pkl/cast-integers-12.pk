@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 0;
+
+/* { dg-command {  x as int<1> } } */
+/* { dg-output "\\(int<1>\\) 0" } */
+
+/* For constant folding: */
+/* { dg-command {  0 as int<1> } } */
+/* { dg-output "\n\\(int<1>\\) 0" } */

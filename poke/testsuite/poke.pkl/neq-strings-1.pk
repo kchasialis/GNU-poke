@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = "foo";
+defvar y = x;
+
+/* { dg-command {  x != y } } */
+/* { dg-output "0" } */
+
+/* For constant folding:  */
+/* { dg-command {  "foo" != "foo" } } */
+/* { dg-output "\n0" } */

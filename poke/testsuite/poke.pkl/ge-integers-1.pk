@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 3;
+
+/* { dg-command { x >= 2 } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command { 3 >= 2 } } */
+/* { dg-output "\n1" } */

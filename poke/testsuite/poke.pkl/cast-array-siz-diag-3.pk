@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Matrix = int[8#B][8#B];
+
+/* { dg-command { try [[1,2,3],[4,5,6]] as Matrix; catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "caught" } */

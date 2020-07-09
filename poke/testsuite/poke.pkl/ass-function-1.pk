@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+deftype AFunc = (int)int;
+
+defun f = (int i) int: { return i + 1; }
+defun g = (int i) int: { return i + 2; }
+
+/* { dg-command {.set obase 10} } */
+/* { dg-command {f = g} } */
+/* { dg-command {f (1)} } */
+/* { dg-output "3" } */

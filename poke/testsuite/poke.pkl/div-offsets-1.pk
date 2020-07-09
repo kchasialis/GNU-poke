@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 1024UL#b;
+
+/* { dg-command {  x / 1UB#byte } } */
+/* { dg-output "128UL" } */
+
+/* For constant folding: */
+/* { dg-command {  1024UL#b/1UB#byte } } */
+/* { dg-output "\n128UL" } */

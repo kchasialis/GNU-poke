@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun bar = (byte[] a) byte: { return a[0] + 10; }
+
+/* { dg-command { bar ([1UB,2UB,3UB]) } } */
+/* { dg-output "11UB" } */

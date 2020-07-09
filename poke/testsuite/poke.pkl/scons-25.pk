@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* Test the support for trailing commas in struct constructors.  */
+
+deftype Struct = struct { int i; int j; };
+
+/* { dg-command { Struct { i=1, j=2, } } } */
+/* { dg-output {Struct {i=1,j=2}} } */

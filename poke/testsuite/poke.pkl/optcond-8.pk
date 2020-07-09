@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar N = 20;
+deftype Foo = struct { int x; int a if N == 10; int b : a == 0; };
+
+/* { dg-command { try Foo { }; catch if E_elem { print "caught\n"; } } } */
+/* { dg-output "caught" } */

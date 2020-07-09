@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 2 } } */
+
+defvar x = -1;
+
+/* { dg-command { x as int<3> } } */
+/* { dg-output "\\(int<3>\\) 0b111" } */
+
+/* For constant folding: */
+/* { dg-command { -1 as int<3> } } */
+/* { dg-output "\n\\(int<3>\\) 0b111" } */

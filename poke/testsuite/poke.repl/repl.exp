@@ -1,0 +1,120 @@
+# repl.exp - Repl tests for poke
+#
+#   Copyright (C) 2020 Jose E. Marchesi
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+# When adding tests to this file:
+#
+# - Please use an unique description in each test so it is possible to
+#   unequivocally identify them from the FAIL output messages.
+#
+# - Try to keep each test as self-contained as possible.  This means
+#   starting and exitting poke in each test.
+
+load_lib ${tool}.exp
+
+set test "slashes-are-preserved-1"
+poke_start
+poke_test_cmd {4 / 2} {2}
+poke_exit
+
+set test "tab-completion-1"
+poke_start
+poke_send ".se\t" ".set"
+poke_exit
+
+set test "tab-completion-2"
+poke_start
+poke_send ".e\t\t" "\r\n.editor  .exit *\r\n$poke_prompt .e"
+poke_exit
+
+set test "tab-completion-subcommand-1"
+poke_start
+poke_send ".set oba\t" ".set obase"
+poke_exit
+
+set test "tab-completion-subcommand-2"
+poke_start
+poke_send ".doc Struct Co\t\t" "\r\nStruct Comparison    Struct Constructors"
+poke_exit
+
+set test "tab-completion-subcommand-3"
+poke_start
+for {set index 0}  {$index < 12}  {incr index} {
+    file tempfile file0
+    poke_test_cmd ".file $file0"  {}
+    file delete $file0
+}
+poke_send ".ios #1\t\t" "#1   #10  #11"
+poke_exit
+
+set test "sigint-returns-to-prompt-1"
+poke_start
+poke_send "while (1) {}\n" {}
+poke_send_signal INT
+poke_send {} "\r\n$poke_prompt"
+poke_exit
+
+set test "sigint-returns-to-prompt-2"
+poke_start
+poke_send {foo} {}
+poke_send_signal INT
+poke_send {} "\r\n$poke_prompt"
+poke_exit
+
+set test "tab-completion-type-1"
+poke_start
+poke_test_cmd {deftype Foo1 = int;} {}
+poke_test_cmd {deftype Foo2 = int;} {}
+poke_send "Foo\t\t" "\r\nFoo1 +Foo2 *\r\n$poke_prompt Foo"
+poke_exit
+
+set test "tab-completion-var-1"
+poke_start
+poke_test_cmd {defvar foo1 = 10} {}
+poke_test_cmd {defvar foo2 = 20} {}
+poke_send "2 + foo\t\t" "\r\nfoo1 +foo2 *\r\n$poke_prompt 2 \\\+ foo"
+poke_exit
+
+set test "tab-completion-fun-1"
+poke_start
+poke_test_cmd {defun foo1 = void: {}} {}
+poke_test_cmd {defun foo2 = void: {}} {}
+poke_send "foo\t\t" "\r\nfoo1 +foo2 *\r\n$poke_prompt foo"
+poke_exit
+
+set test "tab-completion-struct-field-1"
+poke_start
+poke_test_cmd {deftype Foo = struct { int aa; int ab; }} {}
+poke_test_cmd {defvar f = Foo {}} {}
+poke_send "f.a\t\t" "\r\nf.aa +f.ab *\r\n$poke_prompt f.a"
+poke_exit
+
+set test "tab-completion-struct-field-2"
+poke_start
+poke_test_cmd {deftype Foo = struct { int aa; method ab = void: {} }} {}
+poke_test_cmd {defvar f = Foo {}} {}
+poke_send "f.a\t\t" "\r\nf.aa +f.ab *\r\n$poke_prompt f.a"
+poke_exit
+
+set test "tab-completion-struct-field-3"
+poke_start
+poke_test_cmd {deftype Foo = struct { int aa; method ab = void: {} }} {}
+poke_test_cmd {deftype Bar = struct { Foo foo; }} {}
+poke_test_cmd {deftype Baz = struct { Bar bar; }} {}
+poke_test_cmd {defvar f = Baz {}} {}
+poke_send "f.bar.foo.a\t\t" "\r\nf.bar.foo.aa +f.bar.foo.ab *\r\n$poke_prompt f.bar.foo.a"
+poke_exit

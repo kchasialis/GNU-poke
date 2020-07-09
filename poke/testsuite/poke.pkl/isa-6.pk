@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  10 isa uint<32> } } */
+/* { dg-output "0" } */

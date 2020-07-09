@@ -1,0 +1,10 @@
+/* Map file for ELF files -*- mode: poke-map -*- */
+
+load elf;
+
+%%
+
+%entry
+%name file
+%type Elf64_File
+%offset 0#B

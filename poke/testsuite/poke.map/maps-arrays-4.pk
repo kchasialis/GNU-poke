@@ -1,0 +1,13 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command {.set obase 16} } */
+
+deftype Array = byte[];
+defun array = Array: { return Array @ 8#B; }
+
+/* { dg-command { Array @ 8#B } } */
+/* { dg-output "\\\[0x90UB,0xa0UB,0xb0UB,0xc0UB\\\]" } */
+
+/* { dg-command { array } } */
+/* { dg-output "\n\\\[0x90UB,0xa0UB,0xb0UB,0xc0UB\\\]" } */

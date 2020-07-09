@@ -1,0 +1,17 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    byte a;
+    method set_a = (byte n) void:
+      {
+        defvar x = 1;
+        a = n + x;
+      }
+  };
+
+/* { dg-command {defvar f = Foo{}} } */
+/* { dg-command {f.set_a (2)} } */
+/* { dg-command {f.a} } */
+/* { dg-output "3" } */

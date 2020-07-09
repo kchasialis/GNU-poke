@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { while (+0) { print "foo\n"; } } } */
+/* { dg-output "" } */

@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 666;
+
+/* { dg-command {  1 && x } } */
+/* { dg-output 1 } */
+
+/* For constant folding: */
+/* { dg-command {  1 && 666 } } */
+/* { dg-output "\n1" } */

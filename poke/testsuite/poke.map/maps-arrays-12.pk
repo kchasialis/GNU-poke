@@ -1,0 +1,8 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command {.set obase 16} } */
+/* { dg-command { defvar i1 = 2 } } */
+/* { dg-command { defvar i2 = 1 } } */
+/* { dg-command { byte[i1][i2] @ 0#B } } */
+/* { dg-output "\\\[\\\[0x10UB,0x20UB\\\]\\\]" } */

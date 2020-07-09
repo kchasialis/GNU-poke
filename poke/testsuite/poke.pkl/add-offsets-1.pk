@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 4#B;
+defvar y = 8#b;
+
+/* { dg-command {  x + y } } */
+/* { dg-output "40#b" } */
+
+/* For constant folding:  */
+/* { dg-command {  4#B + 8#b } } */
+/* { dg-output "\n40#b" } */

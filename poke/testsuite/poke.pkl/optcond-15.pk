@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+/* Test the combination of both an optional field expression and a
+   constraint expression.  */
+
+deftype Foo = struct { int a : a > 10 if a != 0 ; };
+
+/* { dg-command { Foo { a = 20 } } } */
+/* { dg-output "Foo \{a=20\}" } */

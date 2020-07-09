@@ -1,0 +1,90 @@
+/* colors.pk - Standard colors for GNU poke.  */
+
+/* Copyright (C) 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* This pickle defines a registry of standard color names, and
+   facilities to define user-defined colors.  */
+
+/* The variable `color_num_colors' keeps the number of colors
+   currently defined in the registry.  */
+
+defvar color_num_colors = 0;
+
+/* The `color_register' function allocates a new color number in the
+   registry.  It updates color_num_colors accordingly.  The user can
+   define her own colors using this function, after loading this file.
+   These colors will be allocated at the end of the color space.  */
+
+defun color_register = int:
+  {
+    defvar c = color_num_colors;
+    color_num_colors = color_num_colors + 1;
+    return c;
+  }
+
+/* Register a set of standard colors.
+
+   These colors are based on the x11 color definition set.
+
+   New standard colors should be added at the end of the enumeration.
+   Once a color is defined here, it should never go away and its
+   position in the enumeration should never change.
+
+   If you add a new standard color code, please update the following
+   pickles as well:
+   - rgb24.pk
+
+   Non-standard colors can be defined at the end of the register.  See
+   above.  */
+
+defvar color_white = color_register;
+defvar color_black = color_register;
+defvar color_grey = color_register;
+defvar color_gray = color_grey;
+defvar color_red = color_register;
+defvar color_tomato = color_register;
+defvar color_green = color_register;
+defvar color_blue = color_register;
+
+/* color_LAST marks the first of the colors that is non-standard.
+   Pickles maintaining tables indexed by standard color codes should
+   use the range [0..color_LAST).  */
+
+defvar color_LAST = color_num_colors;
+
+/* Table with printable names of standard colors.  */
+
+defvar color_std_names =
+  ["white", "black", "grey", "red", "tomato", "green", "blue"];
+
+/* Sanity check.  */
+
+if (color_std_names'length != color_num_colors)
+  raise Exception {code = EC_generic,
+                   msg = "integrity error in color_name"};
+
+/* Return the printable name of the given color code.  */
+
+defun color_name = (int color) string:
+  {
+    if (color < color_LAST)
+      return color_std_names[color];
+    else if (color < color_num_colors)
+      return "user-defined color";
+    else
+      raise E_out_of_bounds;
+  }

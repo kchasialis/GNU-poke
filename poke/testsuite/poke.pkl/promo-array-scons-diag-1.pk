@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+deftype Foo = struct { int n; byte[3] d; };
+
+defvar f = Foo { d = [1UB] }; /* { dg-error "invalid.*\n.*expected" } */

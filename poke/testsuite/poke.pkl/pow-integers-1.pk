@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 16 } } */
+
+defvar x = 2;
+
+/* { dg-command { x ** 10 } } */
+/* { dg-output "0x400" } */
+
+/* For constant folding:  */
+/* { dg-command { 2 ** 10 } } */
+/* { dg-output "\n0x400" } */

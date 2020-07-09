@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* Test promotion of struct type field initializers.  */
+
+deftype Foo = struct { int i = 100L; };
+
+/* { dg-command { Foo {} } } */
+/* { dg-output "Foo \{i=100\}" } */

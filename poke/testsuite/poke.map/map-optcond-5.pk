@@ -1,0 +1,11 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+defvar N = 5;
+deftype Foo = struct { byte a if N < 10; byte b if a == 0x10; };
+
+/* { dg-command { Foo @ 0#B } } */
+/* { dg-output "Foo {a=0x10UB,b=0x20UB}" } */

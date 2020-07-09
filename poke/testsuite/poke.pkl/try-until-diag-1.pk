@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+defvar x = 10;
+
+try x = 20;
+until "foo";  /* { dg-error "invalid exception" } */

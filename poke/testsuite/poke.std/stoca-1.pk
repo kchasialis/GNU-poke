@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar array = [1UB,2UB,3UB,4UB];
+
+/* { dg-command { stoca ("foo", array) } } */
+/* { dg-command { array } } */
+/* { dg-output "\\\[102UB,111UB,111UB,0UB\\\]" } */

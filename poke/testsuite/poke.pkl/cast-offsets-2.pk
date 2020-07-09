@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = #long;
+
+/* { dg-command {  x as offset<int,B> } } */
+/* { dg-output "8#B" } */
+
+/* For constant folding: */
+/* { dg-command {  #long as offset<int,B> } } */
+/* { dg-output "\n8#B" } */

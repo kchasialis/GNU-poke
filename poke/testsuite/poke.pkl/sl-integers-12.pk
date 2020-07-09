@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+defvar x = 2 as uint<13>;
+defvar c = 13;
+
+/* { dg-command { .set obase 10 } } */
+
+/* { dg-command { try x <<. c; catch if E_out_of_bounds { printf "caught\n"; } } } */
+/* { dg-output "caught" } */

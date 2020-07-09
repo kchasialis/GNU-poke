@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+deftype Foo = struct { int i if "bar"; }; /* { dg-error "expected boolean" } */

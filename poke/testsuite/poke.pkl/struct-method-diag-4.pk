@@ -1,0 +1,16 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    int i;
+    method foo = int:
+      {
+        defun bar = int:
+        {
+          return i; /* { dg-error "invalid.*field" } */
+        }
+
+        return bar + 20;
+      }
+  };

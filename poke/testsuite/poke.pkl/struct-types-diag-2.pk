@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+/* Function types cannot appear in the definition of a struct
+   element.  */
+
+deftype Packet = struct
+  {
+    fun()void foo; /* { dg-error "" } */
+  };

@@ -1,0 +1,62 @@
+/* deflate.pk  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* DEFLATE spec: https://tools.ietf.org/html/rfc1951  */
+
+defset deflate_btype =
+  enum
+  {
+    BTYPE_NO_COMPRESSION = 0b00,
+    BTYPE_FIXED_CODES = 0b01,
+    BTYPE_DYNAMIC_CODES = 0b10,
+    /* Error: BTYPE_RESERVED = 0b11  */
+  };
+
+deftype deflate_block =
+  aligned(1) struct
+  {
+    uint<1> bfinal last: bfinal != 1;
+    deflate_btype<uint<2>> btype;
+
+    union
+    {
+      /* Non-compressed blocks.  */
+      struct
+      {
+      align(8):
+        int16 len;
+        onecomp int16 nlen = -len;
+        byte[nlen] data;
+      } : btype == BTYPE_NO_COMPRESSION;
+
+      /* Compressed blocks are sequences of symbols: either literal
+         bytes (0..255) or <length, backward distance> pairs where
+         length is (3..258) and distance is (1..32768). */
+      struct
+      {
+        
+
+      };
+    };
+  };
+
+deftype deflate_blocks =
+  aligned(1) struct
+  {
+    deflate_block[] blocks;
+  };

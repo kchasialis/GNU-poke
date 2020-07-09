@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  "foo"'length } } */
+/* { dg-output "3UL" } */

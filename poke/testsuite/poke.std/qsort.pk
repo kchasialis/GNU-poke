@@ -1,0 +1,28 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x00 0x00 0x00 0x30  0x00 0x00 0x00 0x00  0x00 0x00 0x00 0x20 0x00 0x00 0x00 0x10 } } */
+
+defun cmpints = (any a, any b) int:
+  {
+   defvar ai = a as int;
+   defvar bi = b as int;
+
+   if (ai == bi)
+     return 0;
+   else if (ai < bi)
+     return -1;
+   else
+     return 1;
+  }
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { .set endian big } } */
+
+/* { dg-command { defvar a = int[4] @ 0#B } } */
+/* { dg-command { qsort (a, cmpints) } } */
+/* { dg-command { a } } */
+/* { dg-output "\\\[0x0,0x10,0x20,0x30\\\]" } */
+
+/* { dg-command { defvar b = [2,3,1,0] } } */
+/* { dg-command { qsort (b, cmpints) } } */
+/* { dg-command { b} } */
+/* { dg-output "\n\\\[0x0,0x1,0x2,0x3\\\]" } */

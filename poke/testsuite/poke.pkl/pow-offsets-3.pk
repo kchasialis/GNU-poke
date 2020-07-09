@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 2#B;
+
+/* { dg-command { x ** -1 } } */
+/* { dg-output "0#B" } */
+
+/* For constant folding:  */
+/* { dg-command { 2#B ** -1 } } */
+/* { dg-output "\n0#B" } */

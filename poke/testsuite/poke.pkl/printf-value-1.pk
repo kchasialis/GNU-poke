@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { printf "%v\n", 10 } } */
+/* { dg-output "0xa" } */

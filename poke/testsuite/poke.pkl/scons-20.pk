@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Foo = struct { int i; long j : j < 10; };
+
+/* { dg-command { Foo { i = 5 } } } */
+/* { dg-output "Foo \\{i=5,j=0L\\}" } */

@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar v = 10 as any; /* { dg-error "" } */

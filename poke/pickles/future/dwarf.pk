@@ -1,0 +1,191 @@
+/* dwarf.pk - DWARF-4 implementation for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* XXX: include an interpreter for DWARF expressions so that 1) the
+   user can execute them from poke and 2) it can be used in the data
+   structure description themselves (not sure if this is going to be
+   useful or not.  We shall see.)  Also a disassembler for DWARF
+   expressions.  And possibly an assembler as well?  */
+
+deftype dwarf_opcode =
+  enum<ubyte>
+  {
+    DW_OP_addr = 0x03,
+    DW_OP_deref = 0x06,
+    DW_OP_const1u = 0x08,
+    DW_OP_const1s = 0x09,
+    DW_OP_const2u = 0x0a,
+    DW_OP_const2s = 0x0b,
+    DW_OP_const4u = 0x0c,
+    DW_OP_const4s = 0x0d,
+    DW_OP_const8u = 0x0e,
+    DW_OP_const8s = 0x0f,
+    DW_OP_constu = 0x10,
+    DW_OP_consts = 0x11,
+    DW_OP_dup = 0x12,
+    DW_OP_drop = 0x13,
+    DW_OP_over = 0x14,
+    DW_OP_pick = 0x15,
+    DW_OP_swap = 0x16,
+    DW_OP_rot = 0x17,
+    DW_OP_xderef = 0x18,
+    DW_OP_abs = 0x19,
+    DW_OP_and = 0x1a,
+    DW_OP_div = 0x1b,
+    DW_OP_minus = 0x1c,
+    DW_OP_mod = 0x1d,
+    DW_OP_mul = 0x1e,
+    DW_OP_neg = 0x1f,
+    DW_OP_not = 0x20,
+    DW_OP_or = 0x21,
+    DW_OP_plus = 0x22,
+    DW_OP_plus_uconst = 0x23,
+    DW_OP_shl = 0x24,
+    DW_OP_shr = 0x25,
+    DW_OP_shra = 0x26,
+    DW_OP_xor = 0x27,
+    DW_OP_skip = 0x2f,
+    DW_OP_bra = 0x28,
+    DW_OP_eq = 0x29,
+    DW_OP_ge = 0x2a,
+    DW_OP_gt = 0x2b,
+    DW_OP_le = 0x2c,
+    DW_OP_lt = 0x2d,
+    DW_OP_ne = 0x2e,
+    /* Note that opcodes in the range DW_OP_lit0..DW_OP_lit31 are
+       guaranteed to be encoded using consecutive integers.  This is
+       to allow programmers to use DW_OP_lit0 + LITERAL.  */
+    DW_OP_lit0 = 0x30,
+    DW_OP_lit1, DW_OP_lit2, DW_OP_lit3, DW_OP_lit4, DW_OP_lit5,
+    DW_OP_lit6, DW_OP_lit7, DW_OP_lit8, DW_OP_lit9, DW_OP_lit10,
+    DW_OP_lit11, DW_OP_lit12, DW_OP_lit13, DW_OP_lit14, DW_OP_lit15,
+    DW_OP_lit16, DW_OP_lit17, DW_OP_lit18, DW_OP_lit19, DW_OP_lit20,
+    DW_OP_lit21, DW_OP_lit22, DW_OP_lit23, DW_OP_lit24, DW_OP_lit25,
+    DW_OP_lit26, DW_OP_lit27, DW_OP_lit28, DW_OP_lit29, DW_OP_lit30,
+    DW_OP_lit31,
+    /* The same applies to the opcodes in the range
+       DW_OP_reg0..DW_OP_reg31.  */
+    DW_OP_reg0 = 0x50,
+    DW_OP_reg1, DW_OP_reg2, DW_OP_reg3, DW_OP_reg4, DW_OP_reg5,
+    DW_OP_reg6, DW_OP_reg7, DW_OP_reg8, DW_OP_reg9, DW_OP_reg10,
+    DW_OP_reg11, DW_OP_reg12, DW_OP_reg13, DW_OP_reg14, DW_OP_reg15,
+    DW_OP_reg16, DW_OP_reg17, DW_OP_reg18, DW_OP_reg19, DW_OP_reg20,
+    DW_OP_reg21, DW_OP_reg22, DW_OP_reg23, DW_OP_reg24, DW_OP_reg25,
+    DW_OP_reg26, DW_OP_reg27, DW_OP_reg28, DW_OP_reg29, DW_OP_reg30,
+    DW_OP_reg31,
+    /* The same applies to the opcodes in the range
+       DW_OP_breg0..DW_OP_breg31.  */
+    DW_OP_breg0 = 0x70,
+    DW_OP_breg1, DW_OP_breg2, DW_OP_breg3, DW_OP_breg4, DW_OP_breg5,
+    DW_OP_breg6, DW_OP_breg7, DW_OP_breg8, DW_OP_breg9, DW_OP_breg10,
+    DW_OP_breg11, DW_OP_breg12, DW_OP_breg13, DW_OP_breg14, DW_OP_breg15,
+    DW_OP_breg16, DW_OP_breg17, DW_OP_breg18, DW_OP_breg19, DW_OP_breg20,
+    DW_OP_breg21, DW_OP_breg22, DW_OP_breg23, DW_OP_breg24, DW_OP_breg25,
+    DW_OP_breg26, DW_OP_breg27, DW_OP_breg28, DW_OP_breg29, DW_OP_breg30,
+    DW_OP_breg31,
+    DW_OP_regx = 0x90,
+    DW_OP_fbreg = 0x91,
+    DW_OP_bregx = 0x92,
+    DW_OP_piece = 0x93,
+    DW_OP_deref_size = 0x94,
+    DW_OP_xderef_size = 0x95,
+    DW_OP_nop = 0x96,
+    DW_OP_push_object_address = 0x97,
+    DW_OP_call2 = 0x98,
+    DW_OP_call4 = 0x99,
+    DW_OP_call_ref = 0x9a,
+    DW_OP_form_tls_address = 0x9b,
+    DW_OP_call_frame_cfa = 0x9c,
+    DW_OP_bit_piece = 0x9d,
+    DW_OP_implicit_value = 0x9e,  /* Version 4.  */
+    DW_OP_stack_value = 0x9f, /* Version 4.  */
+    DW_OP_lo_user = 0xe0,
+    DW_OP_hi_user = 0xff
+  };
+
+/* Each DWARF operation contains a 1-byte opcode that identifies the
+   operation, followed by a variable number of arguments.  */
+
+deftype dwarf_op =
+  struct (dwarf_version version,
+          uint64 ptr_size,
+          uint64 offset_size)
+  {
+    dwarf_opcode code;
+    union
+    {
+      uint8  arg : code in [DW_OP_const1u, DW_OP_pick,
+                            DW_OP_deref_size, DW_OP_xderef_size];
+      int8   arg : code == DW_OP_const1s;
+      uint16 arg : code in [DW_OP_const2u, DW_OP_call2];
+      int16  arg : code in [DW_OP_const2s, DW_OP_skip, DW_OP_bra];
+      uint32 arg : code in [DW_OP_const4u, DW_OP_call4];
+      int32  arg : code == DW_OP_const4s;
+      uint64 arg : code == DW_OP_const8u;
+      int64  arg : code == DW_OP_const8s;
+      uint128 arg : (code in [DW_OP_constu, DW_OP_plus_uconst,
+                              DW_OP_fbreg, DW_OP_regx, DW_OP_piece]
+                     || (code >= DW_OP_breg0 && code <= DW_OP_breg31));
+      int128 arg : code == DW_OP_consts;
+
+      struct
+      {
+        uint128 reg;
+        int128 offset;
+      } : code in [DW_OP_bregx, DW_OP_bit_piece];
+
+      struct
+      {
+        uint128 size;
+        byte[size] block;
+      } : code == DW_OP_implicit_value;
+
+      union
+      {
+        uint32 arg : ptr_size == 4;
+        uint64 arg : ptr_size == 8;
+      } : code == DW_OP_addr;
+
+      union
+      {
+        union
+        {
+          uint32 arg : offset_size == 4;
+          uint64 arg : offset_size == 8;
+        } : version > 2;
+        union
+        {
+          uint32 arg : ptr_size == 4;
+          uint64 arg : ptr_size == 8;
+        } : version == 2;
+      } : code == DW_OP_call_ref;
+                     
+      /* Other operations have no arguments.  */
+      struct {};
+    };
+  };
+
+deftype dwarf_cfa_expression =
+  struct (dwarf_version version,
+          uint64 ptr_size,
+          uint64 offset_size)
+  {
+    uint128 reg;
+    uint128 len;
+    dwarf_op (version, ptr_size, offset_size) [#len] exp;
+  };

@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+method foo = void: /* { dg-error "method" } */
+  {
+  }

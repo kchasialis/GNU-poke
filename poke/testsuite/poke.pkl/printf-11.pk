@@ -1,0 +1,3 @@
+/* { dg-do run } */
+
+printf "%i32d", -10;          /* { dg-output "-10" } */

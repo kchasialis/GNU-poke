@@ -1,0 +1,26 @@
+/* { dg-do run } */
+
+defvar DATUM_UNKNOWN = 0;
+defvar DATUM_NUMBER = 1;
+defvar DATUM_STRING = 2;
+
+deftype Datum =
+  struct
+  {
+    int tag;
+    union
+    {
+      int number : tag == DATUM_NUMBER;
+      string str : tag == DATUM_STRING;
+    } value;
+  };
+
+deftype Meta_Datum =
+  struct
+  {
+    Datum datum;
+    int meta;
+  };
+
+/* { dg-command { Meta_Datum { datum = Datum { tag = 1 } } } } */
+/* { dg-output {Meta_Datum {datum=Datum {tag=1,value=struct {number=0}},meta=0}} } */

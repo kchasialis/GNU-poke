@@ -1,0 +1,14 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+/* { dg-command { .set obase 16 } } */
+
+deftype Foo = struct { byte a; byte[2] b; };
+
+/* { dg-command { .set omaps no } } */
+/* { dg-command { Foo @ 0#B } } */
+/* { dg-output "Foo \{a=0x10UB,b=\\\[0x20UB,0x30UB\\\]\}" } */
+
+/* { dg-command { .set omaps yes } } */
+/* { dg-command { Foo @ 0#B } } */
+/* { dg-output "\nFoo \{a=0x10UB,b=\\\[0x20UB,0x30UB\\\] @ 0x8UL#b\} @ 0x0UL#b" } */

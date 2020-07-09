@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defun foo = (int[] a) int: { return a[1]; }
+defun bar = (int[][] a) int: { return a[1][1]; }
+
+/* { dg-command { foo ([1,2,3] as int[]) } } */
+/* { dg-output "2" } */
+
+/* { dg-command { bar ([[1,2,3],[4,5,6]] as int[][]) } } */
+/* { dg-output "\n5" } */

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defun baz = (int i) long: { return i; }
+
+/* Coercion of integral return value.  */
+/* { dg-command {  baz (10U) } } */
+/* { dg-output "10L" } */

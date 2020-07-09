@@ -1,0 +1,18 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x04 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+defvar MAGIC = 0x50;
+
+deftype Foo = struct { byte i : i == MAGIC; byte j; };
+deftype Bar = struct { Foo f; byte x; };
+
+defun bar = Bar: { return Bar @ 4#B; };
+
+/* { dg-command { Bar @ 4#B } } */
+/* { dg-output "Bar \\{f=Foo \\{i=0x50UB,j=0x4UB\\},x=0x70UB\\}" } */
+
+/* { dg-command { bar } } */
+/* { dg-output "\nBar \\{f=Foo \\{i=0x50UB,j=0x4UB\\},x=0x70UB\\}" } */

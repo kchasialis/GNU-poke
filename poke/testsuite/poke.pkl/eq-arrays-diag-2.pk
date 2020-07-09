@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+deftype Foo = struct { byte a; byte b; };
+
+defvar e
+  = ([Foo {}] == [Foo {}, Foo {a=10UB}]); /* { dg-error "invalid.*\n.*expected Foo.*got Foo.*" } */

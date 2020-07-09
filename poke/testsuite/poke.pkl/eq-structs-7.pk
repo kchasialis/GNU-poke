@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype Bar = struct { byte b; };
+
+deftype Foo =
+  struct
+  {
+    Bar[2] bars;
+  };
+
+/* { dg-command { Foo { bars = [Bar {}, Bar { b= 2 }] } == Foo { bars = [Bar {}, Bar { b=2 }] } } } */
+/* { dg-output "1" } */

@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 11;
+defvar y = 2;
+
+/* { dg-command {  12#b != (x + y)#b } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command {  12#b != (11 + 2)#b } } */
+/* { dg-output "\n1" } */

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun bar = (int a, int b, args ...) int: { return a + b + (args[0] as int); }
+
+/* { dg-command { bar (1,2,3,4) } } */
+/* { dg-output "6" } */

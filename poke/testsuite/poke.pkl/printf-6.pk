@@ -1,0 +1,3 @@
+/* { dg-do run } */
+
+printf "x%sy", "bar";         /* { dg-output "xbary" } */

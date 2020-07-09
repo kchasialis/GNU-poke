@@ -1,0 +1,16 @@
+/* { dg-do compile } */
+
+/* A bug in the constructor for Foo was triggering a bug with code
+   like this.  */
+
+deftype Foo =
+  struct
+  {
+    deftype Bar =
+      struct
+      {
+        defvar jo = 10;
+      };
+
+    int data;
+  };

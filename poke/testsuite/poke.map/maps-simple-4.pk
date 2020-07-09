@@ -1,0 +1,11 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+/* { dg-command {.set obase 16} } */
+
+/* { dg-command {.set endian big} } */
+/* { dg-command {int @ 0#B} } */
+/* { dg-output "0x10203040" } */
+/* { dg-command {.set endian little} } */
+/* { dg-command {int @ 0#B} } */
+/* { dg-output "\n0x40302010" } */

@@ -1,0 +1,13 @@
+/* { dg-do compile } */
+
+defun myprint = (string str1, string str2, string str3) void:
+  {
+   print (str1);
+   print (str2);
+   print (str3);
+  }
+
+defun blah = void:
+  {
+    myprint :str1 "foo" :str2 "bar" :str1 "baz"; /* { dg-error "" } */
+  }

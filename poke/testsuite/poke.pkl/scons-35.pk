@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Packet = struct { offset<int,B> n; byte[n] d; };
+
+/* { dg-command { Packet { n = 2#B } } } */
+/* { dg-output "Packet \{n=2#B,d=\\\[0UB,0UB\\\]\}" } */

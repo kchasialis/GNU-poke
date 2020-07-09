@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 6;
+
+/* { dg-command { x as uint<16> } } */
+/* { dg-output "6UH" } */
+
+/* For constant folding:  */
+/* { dg-command { 6 as uint<16> } } */
+/* { dg-output "\n6UH" } */

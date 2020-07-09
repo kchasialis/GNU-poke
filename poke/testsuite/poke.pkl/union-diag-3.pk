@@ -1,0 +1,10 @@
+/* { dg-do compile } */
+
+/* Check for unreachable alternatives in unions.  Constant constraint
+   expression that evaluates to false.  */
+
+deftype Foo = union
+ {
+   int bar;
+   int foo : 2 - 2; /* { dg-warning "" } */
+ };

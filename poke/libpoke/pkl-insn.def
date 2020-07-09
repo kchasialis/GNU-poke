@@ -1,0 +1,486 @@
+/* pkl-insn.def - Poke macro-assembler instructions.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* IMPORTANT: note how the invocations to the PKL_DEF_INSN in this
+   file do not separate the name of the macro from the opening
+   parenthesis with a white space, as it is the norm in the rest of
+   the codebase.  This is because this file is processed by `cpp' in
+   RAS, and some weird versions of cpp (i.e. clang cpp) seem to not
+   support that.  So please, if you define new instruction, be sure to
+   not introduce white spaces between PKL_DEF_INSN and (.  Thanks! */
+
+/* This file contains the definition of the instructions known to the
+   poke macro-assembler.
+
+   PKL_DEF_INSN defines either an instruction, or a macro-instruction.
+
+   The first column is the code for the instruction.
+
+   The second column is a string describing the instruction arguments.
+   If the instruction takes no arguments, this should be the empty
+   string.  Each argument is identified by a letter:
+
+   `v' is for a pvm_val.
+   `l' is for a label.
+   `n' is for an immediate.
+   `r' is for a general-purpose register.
+
+   `a' is for a pkl_ast_node.
+       AST node arguments are only valid in macro-instructions.
+
+   For PVM instructions, the third column is the instruction name as
+   defined in pvm.jitter.  However, beware jitter's evil name
+   mangling; see jitterc-mangle.[ch].
+
+   For macro-instructions, the third column is the name of the macro,
+   to be used for debugging purposes.  */
+
+/* Stack manipulation instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PUSH, "v", "push")
+PKL_DEF_INSN(PKL_INSN_PUSHR, "r", "pushr")
+PKL_DEF_INSN(PKL_INSN_POPR, "r", "popr")
+PKL_DEF_INSN(PKL_INSN_DROP, "", "drop")
+PKL_DEF_INSN(PKL_INSN_SWAP, "", "swap")
+PKL_DEF_INSN(PKL_INSN_NIP, "", "nip")
+PKL_DEF_INSN(PKL_INSN_NIP2, "", "nip2")
+PKL_DEF_INSN(PKL_INSN_DUP, "", "dup")
+PKL_DEF_INSN(PKL_INSN_OVER, "", "over")
+PKL_DEF_INSN(PKL_INSN_ROT, "", "rot")
+PKL_DEF_INSN(PKL_INSN_NROT, "", "nrot")
+PKL_DEF_INSN(PKL_INSN_TUCK, "", "tuck")
+PKL_DEF_INSN(PKL_INSN_SAVER, "r", "saver")
+PKL_DEF_INSN(PKL_INSN_RESTORER, "r", "restorer")
+PKL_DEF_INSN(PKL_INSN_TOR, "", "tor")
+PKL_DEF_INSN(PKL_INSN_FROMR, "", "fromr")
+PKL_DEF_INSN(PKL_INSN_ATR, "", "atr")
+PKL_DEF_INSN(PKL_INSN_QUAKE, "", "quake")
+
+PKL_DEF_INSN(PKL_INSN_REVN, "n", "revn")
+
+/* Conversion instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_CTOS, "", "ctos")
+
+PKL_DEF_INSN(PKL_INSN_ITOI, "n", "itoi")
+PKL_DEF_INSN(PKL_INSN_ITOIU, "n", "itoiu")
+PKL_DEF_INSN(PKL_INSN_ITOL, "n", "itol")
+PKL_DEF_INSN(PKL_INSN_ITOLU, "n", "itolu")
+
+PKL_DEF_INSN(PKL_INSN_IUTOI, "n", "iutoi")
+PKL_DEF_INSN(PKL_INSN_IUTOIU, "n", "iutoiu")
+PKL_DEF_INSN(PKL_INSN_IUTOL, "n", "iutol")
+PKL_DEF_INSN(PKL_INSN_IUTOLU, "n", "iutolu")
+
+PKL_DEF_INSN(PKL_INSN_LTOI, "n", "ltoi")
+PKL_DEF_INSN(PKL_INSN_LTOIU, "n", "ltoiu")
+PKL_DEF_INSN(PKL_INSN_LTOL, "n", "ltol")
+PKL_DEF_INSN(PKL_INSN_LTOLU, "n", "ltolu")
+
+PKL_DEF_INSN(PKL_INSN_LUTOI, "n", "lutoi")
+PKL_DEF_INSN(PKL_INSN_LUTOIU, "n", "lutoiu")
+PKL_DEF_INSN(PKL_INSN_LUTOL, "n", "lutol")
+PKL_DEF_INSN(PKL_INSN_LUTOLU, "n", "lutol")
+
+/* Integer arithmetic instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_NEGI, "", "negi")
+PKL_DEF_INSN(PKL_INSN_NEGIU, "", "negiu")
+PKL_DEF_INSN(PKL_INSN_NEGL, "", "negl")
+PKL_DEF_INSN(PKL_INSN_NEGLU, "", "neglu")
+
+PKL_DEF_INSN(PKL_INSN_ADDI, "", "addi")
+PKL_DEF_INSN(PKL_INSN_ADDIU, "", "addiu")
+PKL_DEF_INSN(PKL_INSN_ADDL, "", "addl")
+PKL_DEF_INSN(PKL_INSN_ADDLU, "", "addlu")
+
+PKL_DEF_INSN(PKL_INSN_SUBI, "", "subi")
+PKL_DEF_INSN(PKL_INSN_SUBIU, "", "subiu")
+PKL_DEF_INSN(PKL_INSN_SUBL, "", "subl")
+PKL_DEF_INSN(PKL_INSN_SUBLU, "", "sublu")
+
+PKL_DEF_INSN(PKL_INSN_MULI, "", "muli")
+PKL_DEF_INSN(PKL_INSN_MULIU, "", "muliu")
+PKL_DEF_INSN(PKL_INSN_MULL, "", "mull")
+PKL_DEF_INSN(PKL_INSN_MULLU, "", "mullu")
+
+PKL_DEF_INSN(PKL_INSN_DIVI, "", "divi")
+PKL_DEF_INSN(PKL_INSN_DIVIU, "", "diviu")
+PKL_DEF_INSN(PKL_INSN_DIVL, "", "divl")
+PKL_DEF_INSN(PKL_INSN_DIVLU, "", "divlu")
+
+PKL_DEF_INSN(PKL_INSN_MODI, "", "modi")
+PKL_DEF_INSN(PKL_INSN_MODIU, "", "modiu")
+PKL_DEF_INSN(PKL_INSN_MODL, "", "modl")
+PKL_DEF_INSN(PKL_INSN_MODLU, "", "modlu")
+
+PKL_DEF_INSN(PKL_INSN_POWI, "", "powi")
+PKL_DEF_INSN(PKL_INSN_POWIU, "", "powiu")
+PKL_DEF_INSN(PKL_INSN_POWL, "", "powl")
+PKL_DEF_INSN(PKL_INSN_POWLU, "", "powlu")
+
+/* Compare-and-swap instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_SWAPGTI, "", "swapgti")
+PKL_DEF_INSN(PKL_INSN_SWAPGTIU, "", "swapgtiu")
+PKL_DEF_INSN(PKL_INSN_SWAPGTL, "", "swapgtl")
+PKL_DEF_INSN(PKL_INSN_SWAPGTLU, "", "swapgtlu")
+
+/* Shift instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_SLI, "", "bsli")
+PKL_DEF_INSN(PKL_INSN_SLIU, "", "bsliu")
+PKL_DEF_INSN(PKL_INSN_SLL, "", "bsll")
+PKL_DEF_INSN(PKL_INSN_SLLU, "", "bsllu")
+
+PKL_DEF_INSN(PKL_INSN_SRI, "", "bsri")
+PKL_DEF_INSN(PKL_INSN_SRIU, "", "bsriu")
+PKL_DEF_INSN(PKL_INSN_SRL, "", "bsrl")
+PKL_DEF_INSN(PKL_INSN_SRLU, "", "bsrlu")
+
+/* Bitwise instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_BNOTI, "", "bnoti")
+PKL_DEF_INSN(PKL_INSN_BNOTIU, "", "bnotiu")
+PKL_DEF_INSN(PKL_INSN_BNOTL, "", "bnotl")
+PKL_DEF_INSN(PKL_INSN_BNOTLU, "", "bnotlu")
+
+PKL_DEF_INSN(PKL_INSN_BANDI, "", "bandi")
+PKL_DEF_INSN(PKL_INSN_BANDIU, "", "bandiu")
+PKL_DEF_INSN(PKL_INSN_BANDL, "", "bandl")
+PKL_DEF_INSN(PKL_INSN_BANDLU, "", "bandlu")
+
+PKL_DEF_INSN(PKL_INSN_BORI, "", "bori")
+PKL_DEF_INSN(PKL_INSN_BORIU, "", "boriu")
+PKL_DEF_INSN(PKL_INSN_BORL, "", "borl")
+PKL_DEF_INSN(PKL_INSN_BORLU, "", "borlu")
+
+PKL_DEF_INSN(PKL_INSN_BXORI, "", "bxori")
+PKL_DEF_INSN(PKL_INSN_BXORIU, "", "bxoriu")
+PKL_DEF_INSN(PKL_INSN_BXORL, "", "bxorl")
+PKL_DEF_INSN(PKL_INSN_BXORLU, "", "bxorlu")
+
+/* Relational instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_AND, "", "and")
+PKL_DEF_INSN(PKL_INSN_OR, "", "or")
+PKL_DEF_INSN(PKL_INSN_NOT, "", "not")
+
+/* Comparison instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_N, "", "nnn")
+PKL_DEF_INSN(PKL_INSN_NN, "", "nn")
+
+PKL_DEF_INSN(PKL_INSN_EQI, "", "eqi")
+PKL_DEF_INSN(PKL_INSN_EQIU, "", "eqiu")
+PKL_DEF_INSN(PKL_INSN_EQL, "", "eql")
+PKL_DEF_INSN(PKL_INSN_EQLU, "", "eqlu")
+
+PKL_DEF_INSN(PKL_INSN_NEI, "", "nei")
+PKL_DEF_INSN(PKL_INSN_NEIU, "", "neiu")
+PKL_DEF_INSN(PKL_INSN_NEL, "", "nel")
+PKL_DEF_INSN(PKL_INSN_NELU, "", "nelu")
+
+PKL_DEF_INSN(PKL_INSN_EQS, "", "eqs")
+PKL_DEF_INSN(PKL_INSN_NES, "", "nes")
+
+PKL_DEF_INSN(PKL_INSN_LTI, "", "lti")
+PKL_DEF_INSN(PKL_INSN_LTIU, "", "ltiu")
+PKL_DEF_INSN(PKL_INSN_LTL, "", "ltl")
+PKL_DEF_INSN(PKL_INSN_LTLU, "", "ltlu")
+
+PKL_DEF_INSN(PKL_INSN_LEI, "", "lei")
+PKL_DEF_INSN(PKL_INSN_LEIU, "", "leiu")
+PKL_DEF_INSN(PKL_INSN_LEL, "", "lel")
+PKL_DEF_INSN(PKL_INSN_LELU, "", "lelu")
+
+PKL_DEF_INSN(PKL_INSN_GTI, "", "gti")
+PKL_DEF_INSN(PKL_INSN_GTIU, "", "gtiu")
+PKL_DEF_INSN(PKL_INSN_GTL, "", "gtl")
+PKL_DEF_INSN(PKL_INSN_GTLU, "", "gtlu")
+
+PKL_DEF_INSN(PKL_INSN_GEI, "", "gei")
+PKL_DEF_INSN(PKL_INSN_GEIU, "", "geiu")
+PKL_DEF_INSN(PKL_INSN_GEL, "", "gel")
+PKL_DEF_INSN(PKL_INSN_GELU, "", "gelu")
+
+PKL_DEF_INSN(PKL_INSN_LTS, "", "lts")
+PKL_DEF_INSN(PKL_INSN_GTS, "", "gts")
+PKL_DEF_INSN(PKL_INSN_GES, "", "ges")
+PKL_DEF_INSN(PKL_INSN_LES, "", "les")
+
+/* String instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_SCONC, "", "sconc")
+PKL_DEF_INSN(PKL_INSN_STRREF, "", "strref")
+PKL_DEF_INSN(PKL_INSN_SUBSTR, "", "substr")
+PKL_DEF_INSN(PKL_INSN_MULS, "", "muls")
+
+/* Offset instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_MKO, "", "mko")
+PKL_DEF_INSN(PKL_INSN_OGETM, "", "ogetm")
+PKL_DEF_INSN(PKL_INSN_OSETM, "", "osetm")
+PKL_DEF_INSN(PKL_INSN_OGETU, "", "ogetu")
+PKL_DEF_INSN(PKL_INSN_OGETBT, "", "ogetbt")
+
+/* Containers instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_SEL, "", "sel")
+
+/* Array instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_MKA, "", "mka")
+PKL_DEF_INSN(PKL_INSN_AREF, "", "aref")
+PKL_DEF_INSN(PKL_INSN_AREFO, "", "arefo")
+PKL_DEF_INSN(PKL_INSN_ASET, "", "aset")
+PKL_DEF_INSN(PKL_INSN_ASETO, "", "aseto")
+PKL_DEF_INSN(PKL_INSN_ASETTB, "", "asettb")
+
+/* Struct instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_MKSCT, "", "mksct")
+PKL_DEF_INSN(PKL_INSN_SREF, "", "sref")
+PKL_DEF_INSN(PKL_INSN_SREFNT, "", "srefnt")
+PKL_DEF_INSN(PKL_INSN_SREFI, "", "srefi")
+PKL_DEF_INSN(PKL_INSN_SREFIO, "", "srefio")
+PKL_DEF_INSN(PKL_INSN_SREFIA, "", "srefia")
+PKL_DEF_INSN(PKL_INSN_SSET, "", "sset")
+PKL_DEF_INSN(PKL_INSN_SMODI, "", "smodi")
+
+/* Instructions to handle mapped values.  */
+
+PKL_DEF_INSN(PKL_INSN_MGETO, "", "mgeto")
+PKL_DEF_INSN(PKL_INSN_MSETO, "", "mseto")
+
+PKL_DEF_INSN(PKL_INSN_MGETIOS, "", "mgetios")
+PKL_DEF_INSN(PKL_INSN_MSETIOS, "", "msetios")
+
+PKL_DEF_INSN(PKL_INSN_MGETM, "", "mgetm")
+PKL_DEF_INSN(PKL_INSN_MSETM, "", "msetm")
+
+PKL_DEF_INSN(PKL_INSN_MGETW, "", "mgetw")
+PKL_DEF_INSN(PKL_INSN_MSETW, "", "msetw")
+
+PKL_DEF_INSN(PKL_INSN_MGETSEL, "", "mgetsel")
+PKL_DEF_INSN(PKL_INSN_MSETSEL, "", "msetsel")
+
+PKL_DEF_INSN(PKL_INSN_MGETSIZ, "", "mgetsiz")
+PKL_DEF_INSN(PKL_INSN_MSETSIZ, "", "msetsiz")
+
+/* Type related instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_ISA, "", "isa")
+
+PKL_DEF_INSN(PKL_INSN_MKTYANY, "", "mktyany")
+PKL_DEF_INSN(PKL_INSN_MKTYI, "", "mktyi")
+PKL_DEF_INSN(PKL_INSN_MKTYS, "", "mktys")
+PKL_DEF_INSN(PKL_INSN_MKTYO, "", "mktyo")
+PKL_DEF_INSN(PKL_INSN_MKTYSCT, "", "mktysct")
+PKL_DEF_INSN(PKL_INSN_MKTYC, "", "mktyc")
+
+PKL_DEF_INSN(PKL_INSN_MKTYA, "", "mktya")
+PKL_DEF_INSN(PKL_INSN_TYAGETN, "", "tyagetn")
+PKL_DEF_INSN(PKL_INSN_TYAGETT, "", "tyagett")
+PKL_DEF_INSN(PKL_INSN_TYAGETB, "", "tyagetb")
+
+PKL_DEF_INSN(PKL_INSN_TYPOF, "", "typof")
+
+PKL_DEF_INSN(PKL_INSN_TYISC, "", "tyisc")
+PKL_DEF_INSN(PKL_INSN_TYISSCT, "", "tyissct")
+
+/* Branch instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_BA, "l", "ba")
+
+PKL_DEF_INSN(PKL_INSN_BN, "l", "bn")
+PKL_DEF_INSN(PKL_INSN_BNN, "l", "bnn")
+
+PKL_DEF_INSN(PKL_INSN_BZI, "l", "bzi")
+PKL_DEF_INSN(PKL_INSN_BZIU, "l", "bziu")
+PKL_DEF_INSN(PKL_INSN_BZL, "l", "bzl")
+PKL_DEF_INSN(PKL_INSN_BZLU, "l", "bzlu")
+
+PKL_DEF_INSN(PKL_INSN_BNZI, "l", "bnzi")
+PKL_DEF_INSN(PKL_INSN_BNZIU, "l", "bnziu")
+PKL_DEF_INSN(PKL_INSN_BNZL, "l", "bnzl")
+PKL_DEF_INSN(PKL_INSN_BNZLU, "l", "bnzlu")
+
+/* IO instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PEEKI, "nnn", "peeki")
+PKL_DEF_INSN(PKL_INSN_PEEKIU, "nn", "peekiu")
+PKL_DEF_INSN(PKL_INSN_PEEKL, "nnn", "peekl")
+PKL_DEF_INSN(PKL_INSN_PEEKLU, "nn", "peeklu")
+
+PKL_DEF_INSN(PKL_INSN_PEEKDI, "n", "peekdi")
+PKL_DEF_INSN(PKL_INSN_PEEKDIU, "n", "peekdiu")
+PKL_DEF_INSN(PKL_INSN_PEEKDL, "n", "peekdl")
+PKL_DEF_INSN(PKL_INSN_PEEKDLU, "n", "peekdlu")
+
+PKL_DEF_INSN(PKL_INSN_PEEKS, "", "peeks")
+
+PKL_DEF_INSN(PKL_INSN_POKEI, "nnn", "pokei")
+PKL_DEF_INSN(PKL_INSN_POKEIU, "nn", "pokeiu")
+PKL_DEF_INSN(PKL_INSN_POKEL, "nnn", "pokel")
+PKL_DEF_INSN(PKL_INSN_POKELU, "nn", "pokelu")
+
+PKL_DEF_INSN(PKL_INSN_POKEDI, "n", "pokedi")
+PKL_DEF_INSN(PKL_INSN_POKEDIU, "n", "pokediu")
+PKL_DEF_INSN(PKL_INSN_POKEDL, "n", "pokedl")
+PKL_DEF_INSN(PKL_INSN_POKEDLU, "n", "pokedlu")
+
+PKL_DEF_INSN(PKL_INSN_POKES, "", "pokes")
+
+/* Environment instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PUSHF, "n", "pushf")
+PKL_DEF_INSN(PKL_INSN_POPF, "n", "popf")
+PKL_DEF_INSN(PKL_INSN_PUSHVAR,"nn", "pushvar")
+PKL_DEF_INSN(PKL_INSN_POPVAR, "nn", "popvar")
+PKL_DEF_INSN(PKL_INSN_REGVAR, "", "regvar")
+PKL_DEF_INSN(PKL_INSN_PEC, "", "pec")
+
+/* Function management instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_CALL, "", "call")
+PKL_DEF_INSN(PKL_INSN_PROLOG, "", "prolog")
+PKL_DEF_INSN(PKL_INSN_RETURN, "", "return")
+
+/* Printing instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PRINTI, "nn", "printi")
+PKL_DEF_INSN(PKL_INSN_PRINTIU, "nn", "printiu")
+PKL_DEF_INSN(PKL_INSN_PRINTL, "nn", "printl")
+PKL_DEF_INSN(PKL_INSN_PRINTLU, "nn", "printlu")
+
+PKL_DEF_INSN(PKL_INSN_PRINTS, "", "prints")
+PKL_DEF_INSN(PKL_INSN_PRINTV, "nn", "printv")
+
+PKL_DEF_INSN(PKL_INSN_BEGINSC, "", "begsc")
+PKL_DEF_INSN(PKL_INSN_ENDSC, "", "endsc")
+
+/* Miscellaneous instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_NOP, "", "nop")
+PKL_DEF_INSN(PKL_INSN_NOTE, "v", "note")
+PKL_DEF_INSN(PKL_INSN_SIZ, "", "siz")
+PKL_DEF_INSN(PKL_INSN_STRACE, "n", "strace")
+PKL_DEF_INSN(PKL_INSN_RAND, "", "rand")
+
+/* System interaction instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_GETENV, "", "getenv")
+
+/* Exceptions handling instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PUSHE, "l", "pushe")
+PKL_DEF_INSN(PKL_INSN_POPE, "", "pope")
+PKL_DEF_INSN(PKL_INSN_RAISE, "", "raise")
+
+/* IOS related instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PUSHIOS, "", "pushios")
+PKL_DEF_INSN(PKL_INSN_POPIOS, "", "popios")
+PKL_DEF_INSN(PKL_INSN_OPEN, "", "open")
+PKL_DEF_INSN(PKL_INSN_CLOSE, "", "close")
+PKL_DEF_INSN(PKL_INSN_IOSIZE, "", "iosize")
+PKL_DEF_INSN(PKL_INSN_IOGETB, "", "iogetb")
+PKL_DEF_INSN(PKL_INSN_IOSETB, "", "iosetb")
+
+/* VM instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_CANARY, "", "canary")
+PKL_DEF_INSN(PKL_INSN_EXIT, "", "exit")
+PKL_DEF_INSN(PKL_INSN_PUSHEND, "", "pushend")
+PKL_DEF_INSN(PKL_INSN_POPEND, "",  "popend")
+PKL_DEF_INSN(PKL_INSN_SYNC, "", "sync")
+
+/* The only purpose of PKL_INSN_MACRO is to mark the beginning of
+   macro instructions.  It should _not_ be passed to
+   `pkl_asm_insn'.  */
+PKL_DEF_INSN(PKL_INSN_MACRO, "", "")
+
+PKL_DEF_INSN(PKL_INSN_NTON, "aa", "nton")
+PKL_DEF_INSN(PKL_INSN_OTO,  "aa", "oto")
+PKL_DEF_INSN(PKL_INSN_ATOA, "aa", "atoa")
+
+PKL_DEF_INSN(PKL_INSN_NEG, "a", "neg")
+PKL_DEF_INSN(PKL_INSN_ADD, "a", "add")
+PKL_DEF_INSN(PKL_INSN_SUB, "a", "sub")
+PKL_DEF_INSN(PKL_INSN_MUL, "a", "mul")
+PKL_DEF_INSN(PKL_INSN_DIV, "a", "div")
+PKL_DEF_INSN(PKL_INSN_CDIV, "a", "cdiv")
+PKL_DEF_INSN(PKL_INSN_MOD, "a", "mod")
+PKL_DEF_INSN(PKL_INSN_POW, "a", "pow")
+PKL_DEF_INSN(PKL_INSN_PEEK, "ann", "peek")
+PKL_DEF_INSN(PKL_INSN_POKE, "ann", "poke")
+PKL_DEF_INSN(PKL_INSN_PEEKD, "a", "peekd")
+PKL_DEF_INSN(PKL_INSN_POKED, "a", "poked")
+PKL_DEF_INSN(PKL_INSN_BZ, "al", "bz")
+PKL_DEF_INSN(PKL_INSN_BNZ, "al", "bnz")
+
+PKL_DEF_INSN(PKL_INSN_EQ, "a", "eq")
+PKL_DEF_INSN(PKL_INSN_NE, "a", "ne")
+PKL_DEF_INSN(PKL_INSN_LT, "a", "lt")
+PKL_DEF_INSN(PKL_INSN_GT, "a", "gt")
+PKL_DEF_INSN(PKL_INSN_GE, "a", "ge")
+PKL_DEF_INSN(PKL_INSN_LE, "a", "le")
+
+PKL_DEF_INSN(PKL_INSN_SL, "a", "sl")
+PKL_DEF_INSN(PKL_INSN_SR, "a", "sr")
+
+PKL_DEF_INSN(PKL_INSN_SWAPGT, "a", "swapgt")
+
+PKL_DEF_INSN(PKL_INSN_BNOT, "a", "bnot")
+PKL_DEF_INSN(PKL_INSN_BAND, "a", "band")
+PKL_DEF_INSN(PKL_INSN_BOR, "a", "bor")
+PKL_DEF_INSN(PKL_INSN_BXOR, "a", "bxor")
+PKL_DEF_INSN(PKL_INSN_BCONC, "aaa", "bconc")
+
+PKL_DEF_INSN(PKL_INSN_GCD, "a", "gcd")
+
+/* Array macro-instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_ATRIM, "a", "atrim")
+PKL_DEF_INSN(PKL_INSN_AIS, "", "ais")
+PKL_DEF_INSN(PKL_INSN_ACONC, "", "aconc")
+
+/* Offset macro-instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_ADDO, "a", "addo")
+PKL_DEF_INSN(PKL_INSN_SUBO, "a", "subo")
+PKL_DEF_INSN(PKL_INSN_MULO, "a", "mulo")
+PKL_DEF_INSN(PKL_INSN_DIVO, "a", "divo")
+PKL_DEF_INSN(PKL_INSN_CDIVO, "a", "cdivo")
+PKL_DEF_INSN(PKL_INSN_MODO, "aa", "modo")
+
+/* Macro-instructions to handle mapped values.  */
+
+PKL_DEF_INSN(PKL_INSN_REMAP, "", "remap")
+PKL_DEF_INSN(PKL_INSN_WRITE, "", "write")
+
+/* Printing macro-instructions.  */
+
+PKL_DEF_INSN(PKL_INSN_PRINT, "an", "print")
+
+/*
+Local variables:
+mode:c
+End:
+*/

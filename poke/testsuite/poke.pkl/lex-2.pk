@@ -1,0 +1,16 @@
+/* { dg-do run } */
+
+defvar global = 10;
+
+defun foo = int:
+  {
+   defun bar = int:
+   {
+    return global;
+   }
+
+   return bar ();
+  }
+
+/* { dg-command {  foo () } } */
+/* { dg-output 10 } */

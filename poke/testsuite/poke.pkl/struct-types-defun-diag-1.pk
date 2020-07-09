@@ -1,0 +1,11 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    int i;
+    defun foo = void:
+      {
+        i = 2; /* { dg-error "invalid assignment" } */
+      }
+  };

@@ -1,0 +1,4 @@
+defun def1 = (int a, int b, int c = 0) int: { return a + b + c; }
+
+/* { dg-command { def1 (10, 20, 30) } } */
+/* { dg-output "60" } */

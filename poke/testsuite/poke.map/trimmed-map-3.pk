@@ -1,0 +1,15 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command {.set obase 16} } */
+/* { dg-command {.set endian big} } */
+/* { dg-command { defvar a = int[12#B] @ 0#B } } */
+/* { dg-command { defvar b = a[1:2] } } */
+/* { dg-command { defvar c = a[0:1] } } */
+/* { dg-command { a[1] = 0xeadbeef } } */
+/* { dg-command { a } } */
+/* { dg-output "\\\[0x10203040,0xeadbeef,0x90a0b0c0\\\]" } */
+/* { dg-command { b } } */
+/* { dg-output "\n\\\[0xeadbeef,0x90a0b0c0\\\]" } */
+/* { dg-command { c } } */
+/* { dg-output "\n\\\[0x10203040,0xeadbeef\\\]" } */

@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+/* Make sure that units take prececence to type names in offset
+   literals.  */
+
+deftype y = int;
+defunit y = 3;
+
+/* { dg-command { 2#y } } */
+/* { dg-output "2#3" } */

@@ -1,0 +1,35 @@
+/* This file is in the public domain.
+   Default styling rules for GNU poke.  */
+
+/* .logo .copyright .type .struct-type-name .array */
+
+.logo { text-decoration: blink; }
+.error { font-weight: bold; color : red; }
+.error-filename { text-decoration: underline; }
+.error-location { text-decoration: underline; }
+.warning { color : yellow; }
+.prompt { font-weight : bold; }
+.offset { color : yellow; }
+.special { color : white; }
+.string { color : brown; }
+.any { color : yellow; }
+.struct-field-name { text-decoration : underline; }
+.integer { color : green; }
+
+.table_header { text-decoration: underline; }
+
+.dump-ruler { text-decoration: underline; }
+.dump-address { color : green; }
+.dump-ascii { color : brown; }
+
+/* Classes for pickles in pickles/  */
+
+.leb128 { color : grey; }
+
+/* Classes for ISA-related stuff.  */
+.insn-mnemonic { color : yellow; }
+.insn-register { color : yellow; }
+
+html {
+    font-family: Menlo, Monaco, "Courier New", monospace;
+}

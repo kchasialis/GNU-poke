@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+deftype StructA = struct { int i; };
+deftype StructB = struct { StructA s; long l; };
+
+printf ("%1Tv\n", StructB { s = StructA { i = 10 },  l = 20L });
+
+/* { dg-output "StructB \{" } */
+/* { dg-output "\n  s=StructA \{...\}," } */
+/* { dg-output "\n  l=20L" } */
+/* { dg-output "\n\}" } */

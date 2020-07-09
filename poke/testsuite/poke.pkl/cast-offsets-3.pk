@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+deftype foo = int[2];
+defvar x = 128#b;
+
+/* { dg-command { x as offset<int,foo> } } */
+/* { dg-output "2#64" } */
+
+/* For constant folding: */
+/* { dg-command { 128#b as offset<int,foo> } } */
+/* { dg-output "\n2#64" } */

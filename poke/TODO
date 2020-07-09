@@ -1,0 +1,382 @@
+=====================
+GNU Poke - TODO lists
+=====================
+
+Copyright (C) 2019, 2020 Jose E. Marchesi
+See the end of the file for license conditions.
+
+NOTE: this file is not your typical abandoned TODO file that nobody
+      reads and nobody updates.  We **do** use this file, and these
+      are tasks that really need to get done.
+
+If you start working on a complex task, please let us know in the
+development mailing list so we can be aware of your efforts, and
+probably help you.
+
+If you complete a task, please include a patch for this file in your
+patch submission, removing the corresponding entry.
+
+Each TODO entry headline has a prefix that expresses certain
+characteristics of the task.  The prefix starts with a #
+character.
+
+After the #, a single character identifies the domain of the task.
+Valid value are:
+
+B
+  Build system.
+D
+  Documentation.
+C
+  Dot-commands, REPL and interface.
+L
+  The Poke language.
+P
+  The PKL compiler.
+A
+  The PKL compiler.  Frontend.
+B
+  The PKL compiler.  Backend.
+M
+  The Poke Virtual Machine.
+R
+  RAS, the retarded assembler.
+I
+  The IOS subsytem.
+
+
+Then follows a single-digit number, which identifies the expected
+difficulty of the task.  These are:
+
+0
+  Low Hanging Fruit.  Good for a bored rainy night while tired or a
+  hangoverish lazy Sunday.
+1
+  Easy and localized task.
+2
+  Moderately complex task.  May involve hacking several parts of
+  the program.
+3
+  Complex task.  Most probably planning is needed, splitting into
+  other tasks, etc.
+
+One of the following characters may follow the difficulty digit:
+
+!
+  Please ask in ``poke-devel`` before attacking this task.  It will
+  require discussion.
+
+All the headlines start exactly at the first column of a line.  This
+makes it easy to grep this file for particular TODO entries.
+
+Entries can contain a list of people working on that task.  If you
+intend to pick an item from the list, please let us know in
+``poke-devel`` so we can update the file.  Likewise, if you stop
+working on a given task, please let us know!
+
+For help on how to hack GNU poke, please see the file HACKING in this
+same directory.
+
+Happy poking!
+
+#B1 Parallelize the dg testsuite
+--------------------------------
+
+The dg testsuites are big.  We need to be able to run the tests in
+parallel.  A good place where to look for inspiration for this task is
+the GCC testing infrastructure.
+
+#C1 Make poke_interactive_p available to Poke programs
+------------------------------------------------------
+
+The global variable ``poke_interactive_p`` defined in ``poke/poke.c``
+tells whether poke is running interactively, i.e. if the standard
+input and output are connected to a tty.
+
+It would be useful to have this information available in Poke
+programs, so they can alter their behavior accordingly.
+
+Probably a good way to implement this is via a built-in and a
+definition in ``pkl-rt.pk`` like::
+
+  defun poke_interactive_p = int<32>: __PKL_BUILTIN_INTERACTIVE_P__;
+
+#C3 Debugging mode in poke
+--------------------------
+
+Debug mode::
+
+  (poke) .set debug 1
+
+Also in the command line::
+  
+   $ poke --debug
+
+Makes the compiler to generate location instructions, and generally
+adapt to debug Poke programs.  This mode will probably be
+significantly slower... that's ok.
+
+#A1 Support for multiline strings with """
+------------------------------------------
+
+At some point we will support docstrings in Poke functions.  For that,
+it is useful to support multi-line strings in order to avoid having to
+terminate each line with ``\n\``.
+
+We can use the python syntax """ ... """.  Other ideas are welcome.
+
+This should be implemented in the lexer, ``src/pkl-lex.l``.
+
+#P3! Locations in exceptions
+----------------------------
+
+The exception objects then shall be augmented in order to carry the
+location information.  Something like::
+  
+  deftype Exception =
+    struct
+    {
+      int code;
+      string file;
+      int line;
+      int column;
+    }
+
+The ``raise`` instruction will install the current location in the
+exception.
+
+Then, the default exception handler ``_pkl_exception_handler`` in
+``src/pkl-rt.pk`` shall be expanded to print the file, line and the
+column, if present.
+
+#M1 Negative encoding PVM instructions
+--------------------------------------
+
+At the moment the global negative encoding used by the ``peekd*`` and
+``poked*`` instructions is controlled by the user via the dot-command
+``.set``, for example::
+
+  (poke) .set nenc 1c
+  (poke) .set nenc 2c
+
+We need to be able to set the negative encoding programmatically from
+Poke programs.  As a first step, it is necessary to add a few
+instructions to the PVM to update the global state.
+Suggested instructions::
+
+  popenc             # ( NENCODING -- )
+  pushenc NENCODING  # ( -- NENCODING )
+
+A suitable encoding NENCODING in an int<32> is trivial::
+
+  0 - 2's complement
+  1 - 1's complement
+
+#M2! Location tracking in PVM
+-----------------------------
+
+The PVM shall be expanded with new instructions for location
+tracking.  Something like::
+  
+  pushloc file,line,column
+  setloc line,column
+  poploc
+
+If you want to work in this, please start a discussion in
+``poke-devel`` so we can design a suitable set of instructions.
+
+
+#R1 Validate the number of bits in u?int and u?long arguments
+-------------------------------------------------------------
+
+Currently RAS doesn't validate the number of bits used in PVM values.
+For example, this is passed as valid::
+
+  push ulong<100>23
+
+RAS should emit an error in that case.
+
+#L3! Support `big' integral values (>64 bit) with GMP
+-----------------------------------------------------
+
+Currently the PVM supports the following kind of integer values:
+
+Integers up to 32-bit, signed and unsigned
+  These values are unboxed.
+Long integers, up to 64-bit, signed and unsigned
+  These values are boxed.
+
+The task is to introduce an additional kind of integer:
+
+Big integers, up to infinite bits, signed and unsigned
+  These values are boxed.
+
+This new integer shall be implemented as a boxed value, using the GNU
+MultiPrecision library ``libgmp``.  This task involves:
+
+- Adding the support to ``src/pvm-val.[ch]``.
+- Add new instruction to ``src/pvm.jitter``, i.e. itob, btol, etc.
+- Adapt the compiler to support big integer literals.
+- Adapt the code generator to use the new instructions.
+
+#A2 fold array trims
+--------------------
+
+This task is about implementing constant folding for array trims.
+This shall be implemented in a handler in ``src/pkl-fold.c``.
+
+#A1 fold array casts
+--------------------
+
+This task is about implementing constant folding for casts of array
+literals, like in::
+
+  [1,2,3] as int[]
+
+Note that the construction above is relatively common in Poke, since
+that'st he only way to denote an array literal having an unbounded
+type.
+
+This should be implemented as a handler in ``src/pkl-fold.c``.
+
+
+#A1 fold "isa" expressions
+--------------------------
+
+This task is about implementing constant folding of ``isa``
+operations.  This should be implemented as a handler in
+``src/pkl-fold.c``.
+
+#A1 support %% in printf string literals
+----------------------------------------
+
+A new %-sequence shall be added to printf: %%.  This denotes a single
+% in the formatted output.  The right place where to hack this is the
+``pkl_trans1_ps_print_stmt`` handler in ``src/pkl-trans.c``.
+
+
+#M1 make the PVM run-time environment aware of units
+----------------------------------------------------
+
+The poke compiler allows the user to define her own units using the
+``defunit`` construct.  The PVM, however, is oblivious of this, and it
+only knows how to print the names of the standard units.  This is
+achieved by replicating the logic of the units in the
+``print_unit_name`` function.
+
+We really want to make the PVM aware of units.  This would allow us
+to:
+
+1. Print the name of user-defined units when printing offsets.
+
+2. Avoid logic replication in ``print_unit_name`` and the set of
+   ``PVM_VAL_OFF_UNIT_*`` constants defined in ``pvm-val.h``.
+
+#P2 implement ``format``
+------------------------
+
+We want to add a new language construction ``format``, which has the
+form::
+
+  format (FMT, ARGS...)
+
+or::
+
+  format FMT, ARGS...
+
+``format`` works like printf, but instead of printing out the
+formatted string it returns it.  This task requires adding support for
+this construction to the compiler.  In principle no PVM changes are
+necessary.
+
+#I2 Support Poke IOS Translators
+--------------------------------
+
+The goal of this project is to being able to "translate" an IO space
+using Poke code.  Example::
+
+  defvar my_translator
+     = IOS_Translate { readp = my_readp, writep = my_writep ... };
+  
+  defvar outer = open ("disk.img");
+  defvar inner = translate (outer, my_translator);
+
+In this scenario, the methods in ``my_translator`` are invoked when IO
+mapping is performed in ``inner``::
+
+  int @ inner : 0#B -> calls my_read
+
+When the methods in ``my_translator`` run, the current IOS is
+``outer``.
+
+The ``IOS_Translate`` type shall be defined in ``std.pk`` and
+basically implements the IOD interface in ``ios-dev.h``::
+
+  deftype IOS_Translate =
+     struct
+     {
+        defun readp = ...;
+        defun writep = ...;
+     };
+
+This of course depends on support for setting methods in struct
+constructors.
+
+#I1 Rationalize error codes in the IO subsystem
+-----------------------------------------------
+
+There are several problems with the current error codes returned in
+the IOD API in ``src/ios-dev.h``:
+
+- IOD_EOF is negative, while IOD_ERROR and IOD_EINVAL are positive.
+  All of them should be negative.
+
+Also, there are several problems in ``src/ios.h``:
+
+- IOS_EIOFF and IOS_EIBOJ are somewhat redundant.  After a discussion
+  in IRC we concluded that we need just one of these.  IOS_EIOBJ shall
+  be removed.
+
+- We need to incorporate an IOS_EPERM error code, to report cases
+  where we attempt to write to read-only IOS.
+
+Finally, the peek*/poke* instructions in ``src/pvm.jitter`` shall
+raise the following exceptions when they find certain IOS error codes:
+
+- IOS_ERROR -> E_io
+- IOS_EIOFF -> E_eof
+- IOS_EPERM -> E_perm
+
+Obviously a new exception ``E_perm`` shall be added as well.
+
+#C2 Implement command .vm time
+------------------------------
+
+This command will measure and show the time spent to execute some
+given expression/statement.  The computed time shall be decomposed
+into several components:
+
+- Time spent in the compiler.
+- Time spent in the PVM.
+- Total amount of time.
+
+
+This file is part of GNU poke.
+
+GNU poke is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+GNU poke is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU poke.  If not, see <https://www.gnu.org/licenses/>.
+
+Local Variables:
+mode: rst
+rst-toc-insert-style: listed
+End:

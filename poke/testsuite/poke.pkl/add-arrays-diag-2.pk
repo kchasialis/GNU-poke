@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar a = [1,2,3] + [3UB + 4UB]; /* { dg-error "invalid operand\n.*" } */

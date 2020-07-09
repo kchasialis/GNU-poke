@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+defvar jorl = 0;
+
+deftype Foo = union
+ {
+   int foo : jorl != 0;
+   int bar;
+ };

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun foo = void: { return; }
+
+/* { dg-command { foo } } */
+/* { dg-output "" } */

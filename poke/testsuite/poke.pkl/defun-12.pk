@@ -1,0 +1,19 @@
+/* { dg-do run } */
+
+defun foo = (any a) int: { return a as int + 1; }
+
+/* { dg-command { foo (10) } } */
+/* { dg-output "11" } */
+
+/* { dg-command { try foo ("foo"); catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "\ncaught" } */
+
+defun bar = (any a) int: { return (a as int[])[1] + 1; }
+
+/* { dg-command {  bar ([2,4,6]) }  } */
+/* { dg-output "\n5" } */
+
+defun baz = (any a) ulong: { return (a as offset<ulong,B>)'magnitude + 1; }
+
+/* { dg-command {  baz (16UL#B) } } */
+/* { dg-output "\n17UL" } */

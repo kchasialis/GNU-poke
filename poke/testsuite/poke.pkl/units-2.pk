@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* This tests that expressions in defunit are properly promoted.  */
+
+defunit x = 3;
+
+/* { dg-command { 2#x } } */
+/* { dg-output "2#3" } */

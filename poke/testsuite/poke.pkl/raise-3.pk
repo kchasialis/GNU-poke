@@ -1,0 +1,27 @@
+/* { dg-do run } */
+
+defun foo = int:
+  {
+   try
+     raise Exception {code = 1};
+   catch (Exception e)
+   {
+     raise e;
+   }
+   return 666;
+  }
+
+defun bar = int:
+  {
+   try
+     return foo;
+   catch
+   {
+     print ("caught exception\n");
+   }
+
+   return 0;
+  }
+
+/* { dg-command {  bar } } */
+/* { dg-output "caught exception\n0" } */

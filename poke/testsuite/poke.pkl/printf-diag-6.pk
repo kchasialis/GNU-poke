@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+/* Empty class tags are not allowed.  */
+
+printf "%<:%>"; /* { dg-error "" } */

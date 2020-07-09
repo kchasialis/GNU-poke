@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+defun foo = (string[] array) void:
+  {
+   for (a in array)
+     print (a + "\n");
+  }
+
+foo (["foo", "bar"]); /* { dg-output "foo\nbar" } */

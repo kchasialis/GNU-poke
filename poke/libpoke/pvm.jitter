@@ -1,0 +1,4923 @@
+## Jitter specification for the GNU Poke Virtual Machine.
+
+## Copyright (C) 2019, 2020 Jose E. Marchesi
+## Written by Jose E. Marchesi
+
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+vm
+  set prefix "pvm"
+  tos-stack "pvm_val" "stack"
+  ntos-stack "pvm_val" "returnstack"
+  ntos-stack "struct pvm_exception_handler *" "exceptionstack"
+end
+
+
+
+## Register classes.
+
+register-class r 1
+  code
+    pvm_val
+  end
+end
+
+
+
+## Functions and globals to wrap.
+
+wrapped-functions
+  pk_term_class
+  pk_term_end_class
+  pk_printf
+  printf
+  pvm_assert
+  pvm_env_lookup
+  pvm_env_register
+  pvm_env_pop_frame
+  pvm_env_push_frame
+  pvm_make_int
+  pvm_make_uint
+  pvm_make_long
+  pvm_make_ulong
+  pvm_make_string
+  pvm_make_array
+  pvm_make_struct
+  pvm_make_offset
+  pvm_make_integral_type
+  pvm_make_string_type
+  pvm_make_offset_type
+  pvm_make_array_type
+  pvm_allocate_struct_attrs
+  pvm_make_struct_type
+  pvm_typeof
+  pvm_ref_struct
+  pvm_set_struct
+  ios_cur
+  ios_read_int
+  ios_read_uint
+  ios_read_string
+  ios_write_string
+  random
+  secure_getenv
+end
+
+#wrapped-globals
+#  pvm_printf_format_string
+#end
+
+
+## Embedded C code.
+
+initial-header-c
+  code
+#   include <config.h>
+  end
+end
+
+early-header-c
+  code
+#   include "pvm.h"
+#   include "pvm-val.h"
+#   include "ios.h"
+#   include "pkt.h"
+#   include "pk-utils.h"
+
+    /* Exception handlers, that are installed in the "exceptionstack".
+
+       EXCEPTION is the exception type, either one of the E_* values defined
+       above, or any integer >= 256 for user-defined exceptions.
+
+       MAIN_STACK_HEIGHT and RETURN_STACK_HEIGHT are the heights of
+       the main and return stacks, to restore before transferring
+       control to the exception handler.
+
+       CODE is the program point where the exception handler starts.
+
+       ENV is the run-time environment to restore before transferring
+       control to the exception handler.  */
+
+    struct pvm_exception_handler
+    {
+      int exception;
+      jitter_stack_height main_stack_height;
+      jitter_stack_height return_stack_height;
+      pvm_program_point code;
+      pvm_env env;
+    };
+  end
+end
+
+initial-vm1-c
+  code
+#   include <config.h>
+  end
+end
+
+initial-vm2-c
+  code
+#   include <config.h>
+  end
+end
+
+early-c
+  code
+#   include <config.h>
+#   include <stdlib.h>
+#   include <string.h>
+#   include <assert.h>
+#   include "xalloc.h"
+
+#   include "pvm-alloc.h"
+  end
+end
+
+late-header-c
+  code
+    /* Macros to raise an exception from within an instruction.  This
+       is used in the RAISE instruction itself, and also in instructions
+       that can fail, such as integer division or IO.
+
+       The code in the macro looks for the first matching exception
+       handler in the exception handlers stack.  Then it restores the
+       heights of the main stack and the return stack, restores the
+       original dynamic environment, and then pushes the exception
+       type as an integer in the main stack, before branching to the
+       exception handler.  */
+
+#define PVM_RAISE_DIRECT(EXCEPTION)                                   \
+  do                                                                  \
+  {                                                                   \
+   int exception_code                                                 \
+     = PVM_VAL_INT (pvm_ref_struct ((EXCEPTION),                      \
+                                    pvm_make_string ("code")));       \
+   while (1)                                                          \
+   {                                                                  \
+     struct pvm_exception_handler *ehandler                           \
+       = JITTER_TOP_EXCEPTIONSTACK ();                                \
+     int handler_exception = ehandler->exception;                     \
+                                                                      \
+     JITTER_DROP_EXCEPTIONSTACK ();                                   \
+                                                                      \
+     if (handler_exception == 0                                       \
+         || handler_exception == exception_code)                      \
+     {                                                                \
+       JITTER_SET_HEIGHT_STACK (ehandler->main_stack_height);         \
+       JITTER_SET_HEIGHT_RETURNSTACK (ehandler->return_stack_height); \
+                                                                      \
+       JITTER_PUSH_STACK ((EXCEPTION));                               \
+                                                                      \
+       jitter_state_runtime.env = ehandler->env;                      \
+       JITTER_BRANCH (ehandler->code);                                \
+       break;                                                         \
+     }                                                                \
+   }                                                                  \
+ } while (0)
+
+
+#define PVM_RAISE(CODE,STR,ESTATUS)                                   \
+ do                                                                   \
+ {                                                                    \
+   pvm_val exception = pvm_make_exception ((CODE),(STR),(ESTATUS));   \
+   PVM_RAISE_DIRECT (exception);                                      \
+ } while (0)
+
+#define PVM_RAISE_DFL(BASE)                                           \
+ do                                                                   \
+ {                                                                    \
+   PVM_RAISE (BASE,BASE##_MSG,BASE##_ESTATUS);                        \
+ } while (0)
+
+    /* Macros to implement different kind of instructions.  These are to
+       avoid flagrant code replication below.  */
+
+/* Binary numeric operations generating a boolean on the stack.
+   ( TYPE TYPE -- TYPE TYPE INT ) */
+# define PVM_BOOL_BINOP(TYPE,OP)                                             \
+   do                                                                        \
+    {                                                                        \
+      pvm_val res = pvm_make_int (PVM_VAL_##TYPE (JITTER_UNDER_TOP_STACK ()) \
+                                  OP PVM_VAL_##TYPE (JITTER_TOP_STACK ()), 32); \
+      JITTER_PUSH_STACK (res);                                               \
+    } while (0)
+
+/* Unary numeric operations.
+   ( TYPE -- TYPE TYPE) */
+# define PVM_UNOP(TYPE,TYPER,TYPERLC,OP)                                     \
+   do                                                                        \
+    {                                                                        \
+      int size = PVM_VAL_##TYPER##_SIZE (JITTER_TOP_STACK ());               \
+      pvm_val res = pvm_make_##TYPERLC (OP PVM_VAL_##TYPE (JITTER_TOP_STACK ()), size); \
+      JITTER_PUSH_STACK (res);                                               \
+    } while (0)
+
+
+/* Binary numeric operations.
+  ( TYPE TYPE -- TYPE TYPE TYPE ) */
+# define PVM_BINOP(TYPEA,TYPEB,TYPER,TYPERLC,OP)                             \
+   do                                                                        \
+    {                                                                        \
+      int size = PVM_VAL_##TYPER##_SIZE (JITTER_UNDER_TOP_STACK ());       \
+      pvm_val res = pvm_make_##TYPERLC (PVM_VAL_##TYPEA (JITTER_UNDER_TOP_STACK ()) \
+                                        OP PVM_VAL_##TYPEB (JITTER_TOP_STACK ()), size); \
+      JITTER_PUSH_STACK (res);                                               \
+    } while (0)
+
+/* Same, but with division by zero run-time check.  */
+# define PVM_CHECKED_BINOP(TYPEA,TYPEB,TYPER,TYPERLC,OP)                     \
+   if (PVM_VAL_##TYPEB (JITTER_TOP_STACK ()) == 0)                           \
+   {                                                                         \
+      PVM_RAISE_DFL (PVM_E_DIV_BY_ZERO);                                     \
+   }                                                                         \
+   else                                                                      \
+   {                                                                         \
+      PVM_BINOP (TYPEA, TYPEB, TYPER, TYPERLC, OP);                          \
+   }
+
+/* Same, but for left-shifts, which includes an overflow check on the
+   bit count.  */
+# define PVM_BINOP_SL(TYPEA, TYPEB,TYPER,TYPERLC,OP)                         \
+   {                                                                         \
+     pvm_val type = pvm_typeof (JITTER_UNDER_TOP_STACK ());                  \
+     uint64_t size = PVM_VAL_INTEGRAL (PVM_VAL_TYP_I_SIZE (type));           \
+                                                                             \
+     if (PVM_VAL_##TYPEB (JITTER_TOP_STACK ()) >= size)                      \
+     {                                                                       \
+        PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);                                 \
+     }                                                                       \
+     else                                                                    \
+     {                                                                       \
+        PVM_BINOP (TYPEA, TYPEB, TYPER, TYPERLC, OP);                        \
+     }                                                                       \
+   }
+
+/* Exponentiation instructions.  */
+# define PVM_POWOP(TYPE,TYPEC,TYPELC,POWF)                                  \
+  do                                                                        \
+  {                                                                         \
+     uint64_t size = PVM_VAL_##TYPE##_SIZE (JITTER_UNDER_TOP_STACK ());     \
+     TYPEC res                                                              \
+      = (TYPEC) POWF (PVM_VAL_##TYPE (JITTER_UNDER_TOP_STACK ()),           \
+                      PVM_VAL_UINT (JITTER_TOP_STACK ()));                  \
+                                                                            \
+     JITTER_PUSH_STACK (pvm_make_##TYPELC (res, size));                     \
+  }                                                                         \
+  while (0)
+
+/* Conversion instructions.
+   ( TYPE -- TYPE RTYPE )  */
+#define PVM_CONVOP(TYPE, TYPEC, RTYPELC, RTYPEC)                             \
+   do                                                                        \
+    {                                                                        \
+      jitter_uint tsize = JITTER_ARGN0;                                      \
+      TYPEC val = PVM_VAL_##TYPE (JITTER_TOP_STACK ());                      \
+      JITTER_PUSH_STACK (pvm_make_##RTYPELC ((RTYPEC) val, tsize));          \
+    } while (0)
+
+/* Auxiliary macros used in PVM_PEEK and PVM_POKE below.  */
+#define PVM_IOS_ARGS_INT                                                     \
+  io, offset, 0, bits, endian, nenc, &value
+#define PVM_IOS_ARGS_UINT                                                    \
+  io, offset, 0, bits, endian, &value
+#define PVM_IOS_ARGS_WRITE_INT                                               \
+  io, offset, 0, bits, endian, nenc, value
+#define PVM_IOS_ARGS_WRITE_UINT                                              \
+  io, offset, 0, bits, endian, value
+
+/* Integral peek instructions.
+   ( IOS BOFF -- VAL )  */
+#define PVM_PEEK(TYPE,IOTYPE,NENC,ENDIAN,BITS,IOARGS)                        \
+  do                                                                         \
+   {                                                                         \
+     int ret;                                                                \
+     __attribute__((unused)) enum ios_nenc nenc = (NENC);                    \
+     enum ios_endian endian = (ENDIAN);                                      \
+     int bits = (BITS);                                                      \
+     IOTYPE##64_t value;                                                     \
+     ios io;                                                                 \
+     ios_off offset;                                                         \
+                                                                             \
+     offset = PVM_VAL_ULONG (JITTER_TOP_STACK ());                           \
+     if (JITTER_UNDER_TOP_STACK () == PVM_NULL)                              \
+       io = ios_cur ();                                                      \
+     else                                                                    \
+       io = ios_search_by_id (PVM_VAL_INT (JITTER_UNDER_TOP_STACK ()));      \
+                                                                             \
+     if (io == NULL)                                                         \
+       PVM_RAISE_DFL (PVM_E_NO_IOS);                                         \
+                                                                             \
+     JITTER_DROP_STACK ();                                                   \
+     if ((ret = ios_read_##IOTYPE (IOARGS)) != IOS_OK)                       \
+       {                                                                     \
+         if (ret == IOS_EIOFF)                                               \
+            PVM_RAISE_DFL (PVM_E_EOF);                                       \
+         else if (ret == IOS_ENOMEM)                                         \
+            PVM_RAISE (PVM_E_IO, "out of memory", PVM_E_IO_ESTATUS);         \
+         else                                                                \
+            PVM_RAISE_DFL (PVM_E_IO);                                        \
+         JITTER_TOP_STACK () = PVM_NULL;                                     \
+       }                                                                     \
+     else                                                                    \
+       JITTER_TOP_STACK () = pvm_make_##TYPE (value, bits);                  \
+   } while (0)
+
+/* Integral poke instructions.
+   ( IOS BOFF VAL -- )  */
+#define PVM_POKE(TYPE,IOTYPE,NENC,ENDIAN,BITS,IOARGS)                        \
+  do                                                                         \
+   {                                                                         \
+     int ret;                                                                \
+     __attribute__((unused)) enum ios_nenc nenc = (NENC);                    \
+     enum ios_endian endian = (ENDIAN);                                      \
+     int bits = (BITS);                                                      \
+     IOTYPE##64_t value = PVM_VAL_##TYPE (JITTER_TOP_STACK ());              \
+     pvm_val offset_val = JITTER_UNDER_TOP_STACK ();                         \
+     ios io;                                                                 \
+     ios_off offset;                                                         \
+                                                                             \
+     JITTER_DROP_STACK ();                                                   \
+     JITTER_DROP_STACK ();                                                   \
+                                                                             \
+     if (JITTER_TOP_STACK () == PVM_NULL)                                    \
+       io = ios_cur ();                                                      \
+     else                                                                    \
+       io = ios_search_by_id (PVM_VAL_INT (JITTER_TOP_STACK ()));            \
+                                                                             \
+     if (io == NULL)                                                         \
+       PVM_RAISE_DFL (PVM_E_NO_IOS);                                         \
+     JITTER_DROP_STACK ();                                                   \
+                                                                             \
+     offset = PVM_VAL_ULONG (offset_val);                                    \
+     if ((ret = ios_write_##IOTYPE (IOARGS)) != IOS_OK)                      \
+       {                                                                     \
+         if (ret == IOS_EIOFF)                                               \
+            PVM_RAISE_DFL (PVM_E_EOF);                                       \
+         else                                                                \
+            PVM_RAISE_DFL (PVM_E_IO);                                        \
+       }                                                                     \
+   } while (0)
+
+/* Macro to call to a closure.  This is used in the instruction CALL,
+   and also other instructions required to... call :D The argument
+   should be a closure (surprise.)  */
+
+#define PVM_CALL(CLS)                                                        \
+   do                                                                        \
+    {                                                                        \
+       /* Make place for the return address in the return stack.  */         \
+       /* actual value will be written by the callee. */                     \
+       JITTER_PUSH_UNSPECIFIED_RETURNSTACK();                                \
+                                                                             \
+       /* Save the current environment and use the callee's environment. */     \
+       JITTER_PUSH_RETURNSTACK ((jitter_uint) (uintptr_t) jitter_state_runtime.env); \
+       jitter_state_runtime.env = PVM_VAL_CLS_ENV ((CLS));                   \
+                                                                             \
+       /* Branch-and-link to the native code, whose first instruction will */ \
+       /*  be a prolog. */                                                   \
+       JITTER_BRANCH_AND_LINK (PVM_VAL_CLS_ENTRY_POINT ((CLS)));           \
+    } while (0)
+
+/* Macros to implement printi* and printl* instructions.  */
+
+#define PVM_PRINTI(TYPE,TYPEC,IFORMAT)                                      \
+  do                                                                        \
+  {                                                                         \
+    TYPEC val = PVM_VAL_##TYPE (JITTER_TOP_STACK ());                       \
+    char fmt[6];  /* %0NNd */                                               \
+                                                                            \
+    fmt[0] = '%';                                                           \
+    fmt[1] = '0';                                                           \
+    if (JITTER_ARGN1 == 10)                                                 \
+    {                                                                       \
+      fmt[2] = IFORMAT;                                                     \
+      fmt[3] = '\0';                                                        \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+      int prec = 0;                                                         \
+                                                                            \
+      if (JITTER_ARGN1 == 256)                                              \
+      {                                                                     \
+        fmt[4] = 'c';                                                       \
+        prec = 1;                                                           \
+      }                                                                     \
+      else if (JITTER_ARGN1 == 16)                                          \
+      {                                                                     \
+        fmt[4] = 'x';                                                       \
+        prec = (JITTER_ARGN0 / 4) + ((JITTER_ARGN0 % 4) != 0);              \
+      }                                                                     \
+      else if (JITTER_ARGN1 == 8)                                           \
+      {                                                                     \
+        fmt[4] = 'o';                                                       \
+        prec = (JITTER_ARGN0 / 3) + ((JITTER_ARGN0 % 3) != 0);              \
+      }                                                                     \
+      else if (JITTER_ARGN1 == 2)                                           \
+      {                                                                     \
+        pk_print_binary (pk_puts, val, JITTER_ARGN0, 1);                    \
+        JITTER_DROP_STACK ();                                               \
+        break;                                                              \
+      }                                                                     \
+                                                                            \
+      assert (prec != 0);                                                   \
+      fmt[2] = '0' + (prec / 10);                                           \
+      fmt[3] = '0' + prec - (prec / 10 * 10);                               \
+      fmt[5] = '\0';                                                        \
+    }                                                                       \
+                                                                            \
+    pk_printf (fmt, val);                                                   \
+    JITTER_DROP_STACK ();                                                   \
+  } while (0)
+
+#define PVM_PRINTL(TYPE,TYPEC,IFORMAT)                                      \
+  do                                                                        \
+  {                                                                         \
+    TYPEC val = PVM_VAL_##TYPE (JITTER_TOP_STACK ());                       \
+    char fmt[7];  /* %0NNff */                                              \
+                                                                            \
+    fmt[0] = '%';                                                           \
+    fmt[1] = '0';                                                           \
+    fmt[4] = 'l';                                                           \
+    if (JITTER_ARGN1 == 10)                                                 \
+    {                                                                       \
+      fmt[2] = IFORMAT;                                                     \
+      fmt[3] = '\0';                                                        \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+      int prec = 0;                                                         \
+                                                                            \
+      if (JITTER_ARGN1 == 16)                                               \
+      {                                                                     \
+        fmt[5] = 'x';                                                       \
+        prec = (JITTER_ARGN0 / 4) + ((JITTER_ARGN0 % 4) != 0);              \
+      }                                                                     \
+      else if (JITTER_ARGN1 == 8)                                           \
+      {                                                                     \
+        fmt[5] = 'o';                                                       \
+        prec = (JITTER_ARGN0 / 3) + ((JITTER_ARGN0 % 3) != 0);              \
+      }                                                                     \
+      else if (JITTER_ARGN1 == 2)                                           \
+      {                                                                     \
+        pk_print_binary (pk_puts, val, JITTER_ARGN0, 1);                    \
+        JITTER_DROP_STACK ();                                               \
+        break;                                                              \
+      }                                                                     \
+                                                                            \
+      fmt[2] = '0' + (prec / 10);                                           \
+      fmt[3] = '0' + prec - (prec / 10 * 10);                               \
+      fmt[6] = '\0';                                                        \
+    }                                                                       \
+                                                                            \
+    pk_printf (fmt, val);                                                   \
+    JITTER_DROP_STACK ();                                                   \
+  } while (0)
+
+  end
+end
+
+late-c
+  code
+    void
+    pvm_handle_signal (int signal_number)
+    {
+      struct vmprefix_state *s;
+
+      /* For every state... */
+      VMPREFIX_FOR_EACH_STATE (s)
+      {
+        /* ...Mark the signal signal_number as pending... */
+        VMPREFIX_STATE_AND_SIGNAL_TO_PENDING_SIGNAL_NOTIFICATION
+           (s, signal_number) = true;
+        /* ...And record the fact that there is at least one notification to
+           handle. */
+        VMPREFIX_STATE_TO_PENDING_NOTIFICATIONS (s) = true;
+      }
+    }
+  end
+end
+
+printer-c
+  code
+    static jitter_uint printer_hi;
+
+    static void
+    pvm_literal_printer_cast (FILE *out, jitter_uint val)
+    {
+      fflush (out);
+      pk_printf ("%" JITTER_PRIu, val);
+      pk_term_flush ();
+    }
+
+    static void
+    pvm_literal_printer (FILE *out, jitter_uint val)
+    {
+      fflush (out);
+      pvm_print_val_with_params (NULL /* not used since no
+                                         pretty-print */,
+                                 (pvm_val) val,
+                                 1 /* depth */,
+                                 PVM_PRINT_FLAT,
+                                 16 /* base */,
+                                 0 /* indent */,
+                                 2 /* acutoff */,
+                                 0 /* flags */);
+      pk_term_flush ();
+    }
+
+    static void
+    pvm_literal_printer_hi (FILE *out, jitter_uint hi)
+    {
+      fflush (out);
+      pk_printf ("%%hi(0x%" JITTER_PRIx ")", hi);
+      pk_term_flush ();
+      printer_hi = hi; /* This sucks */
+    }
+
+    static void
+    pvm_literal_printer_lo (FILE *out, jitter_uint lo)
+    {
+      fflush (out);
+      pk_printf ("%%lo(0x%" JITTER_PRIx") (", lo);
+
+      pvm_print_val_with_params (NULL /* not used since no
+                                         pretty-print */,
+                                 ((pvm_val) printer_hi << 32) | lo,
+                                 1 /* depth */,
+                                 PVM_PRINT_FLAT,
+                                 16 /* base */,
+                                 0 /* indent */,
+                                 2 /* acutoff */,
+                                 0 /* flags */);
+      pk_puts (")");
+      pk_term_flush ();
+      printer_hi = 0;
+    }
+
+    static void
+    popf_printer (FILE *out, jitter_uint nframes)
+    {
+      fflush (out);
+      pk_printf ("%" JITTER_PRIu, nframes);
+      pk_term_flush ();
+    }
+
+    static void
+    bits_printer (FILE *out, jitter_uint val)
+    {
+      fflush (out);
+      pk_printf ("%" JITTER_PRIu, val);
+      pk_term_flush ();
+    }
+
+    static void
+    endian_printer (FILE *out, jitter_uint val)
+    {
+      fflush (out);
+      pk_printf ("%s", val == IOS_ENDIAN_MSB ? "big" : "little");
+      pk_term_flush ();
+    }
+
+    static void
+    nenc_printer (FILE *out, jitter_uint val)
+    {
+      fflush (out);
+      pk_printf ("%s", val == IOS_NENC_1 ? "1c" : "2c");
+      pk_term_flush ();
+    }
+  end
+end
+
+
+## PVM state.
+
+# Jitter supports maintaining a VM state which is splitted in
+# `backing' and `runtime', so the question arises what to put in either
+# part of the state.  According to the comments generated by jitterc:
+#
+# "The machine state is separated into the backing and the more
+#  compact runtime data structures, to be allocated in registers as
+#  far as possible.  These are just a forward-declarations: the actual
+#  definitions are machine-generated."
+#
+# and:
+#
+# "The state backing and runtime are initialized at the same time, and
+#  in fact the distinction between them is invisible to the VM user."
+#
+# So it looks like both `backing' and `runtime' are available at
+# runtime, but accessing runtime is much more efficient because it is
+# kept in host machine registers if possible.
+
+state-struct-backing-c
+  code
+      enum pvm_exit_code exit_code;
+      pvm_val result_value;
+      jitter_stack_height canary;
+      pvm vm;
+  end
+end
+
+state-struct-runtime-c
+  code
+      pvm_env env;
+      uint32_t push_hi;
+      uint32_t endian;
+      uint32_t nenc;
+      uint32_t pretty_print;
+      enum pvm_omode omode;
+      int obase;
+      int omaps;
+      uint32_t odepth;
+      uint32_t oindent;
+      uint32_t oacutoff;
+  end
+end
+
+state-initialization-c
+  code
+      jitter_state_backing->vm = NULL;
+      jitter_state_backing->canary = NULL;
+      jitter_state_backing->exit_code = PVM_EXIT_OK;
+      jitter_state_backing->result_value = PVM_NULL;
+      jitter_state_runtime->endian = IOS_ENDIAN_MSB;
+      jitter_state_runtime->nenc = IOS_NENC_2;
+      jitter_state_runtime->pretty_print = 0;
+      jitter_state_runtime->omode = PVM_PRINT_FLAT;
+      jitter_state_runtime->obase = 10;
+      jitter_state_runtime->omaps = 0;
+      jitter_state_runtime->odepth = 0;
+      jitter_state_runtime->oindent = 2;
+      jitter_state_runtime->oacutoff = 0;
+  end
+end
+
+state-finalization-c
+  code
+   /* Finalize extra state here.  */
+  end
+end
+
+
+### Begin of instructions
+
+# In the instruction descriptions below, references to "the stack"
+# refer to the main stack.  References to the other stacks (exceptions
+# stack, return stack) are always explicit.
+
+## VM instructions
+
+# Instruction: canary
+#
+# This instruction installs a canary to mark the bottom of the stack,
+# which is cheched by the `exit' instruction.  To be most effective this
+# should be executed before the stack is used for the first time.
+#
+# Stack: ( -- )
+
+instruction canary ()
+  code
+     jitter_original_state->pvm_state_backing.canary
+      = JITTER_HEIGHT_STACK ();
+  end
+end
+
+# Instruction: exit
+#
+# Do some cleanup and finish execution of a PVM program.  This checks
+# the stack centinel installed by the `canary' instruction.
+#
+# Stack: ( -- )
+
+instruction exit ()
+  code
+    /* The element at the top of the stack is the exit
+       code to report to the PVM caller.  */
+    jitter_original_state->pvm_state_backing.exit_code
+      = PVM_VAL_INT (JITTER_TOP_STACK());
+
+    JITTER_DROP_STACK ();
+
+    /* Get the result of the execution, if any.  */
+    jitter_original_state->pvm_state_backing.result_value
+                = JITTER_TOP_STACK();
+    JITTER_DROP_STACK ();
+
+    /* Check for the stack centinel, but only if it was
+       installed.  */
+    if (jitter_original_state->pvm_state_backing.canary != NULL)
+      assert (jitter_original_state->pvm_state_backing.canary
+              == JITTER_HEIGHT_STACK ());
+
+    /* Clear pending signals.  */
+    {
+      int i;
+      for (i = 0; i < JITTER_SIGNAL_NO; i ++)
+        if (JITTER_PENDING_SIGNAL_NOTIFICATION (i))
+          JITTER_PENDING_SIGNAL_NOTIFICATION (i) = false;
+      JITTER_PENDING_NOTIFICATIONS = false;
+    }
+
+    JITTER_EXIT ();
+  end
+end
+
+# Instruction: pushend
+#
+# Push the current endianness on the stack.  This endianness is part
+# of the global state of the PVM.
+#
+# Stack: ( -- INT )
+
+instruction pushend ()
+  code
+    JITTER_PUSH_STACK (pvm_make_int (jitter_state_runtime.endian,
+                                     32));
+  end
+end
+
+# Instruction: popend
+#
+# Pop a signed integer from the stack and make it the current
+# endianness in the PVM.  The possible values for endianness are
+# IOS_ENDIAN_LSB and IOS_ENDIAN_MSB.
+#
+# Stack: ( INT -- )
+
+instruction popend ()
+  code
+    uint32_t endian = PVM_VAL_INT (JITTER_TOP_STACK ());
+    jitter_state_runtime.endian = endian;
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: sync
+#
+# Handle pending signals, and raise exceptions accordingly.  This
+# instruction should be emitted in strategic places, such as before
+# backwards jumps and at function prolog, to assure signals are
+# eventually attended to.
+#
+# Stack: ( -- )
+# Exceptions: PVM_E_SIGNAL
+
+instruction sync ()
+  code
+    /* XXX for now we treat all signals the same way.
+       As soon as we support exception arguments, we shall
+       pass the mask of signals to the signal handler.  */
+    if (JITTER_PENDING_NOTIFICATIONS)
+      PVM_RAISE_DFL (PVM_E_SIGNAL);
+  end
+end
+
+
+## IOS related instructions
+
+# Instruction: open
+#
+# Open a new IO space.  The handler string and a set of flags are
+# passed on the stack.  The descriptor of the opened IOS is pushed to
+# the stack as a signed integer.
+#
+# If there is no other IO space opened when this instruction is
+# executed, then the just opened space becomes the current IO space.
+#
+# If it is not possible to open the IO space according to the provided
+# flags, the PVM_E_IOFLAGS exception is raised.  If there is any other
+# error performing the operation, PVM_E_IO is raised.
+#
+# Stack: ( STR ULONG -- INT )
+# Exceptions: PVM_E_IOFLAGS, PVM_E_IO
+
+instruction open ()
+  code
+     char *filename = PVM_VAL_STR (JITTER_UNDER_TOP_STACK ());
+     uint64_t flags = PVM_VAL_ULONG (JITTER_TOP_STACK ());
+
+     int ret = ios_open (filename, flags, 0);
+
+     if (ret == IOS_EFLAGS)
+       PVM_RAISE_DFL (PVM_E_IOFLAGS);
+     else if (ret == IOS_ERROR)
+       PVM_RAISE_DFL (PVM_E_IO);
+
+     JITTER_DROP_STACK ();
+     JITTER_TOP_STACK () = pvm_make_int (ret, 32);
+  end
+end
+
+# Instruction: close
+#
+# Close an IO space.  The descriptor of the space to close is provided
+# on the stack as a signed integer.
+#
+# If the specified IO space doesn't exist, this instruction raises
+# PVM_E_IO.
+#
+# Stack: ( INT -- )
+# Exceptions: PVM_E_IO
+
+instruction close ()
+  code
+    int io_id = PVM_VAL_INT (JITTER_TOP_STACK ());
+    ios io = ios_search_by_id (io_id);
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_IO);
+
+    ios_close (io);
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: pushios
+#
+# Push the descriptor of the current IO space on the stack, as a
+# signed integer.  If no IO space is currently opened, raise
+# PVM_E_NO_IOS.
+#
+# Stack: ( -- INT )
+# Exceptions: PVM_E_NO_IOS
+
+instruction pushios ()
+  code
+    ios cur_io = ios_cur ();
+
+    if (cur_io == NULL)
+       PVM_RAISE_DFL (PVM_E_NO_IOS);
+    JITTER_PUSH_STACK (pvm_make_int (ios_get_id (cur_io), 32));
+  end
+end
+
+# Instruction: popios
+#
+# Pop an IO space descriptor from the stack and set it as the current
+# IO space.  If the specified descriptor doesn't identify an IO space,
+# raise PVM_E_NO_IOS.
+#
+# Stack: ( INT -- )
+# Exceptions: PVM_E_NO_IOS
+
+instruction popios ()
+  code
+    ios io = ios_search_by_id (PVM_VAL_INT (JITTER_TOP_STACK ()));
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_NO_IOS);
+    ios_set_cur (io);
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: iosize
+#
+# Push the size of the given IO space on the stack, as an offset.  The
+# IO space is identified by a descriptor, which is a signed integer.
+# If the given IO space doesn't exist, raise PVM_E_NO_IOS.
+#
+# Stack: ( INT -- INT OFF )
+# Exceptions: PVM_E_NO_IOS
+
+instruction iosize ()
+  code
+    ios io = ios_search_by_id (PVM_VAL_INT (JITTER_TOP_STACK ()));
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_NO_IOS);
+
+    JITTER_PUSH_STACK (pvm_make_offset (pvm_make_ulong (ios_size (io), 64),
+                                        pvm_make_ulong (1, 64)));
+  end
+end
+
+
+# Instruction: iogetb
+#
+# Each IO space has a bias associated with it, which by default is 0
+# bits.  This bias is applied to the offset given to every read/write
+# operation.
+#
+# This instruction pushes the bias associated to the given IO space to
+# the stack, as an offset.  If the given IO space doesn't exist then
+# the exception PVM_E_NO_IOS is raised.
+#
+# Stack: ( INT - INT OFF )
+# Exceptions: PVM_E_NO_IOS
+
+instruction iogetb ()
+  code
+    ios io = ios_search_by_id (PVM_VAL_INT (JITTER_TOP_STACK ()));
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_NO_IOS);
+
+    JITTER_PUSH_STACK (pvm_make_offset (pvm_make_ulong (ios_get_bias (io), 64),
+                                        pvm_make_ulong (1, 64)));
+  end
+end
+
+# Instruction: iosetb
+#
+# Each IO space has a bias associated with it, which by default is 0
+# bits.  This bias is applied to the offset given to every read/write
+# operation.
+#
+# This instruction sets the bias associated to the given IO space.
+# The bias is specified as an offset.  If the given IO space doesn't
+# exist, the exception PVM_E_NO_IOS is raised.
+#
+# Stack: ( INT OFF -- INT )
+# Exceptions: PVM_E_NO_IOS
+
+instruction iosetb ()
+  code
+    pvm_val bias = JITTER_TOP_STACK();
+    ios io = ios_search_by_id (PVM_VAL_INT (JITTER_UNDER_TOP_STACK ()));
+
+    JITTER_DROP_STACK ();
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_NO_IOS);
+
+    ios_set_bias (io,
+                  (PVM_VAL_INTEGRAL (PVM_VAL_OFF_MAGNITUDE (bias))
+                   * PVM_VAL_INTEGRAL (PVM_VAL_OFF_UNIT (bias))));
+  end
+end
+
+
+## Function management instructions
+
+# Instruction: call
+#
+# Call a closure on the stack, passing the specified arguments.  After
+# the execution of the closure, control is transferred to the
+# instruction immediately following the call instruction.
+#
+# Stack: ( ARG1 ... ARGN CLOSURE -- RETVAL )
+
+instruction call ()
+  caller
+  code
+    pvm_val closure = JITTER_TOP_STACK ();
+
+    assert (PVM_VAL_CLS_ENV (closure) != NULL);
+    JITTER_DROP_STACK ();
+    PVM_CALL (closure);
+  end
+end
+
+# Instruction: prolog
+#
+# Prepare the PVM for the execution of a function.  This instruction
+# shall be the target of every `call' instruction and shall be the
+# first instruction in every function body.
+#
+# Stack: ( -- )
+
+instruction prolog ()
+  callee
+  code
+    /* Fill the return stack slot with the return address.  The return
+       stack has already been pushesd (with an unspecified value on the
+       under top) by the caller. */
+    JITTER_UNDER_TOP_RETURNSTACK() = (jitter_uint) JITTER_LINK;
+  end
+end
+
+# Instruction: return
+#
+# Return from a function.  A function can have many `return'
+# instructions.
+#
+# Stack: ( -- )
+
+instruction return ()
+  code
+    jitter_uint return_address;
+
+    /* Restore the environment of the caller.  Note the cast to
+       jitter_uint is to avoid a warning in 32-bit.  */
+    jitter_state_runtime.env = (pvm_env) (jitter_int) JITTER_TOP_RETURNSTACK ();
+    JITTER_DROP_RETURNSTACK();
+
+    return_address = JITTER_TOP_RETURNSTACK();
+    JITTER_DROP_RETURNSTACK();
+
+    JITTER_RETURN (return_address);
+  end
+end
+
+
+## Environment instructions
+
+# Instruction: pushf N
+#
+# Push a new lexical frame.  If the argument N is bigger than zero, it
+# indicates the number of entries in the frame.  If N is 0, it means
+# we don't know how many entries will be stored in the frame.
+#
+# Stack: ( -- )
+
+instruction pushf (?n popf_printer)
+  code
+    jitter_state_runtime.env
+       = pvm_env_push_frame (jitter_state_runtime.env,
+                             JITTER_ARGN0);
+  end
+end
+
+# Instruction: popf N
+#
+# Pop N lexical frames.
+#
+# Stack: ( -- )
+
+instruction popf (?n popf_printer)
+  code
+    jitter_uint i;
+
+    for (i = 0; i < JITTER_ARGN0; ++i)
+        jitter_state_runtime.env
+           = pvm_env_pop_frame (jitter_state_runtime.env);
+  end
+end
+
+# Instruction: pushvar BACK, OVER
+#
+# Retrieve the value of a variable from the lexical environment and
+# push it on the stack.  The lexical address of the variable is
+# specified as arguments to the instruction.
+#
+# Stack: ( -- VAL )
+
+instruction pushvar (?n 0, ?n 0 1 2 3 4 5)
+  code
+    JITTER_PUSH_STACK (pvm_env_lookup (jitter_state_runtime.env,
+                                       (int) JITTER_ARGN0,
+                                       (int) JITTER_ARGN1));
+  end
+end
+
+# Instruction: popvar BACK, OVER
+#
+# Pop a value from the stack and set it as the value of a variable
+# having the lexical address specified in the arguments, in the
+# current lexical environment.
+#
+# Stack: ( VAL -- )
+
+instruction popvar (?n, ?n)
+  code
+    pvm_env_set_var (jitter_state_runtime.env,
+                     (int) JITTER_ARGN0,
+                     (int) JITTER_ARGN1,
+                     JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: regvar
+#
+# Pop a value from the stack and use it as the value for a new
+# variable in the current lexical environment.
+#
+# Stack: ( VAL -- )
+
+instruction regvar ()
+  code
+    pvm_env_register (jitter_state_runtime.env,
+                      JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: pec
+#
+# Put the current lexical environment to the closure at the top of the
+# stack.
+#
+# Stack: ( CLS -- CLS )
+
+instruction pec ()
+  code
+    pvm_val cls = JITTER_TOP_STACK ();
+    PVM_VAL_CLS_ENV (cls) = jitter_state_runtime.env;
+  end
+end
+
+
+## Printing Instructions
+
+# In the following instructions the meaning of the argument BASE is
+# the following:
+#
+# 2 - print the number in binary.
+# 8 - print the number in octal.
+# 16 - print the number in hexadecimal.
+# Any other value - print the number in decimal.
+
+# Instruction: printi BITS, BASE
+#
+# Print the signed integer at the top of the stack using the width in
+# BITS and numeration base BASE.
+#
+# Stack: ( INT -- )
+
+instruction printi (?n popf_printer, ?n popf_printer)
+  code
+    PVM_PRINTI (INT, int32_t, 'd');
+  end
+end
+
+# Instruction: printiu BITS, BASE
+#
+# Print the unsigned integer at the top of the stack using the width
+# in BITS and numeration base BASE.
+#
+# Stack: ( UINT -- )
+
+instruction printiu (?n popf_printer, ?n popf_printer)
+  code
+    PVM_PRINTI (UINT, uint32_t, 'u');
+  end
+end
+
+# Instruction: printl BITS, BASE
+#
+# Print the signed long at the top of the stack using the width in
+# BITS and numeration base BASE.
+#
+# Stack: ( LONG -- )
+
+instruction printl (?n popf_printer, ?n popf_printer)
+  code
+    PVM_PRINTL (LONG, int64_t, 'd');
+  end
+end
+
+# Instruction: printlu BITS, BASE
+#
+# Print the unsigned long at the top of the stack using the width in
+# BITS and numeration base BASE.
+#
+# Stack: ( ULONG -- )
+
+instruction printlu (?n popf_printer, ?n popf_printer)
+  code
+   PVM_PRINTL (ULONG, uint64_t, 'u');
+  end
+end
+
+# Instruction: prints
+#
+# Print the string at the top of the stack.
+#
+# Stack: ( STR -- )
+
+instruction prints ()
+  code
+    pvm_print_string (JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: printv MODE, DEPTH
+#
+# Print the PVM value at the top of the stack, using the same printer
+# that is used in the REPL.  This takes into account pretty-printers.
+#
+# MODE can be one of the printing modes PVM_PRINT_* defined in pvm.h.
+# DEPTH is either 0 (meaning no depth limit while printing structures) or
+# a positive integer, specifying how many levels of structures to print.
+#
+# Stack: ( VAL -- )
+
+instruction printv (?n,?n)
+  code
+    pvm vm = jitter_original_state->pvm_state_backing.vm;
+    int back_omode = pvm_omode (vm);
+    int back_odepth = pvm_odepth (vm);
+
+    pvm_set_omode (vm, (int) JITTER_ARGN0);
+    pvm_set_odepth (vm, (int) JITTER_ARGN1);
+    pvm_print_val (jitter_original_state->pvm_state_backing.vm,
+                   JITTER_TOP_STACK ());
+    pvm_set_omode (vm, back_omode);
+    pvm_set_odepth (vm, back_odepth);
+
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: begsc
+#
+# Begin the styling class whose name is found on the stack.  This
+# class will be in effect in subsequent print operations until it is
+# explicitly ended by a `endsc' instruction.
+#
+# Stack: ( STR -- )
+
+instruction begsc ()
+  code
+    pk_term_class (PVM_VAL_STR (JITTER_TOP_STACK ()));
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: endsc
+#
+# End the styling class whose name is found on the stack.  This class
+# should have been previously began by a `begsc' instruction.
+#
+# Stack: ( STR -- )
+
+instruction endsc ()
+  code
+    pk_term_end_class (PVM_VAL_STR (JITTER_TOP_STACK ()));
+    JITTER_DROP_STACK ();
+  end
+end
+
+
+## Main stack manipulation instructions
+
+# Instruction: push VAL
+#
+# Push the value given as an argument to the main stack.
+#
+# Stack: ( -- VAL )
+
+instruction push (?nl pvm_literal_printer)
+  code
+    pvm_val k = JITTER_ARGN0;
+    JITTER_PUSH_STACK(k);
+  end
+end
+
+# Instruction: drop
+#
+# Pop the value at the top of the main stack, and discard it.
+#
+# Stack: ( VAL -- )
+
+instruction drop ()
+  code
+    JITTER_DROP_STACK();
+  end
+end
+
+# Instruction: drop2
+#
+# Pop the two values at the top of the main stack, and discard them.
+#
+# Stack: ( VAL VAL -- )
+
+instruction drop2 ()
+  code
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+  end
+end
+
+# Instruction: drop3
+#
+# Pop the three values at the top of the main stack, and discard them.
+#
+# Stack: ( VAL VAL VAL -- )
+
+instruction drop3 ()
+  code
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+  end
+end
+
+# Instruction: drop4
+#
+# Pop the four values at the top of the stack, and discard them.
+#
+# Stack: ( VAL VAL VAL VAL -- )
+
+instruction drop4 ()
+  code
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+  end
+end
+
+# Instruction: swap
+#
+# Exchange the two elements at the top of the stack.
+#
+# Stack: ( A B -- B A)
+
+instruction swap ()
+  code
+    pvm_val tmp = JITTER_UNDER_TOP_STACK ();
+    JITTER_UNDER_TOP_STACK () = JITTER_TOP_STACK ();
+    JITTER_TOP_STACK () = tmp;
+  end
+end
+
+# Instruction: nip
+#
+# Discard the element at the under top of the main stack.
+#
+# Stack: ( A B -- B )
+
+instruction nip ()
+  code
+    JITTER_NIP_STACK();
+  end
+end
+
+# Instruction: nip2
+#
+# Discard the two elements at the under top of the main stack.
+#
+# Stack: ( A B C -- C )
+
+instruction nip2 ()
+  code
+    JITTER_NIP_STACK ();
+    JITTER_NIP_STACK ();
+  end
+end
+
+# Instruction: nip3
+#
+# Discard the three elements at the under top of the main stack.
+#
+# Stack: ( A B C D -- D )
+
+instruction nip3 ()
+  code
+    JITTER_NIP_STACK ();
+    JITTER_NIP_STACK ();
+    JITTER_NIP_STACK ();
+  end
+end
+
+# Instruction: dup
+#
+# Push a copy of the element at the top of the main stack.
+#
+# Stack: ( A -- A A )
+
+instruction dup ()
+  code
+    JITTER_DUP_STACK ();
+  end
+end
+
+# Instruction: over
+#
+# Push a copy of the element at the under top of the main stack.
+#
+# Stack: ( A B -- A B A )
+
+instruction over ()
+  code
+    JITTER_PUSH_STACK (JITTER_UNDER_TOP_STACK ());
+  end
+end
+
+# Instruction: rot
+#
+# Rotate the three elements at the top of the main stack, clock-wise.
+#
+# Stack: ( A B C -- B C A )
+
+instruction rot ()
+  code
+    JITTER_ROT_STACK ();
+  end
+end
+
+# Instruction: nrot
+#
+# Rotate the three elements at the top of the stack, counter
+# clock-wise.
+#
+# Stack: ( A B C -- C A B )
+
+instruction nrot ()
+  code
+    JITTER_MROT_STACK ();
+  end
+end
+
+# Instruction: tuck
+#
+# Tuck a copy of the element at the top of the stack down two
+# positions.
+#
+# Stack: ( A B -- B A B )
+
+instruction tuck ()
+  code
+    JITTER_TUCK_STACK ();
+  end
+end
+
+# Instruction: quake
+#
+# Swap the two elements at the under top of the stack.
+#
+# Stack: ( A B C - B A C )
+
+instruction quake ()
+  code
+    JITTER_QUAKE_STACK ();
+  end
+end
+
+# Instruction: revn N
+#
+# Reverse the N elements at the top of the stack.
+#
+# Stack: ( VAL... -- VAL... )
+
+instruction revn (?n 3 4 popf_printer)
+  code
+    JITTER_REVERSE_STACK (JITTER_ARGU0);
+  end
+end
+
+# Instruction: pushhi VAL
+#
+# Push the high 32 bits of the value passed as an argument to the main
+# stack.  This instruction shall be completed with a `pushlo'.
+#
+# This instruction is a workaround to a limitation of Jitter.
+#
+# Stack: ( -- HI32(VAL) )
+
+instruction pushhi (?nl pvm_literal_printer_hi)
+  code
+     jitter_state_runtime.push_hi
+       = JITTER_ARGN0;
+  end
+end
+
+# Instruction: pushlo VAL
+#
+# Push the low 32 bits of the value passed as an argument to the main
+# stack.  This instruction shall be preceded by a `pushhi'.
+#
+# This instruction is a workaround to a limitation of Jitter.
+#
+# Stack: ( -- LO32(VAL) )
+
+instruction pushlo (?nl pvm_literal_printer_lo)
+  code
+     pvm_val k
+       = ((pvm_val) jitter_state_runtime.push_hi << 32)
+         | JITTER_ARGN0;
+     JITTER_PUSH_STACK (k);
+  end
+end
+
+# Instruction: push32 VAL
+#
+# Push the value passed as an argument on the stack.  This assumes
+# that the internal representation of VAL doesn't require more than
+# 32-bit.
+#
+# This instruction is a workaround to a limitation of Jitter.
+#
+# Stack: ( -- VAL )
+
+instruction push32 (?nl pvm_literal_printer)
+  code
+    pvm_val k = JITTER_ARGN0;
+    JITTER_PUSH_STACK (k);
+  end
+end
+
+
+## Registers manipulation instructions
+
+# Instruction: pushr REGNO
+#
+# Push the contents of the register REGNO on the stack.
+#
+# Stack: ( -- VAL )
+
+instruction pushr (?R)
+  code
+    JITTER_PUSH_STACK (JITTER_ARG0);
+  end
+end
+
+# Instruction: popr REGNO
+#
+# Pop the element at the top of the stack and put it in the
+# register REGNO.
+#
+# Stack: ( VAL -- )
+
+instruction popr (!R)
+  code
+    JITTER_ARG0 = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: setr REGNO
+#
+# Set the element at the top of the stack to the value of the
+# register REGNO.
+#
+# Stack: ( -- )
+
+instruction setr (!R)
+  code
+    JITTER_ARG0 = JITTER_TOP_STACK();
+  end
+end
+
+
+## Return stack manipulation instructions
+
+# Instruction: saver REGNO
+#
+# Push the contents of the register REGNO to the return stack.
+#
+# Stack: ( -- )
+# ReturnStack: ( -- VAL )
+
+instruction saver (?R)
+  code
+    JITTER_PUSH_RETURNSTACK (JITTER_ARG0);
+  end
+end
+
+# Instruction: restorer REGNO
+#
+# Pop the element at the top of the return stack and put it in the
+# register REGNO.
+#
+# Stack: ( -- )
+# ReturnStack: ( VAL -- )
+
+instruction restorer (!R)
+  code
+    JITTER_ARG0 = JITTER_TOP_RETURNSTACK ();
+    JITTER_DROP_RETURNSTACK ();
+  end
+end
+
+# Instruction: tor
+#
+# Pop an element from the stack and push it in the return stack.
+#
+# Stack: ( VAL -- )
+# ReturnStack: ( -- VAL )
+
+instruction tor ()
+  code
+    JITTER_PUSH_RETURNSTACK (JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: fromr
+#
+# Pop an element from the return stack and push it on the stack.
+#
+# Stack: ( -- VAL)
+# ReturnStack: ( VAL -- )
+
+instruction fromr ()
+  code
+    JITTER_PUSH_STACK (JITTER_TOP_RETURNSTACK ());
+    JITTER_DROP_RETURNSTACK ();
+  end
+end
+
+# Instruction: atr
+#
+# Push a copy of the element at the top of the return stack into the
+# stack.
+#
+# Stack: ( -- VAL )
+
+instruction atr ()
+  code
+    JITTER_PUSH_STACK (JITTER_TOP_RETURNSTACK ());
+  end
+end
+
+
+## Arithmetic instructions
+
+# The following instructions assume that both operands have the same
+# size in bits.
+
+# Instruction: addi
+#
+# Push the result of adding the two integers at the top of the stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction addi ()
+  code
+    PVM_BINOP (INT, INT, INT, int,  +);
+  end
+end
+
+# Instruction: addiu
+#
+# Push the result of adding the two unsigned integers at the top of
+# the stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction addiu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint,  +);
+  end
+end
+
+# Instruction addl
+#
+# Push the result of adding the two longs at the top of the stack.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+
+instruction addl ()
+  code
+    PVM_BINOP (LONG, LONG, LONG, long,  +);
+  end
+end
+
+# Instruction: addlu
+#
+# Push the result of adding the two unsigned longs at the top of
+# the stack.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+
+instruction addlu ()
+  code
+    PVM_BINOP (ULONG, ULONG, ULONG, ulong,  +);
+  end
+end
+
+# Instruction: subi
+#
+# Push the result of subtracting the two integers at the top of
+# the stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction subi ()
+  code
+    PVM_BINOP (INT, INT, INT, int,  -);
+  end
+end
+
+# Instruction: subiu
+#
+# Push the result of subtracting the two unsigned integers at the
+# top of the stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction subiu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint,  -);
+  end
+end
+
+# Instruction: subl
+#
+# Push the result of subtracting the two longs at the top
+# of the stack.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+
+instruction subl ()
+  code
+    PVM_BINOP (LONG, LONG, LONG, long,  -);
+  end
+end
+
+# Instruction: sublu
+#
+# Push the result of subtracting the two unsigned longs at the
+# top of the stack.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+
+instruction sublu ()
+  code
+    PVM_BINOP (ULONG, ULONG, ULONG, ulong,  -);
+  end
+end
+
+# Instruction: muli
+#
+# Push the result of multiplying the two integers at the top of the
+# stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction muli ()
+  code
+    PVM_BINOP (INT, INT, INT, int,  *);
+  end
+end
+
+# Instruction: muliu
+#
+# Push the result of multiplying the two unsigned integers at the
+# top of the stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction muliu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint,  *);
+  end
+end
+
+# Instruction: mull
+#
+# Push the result of multiplying the two longs at the top of the
+# stack.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+
+instruction mull ()
+  code
+    PVM_BINOP (LONG, LONG, LONG, long,  *);
+  end
+end
+
+# Instruction: mullu
+#
+# Push the result of multiplying the two unsigned longs at the top
+# of the stack.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+
+instruction mullu ()
+  code
+    PVM_BINOP (ULONG, ULONG, ULONG, ulong,  *);
+  end
+end
+
+# Instruction: divi
+#
+# Push the result of the integer division of the two integers at the
+# top of the stack.  If the denominator is zero, raise
+# PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( INT INT -- INT INT INT )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction divi ()
+  code
+    PVM_CHECKED_BINOP (INT, INT, INT, int, /);
+  end
+end
+
+# Instruction: diviu
+#
+# Push the result of the integer division of the two unsigned integers
+# at the top of the stack.  If the denominator is zero, raise
+# PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction diviu ()
+  code
+    PVM_CHECKED_BINOP (UINT, UINT, UINT, uint, /);
+  end
+end
+
+# Instruction: divl
+#
+# Push the result of the integer division of the two longs at the top
+# of the stack.  If the denominator is zero, raise PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction divl ()
+  code
+    PVM_CHECKED_BINOP (LONG, LONG, LONG, long, /);
+  end
+end
+
+# Instruction: divlu
+#
+# Push the result of the integer division of the two unsigned
+# longs at the top of the stack.  If the denominator is zero,
+# raise PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction divlu ()
+  code
+    PVM_CHECKED_BINOP (ULONG, ULONG, ULONG, ulong, /);
+  end
+end
+
+# Instruction: modi
+#
+# Push the result of the modulus of the two integers at the top of the
+# stack.  If the denominator is zero, raise PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( INT INT -- INT INT INT )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction modi ()
+  code
+    PVM_CHECKED_BINOP (INT, INT, INT, int, %);
+  end
+end
+
+# Instruction: modiu
+#
+# Push the result of the modulus of the two unsigned integers at the
+# top of the stack.  If the denominator is zero, raise
+# PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction modiu ()
+  code
+    PVM_CHECKED_BINOP (UINT, UINT, UINT, uint, %);
+  end
+end
+
+# Instruction: modl
+#
+# Push the result of the modulus of the two longs at the top of the
+# stack.  If the denominator is zero, raise PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction modl ()
+  code
+    PVM_CHECKED_BINOP (LONG, LONG, LONG, long, %);
+  end
+end
+
+# Instruction: modlu
+#
+# Push the result of the modulus of the two unsigned longs at the top
+# of the stack.  If the denominator is zero, raise PVM_E_DIV_BY_ZERO.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+# Exceptions: PVM_E_DIV_BY_ZERO
+
+instruction modlu ()
+  code
+    PVM_CHECKED_BINOP (ULONG, ULONG, ULONG, ulong, %);
+  end
+end
+
+# Instruction: negi
+#
+# Push the result of the negation of the integer at the top of the
+# stack.
+#
+# Stack: ( INT -- INT INT )
+
+instruction negi ()
+  code
+    PVM_UNOP (INT, INT, int, -);
+  end
+end
+
+# Instruction: negiu
+#
+# Push the result of the negation of the unsigned integer at the
+# top of the stack.
+#
+# Stack: ( UINT -- UINT UINT UINT )
+
+instruction negiu ()
+  code
+    PVM_UNOP (UINT, UINT, uint, -);
+  end
+end
+
+# Instruction: negl
+#
+# Push the result of the negation of the long at the top of the
+# stack.
+#
+# Stack: ( LONG -- LONG LONG )
+
+instruction negl ()
+  code
+    PVM_UNOP (LONG, LONG, long, -);
+  end
+end
+
+# Instruction: neglu
+#
+# Push the result of the negation of the unsigned long at the top of
+# the stack.
+#
+# Stack: ( ULONG -- ULONG ULONG )
+
+instruction neglu ()
+  code
+    PVM_UNOP (ULONG, ULONG, ulong, -);
+  end
+end
+
+# Instruction: powi
+#
+# Perform the exponentiation of the integer at the under top of the
+# stack.  The exponent is the unsigned integer at the top of the
+# stack.  If the exponent is 0, the result is 1.
+#
+# Stack: ( INT UINT -- INT UINT INT )
+
+instruction powi ()
+  code
+    PVM_POWOP (INT,int64_t,int,pk_ipow);
+  end
+end
+
+# Instruction: powiu
+#
+# Perform the exponentiation of the unsigned integer at the under top
+# of the stack.  The exponent is the unsigned integer at the top of
+# the stack.  If the exponent is 0, the result is 1.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction powiu ()
+  code
+    PVM_POWOP (UINT,uint64_t,uint,pk_upow);
+  end
+end
+
+# Instruction: powl
+#
+# Perform the exponentiation of the long at the under top of the
+# stack.  The exponent is the unsigned integer at the top of the
+# stack.  If the exponent is 0, the result is 1.
+#
+# Stack: ( LONG UINT -- LONG UINT LONG )
+
+instruction powl ()
+  code
+    PVM_POWOP (LONG,int64_t,long,pk_ipow);
+  end
+end
+
+# Instruction: powlu
+#
+# Perform the exponentiation of the unsigned long at the under top of
+# the stack.  The exponent is the unsigned integer at the top of the
+# stack.  If the exponent is 0, the result is 1.
+#
+# Stack: ( ULONG UINT -- ULONG UINT ULONG )
+
+instruction powlu ()
+  code
+    PVM_POWOP (ULONG,uint64_t,ulong,pk_upow);
+  end
+end
+
+
+## Relational instructions
+
+# Instruction: eqi
+#
+# Push 1 on the stack if the two integers at the top of the stack are
+# equal.  Otherwise push 0.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction eqi ()
+  code
+     PVM_BOOL_BINOP (INT, ==);
+  end
+end
+
+# Instruction: eqiu
+#
+# Push 1 on the stack if the two unsigned integers at the top of the
+# stack are equal.  Otherwise push 0.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction eqiu ()
+  code
+     PVM_BOOL_BINOP (UINT, ==);
+  end
+end
+
+# Instruction: eql
+#
+# Push 1 on the stack if the two longs at the top of the stack are
+# equal.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction eql ()
+  code
+     PVM_BOOL_BINOP (LONG, ==);
+  end
+end
+
+# Instruction: eqlu
+#
+# Push 1 on the stack if the two unsigned longs at the top of the
+# stack are equal.  Otherwise push 0.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG INT )
+
+instruction eqlu ()
+  code
+     PVM_BOOL_BINOP (ULONG, ==);
+  end
+end
+
+# Instruction: eqs
+#
+# Push 1 on the stack if the two strings at the top of the stack are
+# equal.  Otherwise push 0.
+#
+# Stack: ( STR STR -- STR STR INT )
+
+instruction eqs ()
+  code
+    pvm_val res = pvm_make_int (STREQ (PVM_VAL_STR (JITTER_UNDER_TOP_STACK ()),
+                                       PVM_VAL_STR (JITTER_TOP_STACK ())),
+                                32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+# Instruction: nei
+#
+# Push 1 on the stack if the two integers at the top of the stack are
+# not equal.  Otherwise push 0.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction nei ()
+  code
+     PVM_BOOL_BINOP (INT, !=);
+  end
+end
+
+# Instruction: neiu
+#
+# Push 1 on the stack if the two unsigned integers at the top of the
+# stack are not equal.  Otherwise push 0.
+#
+# Stack: ( UINT UINT -- UINT UINT INT )
+
+instruction neiu ()
+  code
+     PVM_BOOL_BINOP (UINT, !=);
+  end
+end
+
+# Instruction: nel
+#
+# Push 1 on the stack if the two longs at the top of the stack are not
+# equal.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction nel ()
+  code
+     PVM_BOOL_BINOP (LONG, !=);
+  end
+end
+
+# Instruction: nelu
+#
+# Push 1 on the stack if the two unsigned longs at the top of the
+# stack are not equal.  Otherwise push 0.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG INT )
+
+instruction nelu ()
+  code
+     PVM_BOOL_BINOP (ULONG, !=);
+  end
+end
+
+# Instruction: nes
+#
+# Push 1 on the stack if the two strings at the top of the stack are
+# not equal.  Otherwise push 0.
+#
+# Stack: ( STR STR -- STR STR INT )
+
+instruction nes ()
+  code
+    pvm_val res = pvm_make_int (STRNEQ (PVM_VAL_STR (JITTER_UNDER_TOP_STACK ()),
+                                        PVM_VAL_STR (JITTER_TOP_STACK ())),
+                                32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+# Instruction: nn
+#
+# Push 0 on the stack if the value at the top of the stack equals
+# PVM_NULL.  Otherwise push 1.
+#
+# Stack: ( VAL -- VAL INT )
+
+instruction nn ()
+  code
+     JITTER_PUSH_STACK (pvm_make_int (JITTER_TOP_STACK () != PVM_NULL,
+                                      32));
+  end
+end
+
+# Instruction: nnn
+#
+# Push 1 on the stack if the value at the top of the stack equals
+# PVM_NULL.  Otherwise push 0.
+#
+# Stack: ( VAL -- VAL INT )
+
+instruction nnn ()
+  code
+     JITTER_PUSH_STACK (pvm_make_int (JITTER_TOP_STACK () == PVM_NULL,
+                                      32));
+  end
+end
+
+# Instruction: lti
+#
+# Push 1 on the stack if the integer at the under top is less that the
+# integer at the top.  Otherwise push 0.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction lti ()
+  code
+     PVM_BOOL_BINOP (INT, <);
+  end
+end
+
+# Instruction: ltiu
+#
+# Push 1 on the stack if the unsigned integer at the under top is less
+# that the unsigned integer at the top.  Otherwise push 0.
+#
+# Stack: ( UINT INT -- UINT UINT INT )
+
+instruction ltiu () # ( UINT UINT -- UINT UINT INT )
+  code
+     PVM_BOOL_BINOP (UINT, <);
+  end
+end
+
+# Instruction: ltl
+#
+# Push 1 on the stack if the long at the under top is less that the
+# long at the top.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction ltl () # ( LONG LONG -- LONG LONG INT )
+  code
+     PVM_BOOL_BINOP (LONG, <);
+  end
+end
+
+# Instruction: ltlu
+#
+# Push 1 on the stack if the unsigned long at the under top is less
+# that the unsigned long at the top.  Otherwise push 0.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG INT )
+
+instruction ltlu ()
+  code
+     PVM_BOOL_BINOP (ULONG, <);
+  end
+end
+
+# Instruction: lei
+#
+# Push 1 on the stack if the integer at the under top is less or equal
+# that the integer at the top.  Otherwise push 0.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction lei () # ( INT INT -- INT INT INT )
+  code
+     PVM_BOOL_BINOP (INT, <=);
+  end
+end
+
+# Instruction: leiu
+#
+# Push 1 on the stack if the unsigned integer at the under top is less
+# or equal that the unsigned integer at the top.  Otherwise push 0.
+#
+# Stack: ( UINT UINT -- UINT UINT INT )
+
+instruction leiu () # ( UINT UINT -- UINT UINT INT )
+  code
+     PVM_BOOL_BINOP (UINT, <=);
+  end
+end
+
+# Instruction: lel
+#
+# Push 1 on the stack if the long at the under top is less or equal
+# that the long at the top.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction lel () # ( LONG LONG -- LONG LONG INT )
+  code
+     PVM_BOOL_BINOP (LONG, <=);
+  end
+end
+
+# Instruction: lelu
+#
+# Push 1 on the stack if the unsigned long at the under top is less or
+# equal that the unsigned long at the top.  Otherwise push 0.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG INT )
+
+instruction lelu ()
+  code
+     PVM_BOOL_BINOP (ULONG, <=);
+  end
+end
+
+# Instruction: gti
+#
+# Push 1 on the stack if the integer at the under top is greater than
+# the integer at the top.  Otherwise push 0.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction gti ()
+  code
+     PVM_BOOL_BINOP (INT, >);
+  end
+end
+
+# Instruction: gtiu
+#
+# Push 1 on the stack if the unsigned integer at the under top is
+# greater than the unsigned integer at the top.  Otherwise push 0.
+#
+# Stack: ( UINT UINT -- UINT UINT INT )
+
+instruction gtiu ()
+  code
+     PVM_BOOL_BINOP (UINT, >);
+  end
+end
+
+# Instruction: gtl
+#
+# Push 1 on the stack if the long at the under top is greater than the
+# long at the top.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction gtl ()
+  code
+     PVM_BOOL_BINOP (LONG, >);
+  end
+end
+
+# Instruction: gtlu
+#
+# Push 1 on the stack if the unsigned long at the under top is greater
+# than the unsigned long at the top.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction gtlu ()
+  code
+     PVM_BOOL_BINOP (ULONG, >);
+  end
+end
+
+# Instruction: gei
+#
+# Push 1 on the stack if the integer at the under top is greater or
+# equal than the integer at the top.  Otherwise push 0.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction gei ()
+  code
+     PVM_BOOL_BINOP (INT, >=);
+  end
+end
+
+# Instruction: geiu
+#
+# Push 1 on the stack if the unsigned integer at the under top is
+# greater or equal than the unsigned integer at the top.  Otherwise
+# push 0.
+#
+# Stack: ( UINT UINT -- UINT UINT INT )
+
+instruction geiu ()
+  code
+     PVM_BOOL_BINOP (UINT, >=);
+  end
+end
+
+# Instruction: gel
+#
+# Push 1 on the stack if the long at the under top is greater or equal
+# than the long at the top.  Otherwise push 0.
+#
+# Stack: ( LONG LONG -- LONG LONG INT )
+
+instruction gel ()
+  code
+     PVM_BOOL_BINOP (LONG, >=);
+  end
+end
+
+# Instruction: gelu
+#
+# Push 1 on the stack if the unsigned long at the under top is greater
+# or equal than the unsigned long at the top.  Otherwise push 0.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG INT )
+
+instruction gelu ()
+  code
+     PVM_BOOL_BINOP (ULONG, >=);
+  end
+end
+
+# Instruction: lts
+#
+# Push 1 on the stack if the string at the under top is less than the
+# string at the top, in lexicographic order.  Otherwise push 0.
+#
+# Stack: ( STR STR -- STR STR INT )
+
+instruction lts ()
+  code
+    pvm_val res = pvm_make_int (strcmp (PVM_VAL_STR (JITTER_UNDER_TOP_STACK ()),
+                                        PVM_VAL_STR (JITTER_TOP_STACK ())) < 0, 32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+# Instruction: gts
+#
+# Push 1 on the stack if the string at the under top is greater than
+# the string at the top, in lexicographic order.  Otherwise push 0.
+#
+# Stack: ( STR STR -- STR STR INT )
+
+instruction gts ()
+  code
+    pvm_val res = pvm_make_int (strcmp (PVM_VAL_STR (JITTER_UNDER_TOP_STACK ()),
+                                        PVM_VAL_STR (JITTER_TOP_STACK ())) > 0, 32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+# Instruction: ges
+#
+# Push 1 on the stack if the string at the under top is greater or
+# equal than the string at the top, in lexicographic order.  Otherwise
+# push 0.
+#
+# Stack: ( STR STR -- STR STR INT )
+
+instruction ges ()
+  code
+    pvm_val res = pvm_make_int (strcmp (PVM_VAL_STR (JITTER_UNDER_TOP_STACK ()),
+                                        PVM_VAL_STR (JITTER_TOP_STACK ())) >= 0, 32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+# Instruction: les
+#
+# Push 1 on the stack if the string at the under top is less or equal
+# than the string at the top, in lexicographic order.  Otherwise push
+# 0.
+#
+# Stack: ( STR STR -- STR STR INT )
+
+instruction les ()
+  code
+    pvm_val res = pvm_make_int (strcmp (PVM_VAL_STR (JITTER_UNDER_TOP_STACK ()),
+                                        PVM_VAL_STR (JITTER_TOP_STACK ())) <= 0, 32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+
+## Concatenation instructions
+
+# Instruction: sconc
+#
+# Push the concatenation of the two strings at the top of the stack.
+#
+# Stack: ( STR STR -- STR STR STR )
+
+instruction sconc ()
+  code
+     pvm_val res;
+     char *sa = PVM_VAL_STR (JITTER_UNDER_TOP_STACK ());
+     char *sb = PVM_VAL_STR (JITTER_TOP_STACK ());
+     char *s = pvm_alloc (strlen (sa) + strlen (sb) + 1);
+     strcpy (s, sa);
+     strcat (s, sb);
+     res = pvm_make_string (s);
+
+     JITTER_PUSH_STACK (res);
+#undef F
+  end
+end
+
+
+## Logical instructions
+
+# Instruction: and
+#
+# Push the logical and of the two elements at the top of the stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction and ()
+  code
+    PVM_BOOL_BINOP (INT, &&);
+  end
+end
+
+# Instruction: or
+#
+# Push the logical or of the two elements at the top of the stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction or ()
+  code
+    PVM_BOOL_BINOP (INT, ||);
+  end
+end
+
+# Instruction: not
+#
+# Push the logical not of the element at the top of the stack.
+#
+# Stack: ( INT -- INT INT )
+
+instruction not ()
+  code
+    pvm_val res = pvm_make_int (! PVM_VAL_INT (JITTER_TOP_STACK ()), 32);
+    JITTER_PUSH_STACK (res);
+  end
+end
+
+
+## Bitwise instructions
+
+# Instruction: bxori
+#
+# Push the bitwise exclusive or of the two integers at the top of the
+# stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction bxori ()
+  code
+    PVM_BINOP (INT, INT, INT, int, ^);
+  end
+end
+
+# Instruction: bxoriu
+#
+# Push the bitwise exclusive or of the two unsigned integers at the
+# top of the stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction bxoriu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint, ^);
+  end
+end
+
+# Instruction: bxorl
+#
+# Push the bitwise exclusive or of the two longs at the top of the
+# stack.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+
+instruction bxorl ()
+  code
+    PVM_BINOP (LONG, LONG, LONG, long, ^);
+  end
+end
+
+# Instruction: bxorlu
+#
+# Push the bitwise exclusive or of the two unsigned longs at the top
+# of the stack.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+
+instruction bxorlu ()
+  code
+    PVM_BINOP (ULONG, ULONG, ULONG, ulong, ^);
+  end
+end
+
+# Instruction: bori
+#
+# Push the bitwise or of the two integers at the top of the stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction bori ()
+  code
+    PVM_BINOP (INT, INT, INT, int, |);
+  end
+end
+
+# Instruction: boriu
+#
+# Push the bitwise or of the two unsigned integers at the top of the
+# stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction boriu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint, |);
+  end
+end
+
+# Instruction: borl
+#
+# Push the bitwise or of the two longs at the top of the stack.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+
+instruction borl ()
+  code
+    PVM_BINOP (LONG, LONG, LONG, long, |);
+  end
+end
+
+# Instruction: borlu
+#
+# Push the bitwise or of the two longs at the top of the stack.
+#
+# Stack: ( ULONG ULONG  -- ULONG ULONG ULONG )
+
+instruction borlu ()
+  code
+    PVM_BINOP (ULONG, ULONG, ULONG, ulong, |);
+  end
+end
+
+# Instruction: bandi
+#
+# Push the bitwise and of the two integers at the top of the stack.
+#
+# Stack: ( INT INT -- INT INT INT )
+
+instruction bandi ()
+  code
+    PVM_BINOP (INT, INT, INT, int, &);
+  end
+end
+
+# Instruction: bandiu
+#
+# Push the bitwise and of the two unsigned integers at the top of the
+# stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction bandiu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint, &);
+  end
+end
+
+# Instruction: bandl
+#
+# Push the bitwise and of the two longs at the top of the stack.
+#
+# Stack: ( LONG LONG -- LONG LONG LONG )
+
+instruction bandl ()
+  code
+    PVM_BINOP (LONG, LONG, LONG, long, &);
+  end
+end
+
+# Instruction: bandlu
+#
+# Push the bitwise and of the two unsigned longs at the top of the
+# stack.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG ULONG )
+
+instruction bandlu ()
+  code
+    PVM_BINOP (ULONG, ULONG, ULONG, ulong, &);
+  end
+end
+
+# Instruction: bnoti
+#
+# Push the bitwise not of the integer at the top of the stack.
+#
+# Stack: ( INT -- INT INT INT )
+
+instruction bnoti ()
+  code
+    PVM_UNOP (INT, INT, int, ~);
+  end
+end
+
+# Instruction: bnotiu
+#
+# Push the bitwise not of the unsigned integer at the top of the
+# stack.
+#
+# Stack: ( UINT -- UINT UINT )
+
+instruction bnotiu ()
+  code
+    PVM_UNOP (UINT, UINT, uint, ~);
+  end
+end
+
+# Instruction: bnotl
+#
+# Push the bitwise not of the long at the top of the stack.
+#
+# Stack: ( LONG -- LONG LONG )
+
+instruction bnotl () # ( LONG -- LONG LONG )
+  code
+    PVM_UNOP (LONG, LONG, long, ~);
+  end
+end
+
+# Instruction: bnotlu
+#
+# Push the bitwise not of the unsigned long at the top of the stack.
+#
+# Stack: ( ULONG -- ULONG ULONG )
+
+instruction bnotlu ()
+  code
+    PVM_UNOP (ULONG, ULONG, ulong, ~);
+  end
+end
+
+
+## Shift instructions
+
+# Instruction: bsli
+#
+# Left-shift the integer at the under top of the stack the number of
+# bits indicated by the unsigned int at the top of the stack.
+#
+# If the bit count is equal or bigger than the size of the left
+# operand, then raise PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( INT UINT -- INT UINT INT )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction bsli () # ( INT UINT -- INT UINT INT )
+  code
+    PVM_BINOP_SL (INT, UINT, INT, int, <<);
+  end
+end
+
+# Instruction: bsliu
+#
+# Left-shift the unsigned integer at the under top of the stack the
+# number of bits indicated by the unsigned int at the top of the
+# stack.
+#
+# If the bit count is equal or bigger than the size of the left
+# operand, then raise PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction bsliu () # ( UINT UINT -- UINT UINT UINT )
+  code
+    PVM_BINOP_SL (UINT, UINT, UINT, uint, <<);
+  end
+end
+
+# Instruction: bsll
+#
+# Left-shift the long at the under top of the stack the number of bits
+# indicated by the unsigned int at the top of the stack.
+#
+# If the bit count is equal or bigger than the size of the left
+# operand, then raise PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( LONG UINT -- LONG UINT LONG )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction bsll () # ( LONG UINT -- LONG UINT LONG )
+  code
+    PVM_BINOP_SL (LONG, UINT, LONG, long, <<);
+  end
+end
+
+# Instruction: bslu
+#
+# Left-shift the unsigned long at the under top of the stack the
+# number of bits indicated by the unsigned int at the top of the
+# stack.
+#
+# If the bit count is equal or bigger than the size of the left
+# operand, then raise PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( ULONG UINT -- ULONG UINT ULONG )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction bsllu () # ( ULONG UINT -- ULONG UINT ULONG )
+  code
+    PVM_BINOP_SL (ULONG, UINT, ULONG, ulong, <<);
+  end
+end
+
+# Instruction: bsri
+#
+# Right-shift the integer at the under top of the stack the number of
+# tis indicated by the unsigned int at the top of the stack.
+#
+# Stack: ( INT UINT -- INT UINT INT )
+
+instruction bsri ()
+  code
+    PVM_BINOP (INT, UINT, INT, int, >>);
+  end
+end
+
+# Instruction: bsriu
+#
+# Right-shift the unsigned integer at the under top of the stack the
+# number of tis indicated by the unsigned int at the top of the stack.
+#
+# Stack: ( UINT UINT -- UINT UINT UINT )
+
+instruction bsriu ()
+  code
+    PVM_BINOP (UINT, UINT, UINT, uint, >>);
+  end
+end
+
+# Instruction: bsrl
+#
+# Right-shift the long at the under top of the stack the number of tis
+# indicated by the unsigned int at the top of the stack.
+#
+# Stack: ( LONG UINT -- LONG UINT LONG )
+
+instruction bsrl ()
+  code
+    PVM_BINOP (LONG, UINT, LONG, long, >>);
+  end
+end
+
+# Instruction: bsrlu
+#
+# Right-shift the unsigned long at the under top of the stack the
+# number of tis indicated by the unsigned int at the top of the stack.
+#
+# Stack: ( ULONG UINT -- ULONG UINT ULONG )
+
+instruction bsrlu ()
+  code
+    PVM_BINOP (ULONG, UINT, ULONG, ulong, >>);
+  end
+end
+
+
+## Compare-and-swap instructions
+
+# Instruction: swapgti
+#
+# Swap the two integers at the top of the stack if the element at the
+# under-top is greater than the element at the top.
+#
+# Stack: ( INT INT -- INT INT )
+
+instruction swapgti ()
+  code
+     pvm_val a = JITTER_UNDER_TOP_STACK ();
+     pvm_val b = JITTER_TOP_STACK ();
+     if (PVM_VAL_INT (a) > PVM_VAL_INT (b))
+     {
+       JITTER_UNDER_TOP_STACK () = b;
+       JITTER_TOP_STACK () = a;
+     }
+  end
+end
+
+# Instruction: swapgtiu
+#
+# Swap the two unsigned integers at the top of the stack if the
+# element at the under-top is greater than the element at the top.
+#
+# Stack: ( UINT UINT -- UINT UINT )
+
+instruction swapgtiu ()
+  code
+     pvm_val a = JITTER_UNDER_TOP_STACK ();
+     pvm_val b = JITTER_TOP_STACK ();
+     if (PVM_VAL_UINT (a) > PVM_VAL_UINT (b))
+     {
+       JITTER_UNDER_TOP_STACK () = b;
+       JITTER_TOP_STACK () = a;
+     }
+  end
+end
+
+# Instruction: swapgtl
+#
+# Swap the two longs at the top of the stack if the element at the
+# under-top is greater than the element at the top.
+#
+# Stack: ( LONG LONG -- LONG LONG )
+
+instruction swapgtl ()
+  code
+     pvm_val a = JITTER_UNDER_TOP_STACK ();
+     pvm_val b = JITTER_TOP_STACK ();
+     if (PVM_VAL_LONG (a) > PVM_VAL_LONG (b))
+     {
+       JITTER_UNDER_TOP_STACK () = b;
+       JITTER_TOP_STACK () = a;
+     }
+  end
+end
+
+# Instruction: swapgtlu
+#
+# Swap the two unsigned longs at the top of the stack if the element
+# at the under-top is greater than the element at the top.
+#
+# Stack: ( ULONG ULONG -- ULONG ULONG )
+
+instruction swapgtlu ()
+  code
+     pvm_val a = JITTER_UNDER_TOP_STACK ();
+     pvm_val b = JITTER_TOP_STACK ();
+     if (PVM_VAL_ULONG (a) > PVM_VAL_ULONG (b))
+     {
+       JITTER_UNDER_TOP_STACK () = b;
+       JITTER_TOP_STACK () = a;
+     }
+  end
+end
+
+
+## Branch instructions
+
+# Instruction: ba LABEL
+#
+# Branch unconditionally to the given LABEL.
+#
+# Stack: ( -- )
+
+instruction ba (?f)
+  code
+    JITTER_BRANCH_FAST(JITTER_ARGF0);
+  end
+end
+
+# Instruction: bn LABEL
+#
+# Branch to the given LABEL if the value at the top of the stack is
+# PVM_NULL.
+#
+# Stack: ( VAL -- VAL )
+
+instruction bn (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_ZERO (tmp != PVM_NULL, JITTER_ARGF0);
+  end
+end
+
+# Instruction: bnn LABEL
+#
+# Branch to the given LABEL if the value at the top of the stack is
+# not PVM_NULL.
+#
+# Stack: ( VAL -- VAL )
+
+instruction bnn (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_ZERO (tmp == PVM_NULL, JITTER_ARGF0);
+  end
+end
+
+# Instruction: bzi LABEL
+#
+# Branch to the given LABEL if the integer at the top of the stack is
+# zero.
+#
+# Stack: ( INT -- INT )
+
+instruction bzi (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_ZERO (PVM_VAL_INT (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bziu LABEL
+#
+# Branch to the given LABEL if the unsigned integer at the top of
+# the stack is zero.
+#
+# Stack: ( UINT -- UINT )
+
+instruction bziu (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_ZERO (PVM_VAL_UINT (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bzl LABEL
+#
+# Branch to the given LABEL if the long at the top of the stack
+# is zero.
+#
+# Stack: ( LONG -- LONG )
+
+instruction bzl (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_ZERO (PVM_VAL_LONG (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bzlu LABEL
+#
+# Branch to the given LABEL if the unsigned long at the top of the
+# stack is zero.
+#
+# Stack: ( ULONG -- ULONG )
+
+instruction bzlu (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_ZERO (PVM_VAL_ULONG (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bzni LABEL
+#
+# Branch to the given LABEL if the integer at the top of the stack
+# is nonzero.
+#
+# Stack: ( INT -- INT )
+
+instruction bnzi (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_NONZERO (PVM_VAL_INT (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bnziu LABEL
+#
+# Branch to the given LABEL if the unsigned integer at the top of the
+# stack is nonzero.
+#
+# Stack: ( UINT -- UINT )
+
+instruction bnziu (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_NONZERO (PVM_VAL_UINT (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bnzl LABEL
+#
+# Branch to the given LABEL if the long at the top of the stack is
+# nonzero.
+#
+# Stack: ( LONG -- LONG )
+
+instruction bnzl (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_NONZERO (PVM_VAL_LONG (tmp), JITTER_ARGF0);
+  end
+end
+
+# Instruction: bnzlu LABEL
+#
+# Branch to the given LABEL if the unsigned long at the top of the
+# stack is nonzero.
+#
+# Stack: ( ULONG -- ULONG )
+
+instruction bnzlu (?f)
+  code
+    pvm_val tmp = JITTER_TOP_STACK ();
+    JITTER_BRANCH_FAST_IF_NONZERO (PVM_VAL_ULONG (tmp), JITTER_ARGF0);
+  end
+end
+
+
+## Conversion instructions
+
+# Instruction: ctos
+#
+# Convert the character encoded as an unsigned integer at the top of
+# the stack to a string that contains just that character.
+#
+# Stack: ( UINT -- UINT STR )
+
+instruction ctos ()
+  code
+    uint8_t c = PVM_VAL_UINT (JITTER_TOP_STACK ());
+    char *str = pvm_alloc (2);
+    str[0] = c;
+    str[1] = '\0';
+
+    JITTER_PUSH_STACK (pvm_make_string (str));
+  end
+end
+
+# Instruction: itoi NBITS
+#
+# Convert the integer at the top of the stack to an integer
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( INT -- INT INT )
+
+instruction itoi (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (INT, int32_t, int, int32_t);
+  end
+end
+
+# Instruction: itoiu NBITS
+#
+# Convert the integer at the top of the stack to an unsigned integer
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( INT -- INT UINT )
+
+instruction itoiu (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (INT, int32_t, uint, uint32_t);
+  end
+end
+
+# Instruction: itol NBITS
+#
+# Convert the integer at the top of the stack to a long featuring
+# NBITS bits.
+#
+# NBITS can be any number from 1 to 64.
+#
+# Stack: ( INT -- INT LONG )
+
+instruction itol (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (INT, int32_t, long, int64_t);
+  end
+end
+
+# Instruction: itolu NBITS
+#
+# Convert the integer at the top of the stack to an unsigned long
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 64.
+#
+# Stack: ( INT -- INT ULONG )
+
+instruction itolu (?n pvm_literal_printer_cast) # ( INT -- INT ULONG )
+  code
+    PVM_CONVOP (INT, int32_t, ulong, uint64_t);
+  end
+end
+
+# Instruction: iutoi NBITS
+#
+# Convert the unsigned integer at the top of the stack to an integer
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( UINT -- UINT INT )
+
+instruction iutoi (?n pvm_literal_printer_cast) # ( UINT -- UINT INT )
+  code
+    PVM_CONVOP (UINT, uint32_t, int, int32_t);
+  end
+end
+
+# Instruction: iutoiu NBITS
+#
+# Convert the unsigned integer at the top of the stack to an unsigned
+# integer featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( UINT -- UINT UINT )
+
+instruction iutoiu (?n pvm_literal_printer_cast) # ( UINT -- UINT UINT )
+  code
+    PVM_CONVOP (UINT, uint32_t, uint, uint32_t);
+  end
+end
+
+# Instruction: iutol NBITS
+#
+# Convert the unsigned integer at the top of the stack to a long
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 64.
+#
+# Stack: ( UINT -- UINT LONG )
+
+instruction iutol (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (UINT, uint32_t, long, int64_t);
+  end
+end
+
+# Instruction: iutolu NBITS
+#
+# Convert the unsigned integer at the top of the stack to an
+# unsigned long featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 64.
+#
+# Stack: ( UINT -- UINT ULONG )
+
+instruction iutolu (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (UINT, uint32_t, ulong, uint64_t);
+  end
+end
+
+# Instruction: ltoi NBITS
+#
+# Convert the long at the top of the stack to an integer
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( LONG -- LONG INT )
+
+instruction ltoi (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (LONG, int64_t, int, int32_t);
+  end
+end
+
+# Instruction: ltoiu NBITS
+#
+# Convert the long at the top of the stack to an unsigned
+# integer featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( LONG -- LONG UINT )
+
+instruction ltoiu (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (LONG, int64_t, uint, uint32_t);
+  end
+end
+
+# Instruction: ltol NBITS
+#
+# Convert the long at the top of the stack to a long featuring
+# NBITS bits.
+#
+# NBITS can be any number from 1 to 64.
+#
+# Stack: ( LONG -- LONG LONG )
+
+instruction ltol (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (LONG, int64_t, long, int64_t);
+  end
+end
+
+# Instruction: ltolu NBITS
+#
+# Convert the long at the top of the stack to an unsigned long
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 64.
+#
+# Stack: ( LONG -- LONG ULONG )
+
+instruction ltolu (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (LONG, int64_t, ulong, uint64_t);
+  end
+end
+
+# Instruction: lutoi NBITS
+#
+# Convert the unsigned long at the top of the stack to an integer
+# featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( ULONG -- ULONG INT )
+
+instruction lutoi (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (ULONG, uint64_t, int, int32_t);
+  end
+end
+
+# Instruction: lutoiu NBITS
+#
+# Convert the unsigned long at the top of the stack to an unsigned
+# integer featuring NBITS bits.
+#
+# NBITS can be any number from 1 to 32.
+#
+# Stack: ( ULONG -- ULONG UINT )
+
+instruction lutoiu (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (ULONG, uint64_t, uint, uint32_t);
+  end
+end
+
+# Instruction: lutol NBITS
+#
+# Convert the unsigned long at the top of the stack to a long
+# featuring NBITS bits.
+#
+# Stack: ( ULONG -- ULONG LONG )
+
+instruction lutol (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (ULONG, uint64_t, long, int64_t);
+  end
+end
+
+# Instruction: lutolu NBITS
+#
+# Convert the unsigned long at the top of the stack to an
+# unsigned long featuring NBITS bits.
+#
+# Stack: ( ULONG -- ULONG ULONG )
+
+instruction lutolu (?n pvm_literal_printer_cast)
+  code
+    PVM_CONVOP (ULONG, uint64_t, ulong, uint64_t);
+  end
+end
+
+
+## String instructions
+
+# Instruction: strref
+#
+# Given a string and an unsigned long at the top of the stack, push an
+# unsigned integer with the code of the character that occupies that
+# position in the string, on the stack.
+#
+# The index is zero-based.  If it is less than 0 or exceeds the
+# length of the string, then PVM_E_OUT_OF_BOUNDS is raised.
+#
+# Stack: ( STR ULONG -- STR ULONG UINT )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction strref () # ( STR ULONG -- STR ULONG VAL )
+  code
+     pvm_val string = JITTER_UNDER_TOP_STACK ();
+     pvm_val index = JITTER_TOP_STACK ();
+
+    if (PVM_VAL_ULONG (index) < 0
+        || (PVM_VAL_ULONG (index) >=
+            strlen (PVM_VAL_STR (string))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (pvm_make_uint (PVM_VAL_STR (string)[PVM_VAL_ULONG (index)],
+                                      8));
+  end
+end
+
+instruction substr () # ( STR ULONG ULONG -- STR ULONG ULONG STR )
+  code
+    pvm_val str;
+    char *s;
+    pvm_val to = JITTER_TOP_STACK ();
+    pvm_val from = JITTER_UNDER_TOP_STACK ();
+    size_t slen = PVM_VAL_ULONG (to) - PVM_VAL_ULONG (from) + 1;
+
+    JITTER_DROP_STACK ();
+    str = JITTER_UNDER_TOP_STACK ();
+    JITTER_PUSH_STACK (to);
+
+    if (PVM_VAL_ULONG (from) >= strlen (PVM_VAL_STR (str))
+        || PVM_VAL_ULONG (to) >= strlen (PVM_VAL_STR (str))
+        || PVM_VAL_ULONG (from) > PVM_VAL_ULONG (to))
+        PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    s = pvm_alloc (slen + 1);
+    strncpy (s,
+             PVM_VAL_STR (str) + PVM_VAL_ULONG (from),
+             slen);
+    s[slen] = '\0';
+
+    JITTER_PUSH_STACK (pvm_make_string (s));
+  end
+end
+
+# Instruction: muls
+#
+# Given a string and an unsigned long on the stack, push a new
+# string value whose value is the concatenation of the argument
+# string applied to itself as many times as the unsigned long.  If
+# the second argument to muls is 0 then the result of the operation
+# is the empty string.
+#
+# Stack: ( STR ULONG -- STR ULONG STR )
+
+instruction muls ()
+  code
+    pvm_val str = JITTER_UNDER_TOP_STACK ();
+    size_t i, num = PVM_VAL_ULONG (JITTER_TOP_STACK ());
+    char *res = xmalloc (strlen (PVM_VAL_STR (str)) * num + 1);
+
+    *res = '\0';
+    for (i = 0; i < num; ++i)
+      strcat (res, PVM_VAL_STR (str));
+
+    JITTER_PUSH_STACK (pvm_make_string (res));
+    free (res);
+  end
+end
+
+
+## Array instructions
+
+# Instruction: mka
+#
+# Given an offset, an elements type, a list of initializers, and
+# numbers of elements and number of initializers, create an array
+# value and push it on the stack.
+#
+# Each array initializer is specified as a triplet [BOFF IDX VAL]
+# where BOFF is the bit-offsets of the element, IDX its position
+# inside the array, and VAL the value to store in that position.
+#
+# Array elements that are not initialized are set to the value of the
+# first initializer to their right.
+#
+# Stack: ( BOFF TYP [BOFF IDX VAL]... ULONG(nelem) ULONG(ninitializer) -- ARR )
+
+instruction mka ()
+  code
+    size_t i;
+    pvm_val nelem, ninitializer, arr, elem;
+
+    ninitializer = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    nelem = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    arr = pvm_make_array (nelem, PVM_NULL /* type */);
+    for (i = 0; i < PVM_VAL_ULONG (ninitializer); ++i)
+    {
+      size_t index
+        = PVM_VAL_ULONG (JITTER_UNDER_TOP_STACK ());
+
+      PVM_VAL_ARR_ELEM_VALUE (arr, index) = JITTER_TOP_STACK ();
+      JITTER_DROP_STACK ();
+      JITTER_DROP_STACK ();
+
+      PVM_VAL_ARR_ELEM_OFFSET (arr, index) = JITTER_TOP_STACK ();
+      JITTER_DROP_STACK ();
+    }
+
+    /* Fill-in non-initialized elements in the array.  */
+    if (PVM_VAL_ULONG (nelem) != PVM_VAL_ULONG (ninitializer))
+    {
+       for (i = PVM_VAL_ULONG (nelem), elem = PVM_NULL;
+            i > 0;
+            --i)
+       {
+         pvm_val elem_value = PVM_VAL_ARR_ELEM_VALUE (arr, i - 1);
+
+         if (elem_value == PVM_NULL)
+           PVM_VAL_ARR_ELEM_VALUE (arr, i - 1) = elem;
+         else
+           elem = elem_value;
+       }
+    }
+
+    PVM_VAL_ARR_TYPE (arr) = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    PVM_VAL_ARR_OFFSET (arr) = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    JITTER_PUSH_STACK (arr);
+  end
+end
+
+# Instruction: aset
+#
+# Set the value with index ULONG in the array ARR to have the value
+# VAL.
+#
+# If the specified index exceeds the capability of the array, then
+# PVM_E_OUT_OF_BOUNDS is raised.  If the array is bounded by size and
+# the new value makes the total size of the array to change, then
+# PVM_E_CONV is raised.
+#
+# Stack: ( ARR ULONG VAL -- ARR )
+# Exceptions: PVM_E_CONV, PVM_E_OUT_OF_BOUNDS
+
+instruction aset ()
+  code
+    uint64_t idx;
+    pvm_val val;
+    pvm_val arr;
+    pvm_val array_type, bound;
+
+    val= JITTER_TOP_STACK ();
+    idx = PVM_VAL_ULONG (JITTER_UNDER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+    JITTER_DROP_STACK ();
+
+    arr = JITTER_TOP_STACK ();
+
+    if (idx < 0 || idx >= PVM_VAL_INTEGRAL (PVM_VAL_ARR_NELEM (arr)))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    /* If the array is bounded by size, check whether the new value
+       results in a different size.  */
+
+    array_type = PVM_VAL_ARR_TYPE (arr);
+    bound = PVM_VAL_TYP_A_BOUND (array_type);
+
+    if (PVM_IS_OFF (bound))
+      {
+        pvm_val oval = PVM_VAL_ARR_ELEM_VALUE (arr, idx);
+        uint64_t old_size_bits;
+        uint64_t new_size_bits;
+
+        PVM_VAL_ARR_ELEM_VALUE (arr, idx) = val;
+
+        old_size_bits = (PVM_VAL_INTEGRAL (PVM_VAL_OFF_MAGNITUDE (bound))
+                         * PVM_VAL_INTEGRAL (PVM_VAL_OFF_UNIT (bound)));
+        new_size_bits = pvm_sizeof (arr);
+
+        if (new_size_bits != old_size_bits)
+         {
+           PVM_VAL_ARR_ELEM_VALUE (arr, idx) = oval;
+           PVM_RAISE_DFL (PVM_E_CONV);
+         }
+      }
+   else
+     PVM_VAL_ARR_ELEM_VALUE (arr, idx) = val;
+  end
+end
+
+# Instruction: aseto
+#
+# Set the offset of the element with index ULONG in the array ARR, to
+# the bit-offset BOFF.
+#
+# Stack: ( ARR ULONG BOFF -- ARR )
+
+instruction aseto ()
+  code
+    uint64_t idx;
+    pvm_val boff;
+    pvm_val arr;
+
+    boff = JITTER_TOP_STACK ();
+    idx = PVM_VAL_ULONG (JITTER_UNDER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+    JITTER_DROP_STACK ();
+    arr = JITTER_TOP_STACK ();
+
+    if (idx < 0 || idx >= PVM_VAL_INTEGRAL (PVM_VAL_ARR_NELEM (arr)))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    PVM_VAL_ARR_ELEM_OFFSET (arr, idx) = boff;
+  end
+end
+
+# Instruction: aref
+#
+# Given an array ARR and an index ULONG, push the element of the array
+# occupying that position on the stack.
+#
+# If the provided index is out of bounds, then raise
+# PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( ARR ULONG -- ARR ULONG VAL )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction aref ()
+  code
+    pvm_val array = JITTER_UNDER_TOP_STACK ();
+    pvm_val index = JITTER_TOP_STACK ();
+
+    if ((PVM_VAL_ULONG (index) >=
+            PVM_VAL_INTEGRAL (PVM_VAL_ARR_NELEM (array))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (PVM_VAL_ARR_ELEM_VALUE (array,
+                                               PVM_VAL_ULONG (index)));
+  end
+end
+
+# Instruction: arefo
+#
+# Given an array ARR and an index ULONG, push the offset of the
+# element occupying that position in the array.
+#
+# If the provided index is out of bounds, then raise
+# PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( ARR ULONG -- ARR ULONG OFF )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction arefo ()
+  code
+    pvm_val array = JITTER_UNDER_TOP_STACK ();
+    pvm_val index = JITTER_TOP_STACK ();
+
+    if (PVM_VAL_ULONG (index) < 0
+        || (PVM_VAL_ULONG (index) >=
+            PVM_VAL_INTEGRAL (PVM_VAL_ARR_NELEM (array))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (PVM_VAL_ARR_ELEM_OFFSET (array,
+                                                PVM_VAL_ULONG (index)));
+  end
+end
+
+# Instruction: asettb
+#
+# Given an array ARR and a closure BOUND, set the later as the array's
+# bounder function.  This is a function that, once executed with no
+# arguments, returns the size of the array.
+#
+# Stack: ( ARR BOUND -- ARR )
+
+instruction asettb () # ( ARR BOUND -- ARR )
+  code
+    pvm_val type = PVM_VAL_ARR_TYPE (JITTER_UNDER_TOP_STACK ());
+
+    PVM_VAL_TYP_A_BOUND (type) = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+  end
+end
+
+
+## Struct instructions
+
+# Instruction: mksct
+#
+# Given an offset, a list of fields, a list of methods and a struct
+# type, create a struct value and push it on the stack.
+#
+# Each field is specified as a triplet [OFF STR VAL] where OFF is the
+# offset of field, STR the name of the field or PVM_NULL if the field
+# is anonymous, and VAL is a value.
+#
+# Each method is specified as a tuple [STR VAL] where STR is the name
+# of the method and VAL is the closure value corresponding to the
+# method.
+#
+# Stack: ( OFF [OFF STR VAL]... [STR VAL]... ULONG ULONG TYP -- SCT )
+
+instruction mksct ()
+  code
+    size_t e;
+    pvm_val nfields, nmethods, sct, type;
+
+    type = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    nfields = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    nmethods = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    sct = pvm_make_struct (nfields, nmethods, type);
+
+    for (e = 0; e < PVM_VAL_ULONG (nmethods); ++e)
+    {
+      PVM_VAL_SCT_METHOD_VALUE (sct, PVM_VAL_ULONG (nmethods) - e - 1)
+         = JITTER_TOP_STACK ();
+      PVM_VAL_SCT_METHOD_NAME (sct, PVM_VAL_ULONG (nmethods) - e - 1)
+         = JITTER_UNDER_TOP_STACK ();
+
+      JITTER_DROP_STACK ();
+      JITTER_DROP_STACK ();
+    }
+
+    for (e = 0; e < PVM_VAL_ULONG (nfields); ++e)
+    {
+      PVM_VAL_SCT_FIELD_VALUE (sct, PVM_VAL_ULONG (nfields) - e - 1)
+          = JITTER_TOP_STACK ();
+      PVM_VAL_SCT_FIELD_NAME (sct, PVM_VAL_ULONG (nfields) - e - 1)
+          = JITTER_UNDER_TOP_STACK ();
+
+      JITTER_DROP_STACK ();
+      JITTER_DROP_STACK ();
+
+      PVM_VAL_SCT_FIELD_OFFSET (sct, PVM_VAL_ULONG (nfields) - e -1)
+          = JITTER_TOP_STACK ();
+      JITTER_DROP_STACK ();
+    }
+
+    PVM_VAL_SCT_OFFSET (sct) = JITTER_TOP_STACK();
+    JITTER_DROP_STACK ();
+
+    JITTER_PUSH_STACK (sct);
+  end
+end
+
+# Instruction: sset
+#
+# Given a struct, a field name and a value, replace the value of
+# the referred struct field with the given value.  If the struct
+# does not have a field with the given name, then raise PVM_E_ELEM.
+#
+# Stack: ( SCT STR VAL -- SCT )
+
+instruction sset ()
+  code
+    pvm_val val = JITTER_TOP_STACK ();
+    pvm_val name = JITTER_UNDER_TOP_STACK ();
+    pvm_val sct;
+
+    JITTER_DROP_STACK ();
+    JITTER_DROP_STACK ();
+
+    sct = JITTER_TOP_STACK ();
+    if (!pvm_set_struct (sct, name, val))
+       PVM_RAISE_DFL (PVM_E_ELEM);
+  end
+end
+
+# Instruction: sref
+#
+# Given a struct and a field name, push the value contained in the
+# referred struct field on the stack.  If the struct does not have a
+# field with the given name, or if the field is absent from the struct
+# value then raise PVM_E_ELEM.
+#
+# Stack: ( SCT STR -- SCT STR VAL )
+# Exceptions: PVM_E_ELEM
+
+instruction sref ()
+  code
+    pvm_val val = pvm_ref_struct (JITTER_UNDER_TOP_STACK (),
+                                  JITTER_TOP_STACK ());
+
+    if (val == PVM_NULL)
+      PVM_RAISE_DFL (PVM_E_ELEM);
+    JITTER_PUSH_STACK (val);
+  end
+end
+
+# Instruction: srefnt
+#
+# Given a struct and a field name, push the value contained in the
+# struct field on the stack.  If the struct does not have a field with
+# the given name, or if the field is absent from the struct value then
+# push PVM_NULL.
+#
+# Stack: ( SCT STR -- SCT STR VAL )
+
+instruction srefnt ()
+  code
+    pvm_val val = pvm_ref_struct (JITTER_UNDER_TOP_STACK (),
+                                  JITTER_TOP_STACK ());
+
+    JITTER_PUSH_STACK (val);
+  end
+end
+
+# Instruction: srefi
+#
+# Given a struct and an index, push the value of the field occupying
+# the position specified by the index in the given struct.  If the
+# struct doesn't have that many fields, raise PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( SCT ULONG -- SCT ULONG VAL )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction srefi ()
+  code
+    pvm_val sct = JITTER_UNDER_TOP_STACK ();
+    pvm_val index = JITTER_TOP_STACK ();
+
+    if (PVM_VAL_ULONG (index) < 0
+        || (PVM_VAL_ULONG (index) >=
+            PVM_VAL_INTEGRAL (PVM_VAL_SCT_NFIELDS (sct))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (PVM_VAL_SCT_FIELD_VALUE (sct,
+                                               PVM_VAL_ULONG (index)));
+  end
+end
+
+# Instruction: srefia
+#
+# Given a struct and an index, push 1 if the field occupying the
+# position specified by the index in the given struct is absent.  Push
+# 0 otherwise.  If the struct doesn't have that many fields, raise
+# PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( SCT ULONG -- SCT ULONG INT )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction srefia ()
+  code
+    pvm_val sct = JITTER_UNDER_TOP_STACK ();
+    pvm_val index = JITTER_TOP_STACK ();
+
+    if (PVM_VAL_ULONG (index) < 0
+        || (PVM_VAL_ULONG (index) >=
+            PVM_VAL_INTEGRAL (PVM_VAL_SCT_NFIELDS (sct))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (PVM_VAL_SCT_FIELD_ABSENT_P (sct,
+                                                   PVM_VAL_ULONG (index)));
+  end
+end
+
+# Instruction: srefio
+#
+# Given a struct and an index, push the offset of the field occupying
+# the position specified by the index in the given struct.  If the
+# struct doesn't have that many fields, raise PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( SCT ULONG -- SCT ULONG OFF )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction srefio ()
+  code
+    pvm_val sct = JITTER_UNDER_TOP_STACK ();
+    pvm_val index = JITTER_TOP_STACK ();
+
+    if (PVM_VAL_ULONG (index) < 0
+        || (PVM_VAL_ULONG (index) >=
+            PVM_VAL_INTEGRAL (PVM_VAL_SCT_NFIELDS (sct))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (PVM_VAL_SCT_FIELD_OFFSET (sct,
+                                                 PVM_VAL_ULONG (index)));
+  end
+end
+
+# Instruction: smodi
+#
+# Given a struct and an index, push the modified flags of the field
+# occupying the position specified by the index in the given struct.
+# If the struct doesn't have that many fields, raise
+# PVM_E_OUT_OF_BOUNDS.
+#
+# Stack: ( SCT ULONG -- SCT ULONG BOOL )
+# Exceptions: PVM_E_OUT_OF_BOUNDS
+
+instruction smodi ()
+  code
+    pvm_val sct = JITTER_UNDER_TOP_STACK ();
+    pvm_val index = JITTER_TOP_STACK ();
+
+    if (PVM_VAL_ULONG (index) < 0
+        || (PVM_VAL_ULONG (index) >=
+            PVM_VAL_INTEGRAL (PVM_VAL_SCT_NFIELDS (sct))))
+      PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
+
+    JITTER_PUSH_STACK (PVM_VAL_SCT_FIELD_MODIFIED (sct,
+                                                   PVM_VAL_ULONG (index)));
+  end
+end
+
+
+## Offset Instructions
+
+# Instruction: mko
+#
+# Given an integral magnitude VAL and an unit expressed in an ULONG,
+# make an offset value and push it on the stack.
+#
+# Stack: ( VAL ULONG -- OFF )
+
+instruction mko ()
+  code
+   pvm_val res = pvm_make_offset (JITTER_UNDER_TOP_STACK (),
+                                  JITTER_TOP_STACK ());
+   JITTER_DROP_STACK ();
+   JITTER_TOP_STACK () = res;
+  end
+end
+
+# Instruction: ogetm
+#
+# Given an offset OFF, push its magnitude on the stack.
+#
+# Stack: ( OFF -- OFF VAL )
+
+instruction ogetm ()
+  code
+   JITTER_PUSH_STACK (PVM_VAL_OFF_MAGNITUDE (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: osetm
+#
+# Given an offset OFF and an integral value VAL, make it the
+# offset's magnitude.
+#
+# Stack: ( OFF VAL -- OFF )
+
+instruction osetm ()
+  code
+   PVM_VAL_OFF_MAGNITUDE (JITTER_UNDER_TOP_STACK ())
+    =  JITTER_TOP_STACK ();
+   JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: ogetu
+#
+# Given an offset OFF, push its unit on the stack.
+#
+# Stack: ( OFF -- OFF ULONG )
+
+instruction ogetu ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_OFF_UNIT (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: ogetbt
+#
+# Given an offset OFF, push its base type on the stack.
+#
+# Stack: ( OFF -- OFF TYP )
+
+instruction ogetbt ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_OFF_BASE_TYPE (JITTER_TOP_STACK ()));
+  end
+end
+
+
+## Instructions to handle mapped values
+
+# Instruction: mgeto
+#
+# Given a map-able value, push its bit-offset on the stack as an
+# unsigned long.  If the given value is not map-able then push
+# PVM_NULL.
+#
+# Stack: ( VAL -- VAL ULONG )
+
+instruction mgeto ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_OFFSET (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: mseto
+#
+# Given a map-able value an a bit-offset, set its offset to the value.
+# If the given value is not map-able, then the offset is ignored.
+#
+# Stack: ( VAL ULONG -- VAL )
+
+instruction mseto ()
+  code
+    PVM_VAL_SET_OFFSET (JITTER_UNDER_TOP_STACK (),
+                        JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: mgetios
+#
+# Given a map-able value, push its associated IO space on the stack.
+# If the given value is not map-able, then push PVM_NULL.
+#
+# Stack: ( VAL -- VAL INT )
+
+instruction mgetios ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_IOS (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: msetios
+#
+# Given a map-able value and an IOS descriptor, set it as its
+# associated IO space.  If the IOS descriptor is PVM_NULL then it uses
+# the current IO space.  If the given value is not map-able then the
+# IO space is ignored.
+#
+# Stack: ( VAL INT -- VAL )
+
+instruction msetios ()
+  code
+    PVM_VAL_SET_IOS (JITTER_UNDER_TOP_STACK (),
+                     JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: mgetm
+#
+# Given a map-able value, push its mapper closure on the stack.  If
+# the given value is not map-able, then push PVM_NULL.
+#
+# Stack: ( VAL -- VAL CLS )
+
+instruction mgetm ()
+  code
+     JITTER_PUSH_STACK (PVM_VAL_MAPPER (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: msetm
+#
+# Given a map-able value and a closure, set it as its mapper.  If the
+# given value is not map-able then the closure is ignored.
+#
+# Stack: ( VAL CLS -- VAL )
+
+instruction msetm ()
+  code
+    PVM_VAL_SET_MAPPER (JITTER_UNDER_TOP_STACK (), JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: mgetw
+#
+# Given a map-able value, push its writer closure on the stack.  If
+# the given value is not map-able, then push PVM_NULL.
+#
+# Stack: ( VAL -- VAL CLS )
+
+instruction mgetw ()
+  code
+     JITTER_PUSH_STACK (PVM_VAL_WRITER (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: msetw
+#
+# Given a map-able value and a closure, set it as its writer.  If the
+# given value is not map-able then the closure is ignored.
+#
+# Stack: ( VAL CLS -- VAL )
+
+instruction msetw ()
+  code
+    PVM_VAL_SET_WRITER (JITTER_UNDER_TOP_STACK (), JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: mgetsel
+#
+# Given a map-able value in the TOS, push the number of elements to
+# which its mapping is bounded to.  If the value is not mapped, or
+# if it is not bounded by number of elements, push PVM_NULL.
+#
+# Note that only array values can have mappings bounded by number of
+# elements.
+#
+# Stack: ( VAL -- VAL ULONG )
+
+instruction mgetsel ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_ELEMS_BOUND (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: msetsel
+#
+# Given a map-able value and an unsigned long, set it as the mapping
+# bound by number of elements.  If the value is not map-able the
+# unsigned long is ignored.
+#
+# Note that only array values can have mappings bounded by number of
+# elements.
+#
+# Stack: ( VAL ULONG -- VAL )
+
+instruction msetsel ()
+  code
+    PVM_VAL_SET_ELEMS_BOUND (JITTER_UNDER_TOP_STACK (), JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: mgetsiz
+#
+# Given a map-able value in the TOS, push its mapping size-bound as a
+# bit-offset.  If the value is not map-able, or if it is not bounded
+# by size, push PVM_NULL.
+#
+# Note that only array values can have mappings bounded by size.
+#
+# Stack: ( VAL -- VAL ULONG )
+
+instruction mgetsiz ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_SIZE_BOUND (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: msetsiz
+#
+# Given a map-able value and a bit-offset, set it as the mapping
+# size-bound.  If the value is not map-able, the bit-offset is
+# ignored.
+#
+# Note that only array values can have mappings bounded by size.
+#
+# Stack: ( VAL ULONG -- VAL )
+
+instruction msetsiz ()
+  code
+    PVM_VAL_SET_SIZE_BOUND (JITTER_UNDER_TOP_STACK (), JITTER_TOP_STACK ());
+    JITTER_DROP_STACK ();
+  end
+end
+
+
+## Type related instructions
+
+# Instruction: isa
+#
+# Given a value and a type, push 1 on the stack if the value is of the
+# given type.  Push 0 otherwise.
+#
+# Stack: ( VAL TYPE -- TYPE VAL INT )
+
+instruction isa ()
+  code
+    pvm_val type = JITTER_TOP_STACK ();
+    pvm_val val = JITTER_UNDER_TOP_STACK ();
+    pvm_val val_type = pvm_typeof (val);
+
+    JITTER_PUSH_STACK (pvm_make_int (pvm_type_equal (type, val_type),
+                                     32));
+  end
+end
+
+# Instruction: typof
+#
+# Given a value, push its type on the stack.
+#
+# Stack: ( VAL -- VAL TYPE )
+
+instruction typof ()
+  code
+    JITTER_PUSH_STACK (pvm_typeof (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: tyisc
+#
+# Given a value, push 1 on the stack if it is a closure.  Push 0
+# otherwise.
+#
+# Stack: ( VAL -- VAL INT )
+
+instruction tyisc ()
+  code
+    JITTER_PUSH_STACK (pvm_make_int (PVM_IS_CLS (JITTER_TOP_STACK ()), 32));
+  end
+end
+
+# Instruction: tyissct
+#
+# Given a value, push 1 on the stack if it is a struct.  Push 0
+# otherwise.
+#
+# Stack: ( VAL -- VAL INT )
+
+instruction tyissct ()
+  code
+    JITTER_PUSH_STACK (pvm_make_int (PVM_IS_SCT (JITTER_TOP_STACK ()), 32));
+  end
+end
+
+# Instruction: mktyany
+#
+# Build an "any" type and push it on the stack.
+#
+# Stack: ( -- TYPE )
+
+instruction mktyany ()
+  code
+    JITTER_PUSH_STACK (pvm_make_any_type ());
+  end
+end
+
+# Instruction: mktyi
+#
+# Given an unsigned long denoting a bit width, and an unsigned int
+# denoting signedness (0 is unsigned, 1 is signed), build a an
+# integral type with these features and push it on the stack.
+#
+# Stack: ( ULONG UINT -- TYPE )
+
+instruction mktyi ()
+  code
+    pvm_val size = JITTER_UNDER_TOP_STACK ();
+    pvm_val signed_p = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    JITTER_TOP_STACK () = pvm_make_integral_type (size, signed_p);
+  end
+end
+
+# Instruction: mktys
+#
+# Push a string type on the stack.
+#
+# Stack: ( -- TYPE )
+
+instruction mktys ()
+  code
+    JITTER_PUSH_STACK (pvm_make_string_type ());
+  end
+end
+
+# Instruction: mktyo
+#
+# Given a base integral type and an integer denoting an offset unit
+# (multiple of the base unit) construct an offset type having these
+# features, and push it on the stack.
+#
+# Stack: ( TYPE INT -- TYPE )
+
+instruction mktyo ()
+  code
+#define F(res, a, b) \
+  { res = pvm_make_offset_type (a, b); }
+    JITTER_BINARY_STACK(F);
+#undef F
+  end
+end
+
+# Instruction: mktya
+#
+# Given an elements type and an unsigned long denoting a length, build
+# an array type having these features and push it on the stack.  If
+# the type array is unbounded then length is PVM_NULL.
+#
+# Stack: ( TYPE (ULONG|NULL) -- TYPE )
+
+instruction mktya ()
+  code
+     pvm_val bound = JITTER_TOP_STACK ();
+     pvm_val etype = JITTER_UNDER_TOP_STACK ();
+
+     JITTER_DROP_STACK ();
+     JITTER_TOP_STACK () = pvm_make_array_type (etype, bound);
+  end
+end
+
+# Instruction: tyagett
+#
+# Given an array type, push the type of its elements on the stack.
+#
+# Stack: ( TYPE -- TYPE TYPE )
+
+instruction tyagett ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_TYP_A_ETYPE (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: tyagetb
+#
+# Given an array type, push its bound on the stack.
+#
+# Stack: ( TYPE -- TYPE (ULONG|NULL) )
+
+instruction tyagetb ()
+  code
+    JITTER_PUSH_STACK (PVM_VAL_TYP_A_BOUND (JITTER_TOP_STACK ()));
+  end
+end
+
+# Instruction: mktyc
+#
+# Given a list of argument types, a return type and a number of
+# arguments, build a closure type and push it on the stack.
+#
+# Stack: ( TYPE... TYPE ULONG -- TYPE )
+
+instruction mktyc ()
+  code
+    size_t i;
+    pvm_val nargs, rtype, *atypes;
+
+    nargs = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    rtype = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    pvm_allocate_closure_attrs (nargs, &atypes);
+
+    for (i = 0; i < PVM_VAL_ULONG (nargs); ++i)
+    {
+      atypes[i] = JITTER_TOP_STACK ();
+      JITTER_DROP_STACK ();
+    }
+
+    JITTER_PUSH_STACK (pvm_make_closure_type (rtype,
+                                              nargs, atypes));
+  end
+end
+
+# Instruction: mktysct
+#
+# Given a list of field descriptors, a number of fields and a struct
+# type name, build a struct type and push it on the stack.
+#
+# Each field descriptor has the form [STRING TYPE] and contains the
+# name of the field and its type.
+#
+# Stack: ( [STRING TYPE]... ULONG STR -- TYPE )
+
+instruction mktysct ()
+  code
+    size_t i;
+    pvm_val nelem, name, *etypes, *enames;
+
+    name = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    nelem = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+
+    pvm_allocate_struct_attrs (nelem, &etypes, &enames);
+
+    for (i = 0; i < PVM_VAL_ULONG (nelem); ++i)
+    {
+      enames[PVM_VAL_ULONG (nelem) - i - 1] = JITTER_UNDER_TOP_STACK ();
+      etypes[PVM_VAL_ULONG (nelem) - i - 1] = JITTER_TOP_STACK ();
+
+      JITTER_DROP_STACK ();
+      JITTER_DROP_STACK ();
+    }
+
+    JITTER_PUSH_STACK (pvm_make_struct_type (nelem, name,
+                                             enames, etypes));
+  end
+end
+
+
+## IO instructions
+
+# Instruction: write
+#
+# If the value at the TOS is mapped, then write it to its associated
+# IO space.  Otherwise, this is a no-op.
+#
+# Stack: ( VAL -- VAL )
+# Exceptions: PVM_E_IOS_FULL, PVM_E_CONSTRAINT_ERROR
+
+instruction write ()
+  caller
+  code
+     pvm_val val = JITTER_TOP_STACK ();
+     pvm_val writer = pvm_val_writer (val);
+
+     if (writer != PVM_NULL)
+     {
+        JITTER_DUP_STACK ();                      /* VAL VAL */
+        JITTER_PUSH_STACK (PVM_VAL_OFFSET (val)); /* VAL VAL OFF */
+        PVM_CALL (writer);
+      }
+  end
+end
+
+# Instruction: peeki NENC,ENDIAN,BITS
+#
+# Given an IOS descriptor and a bit-offset, peek an integer value of
+# width BITS bits.  The negative encoding and endianness to be used
+# are specified in the instruction arguments.
+#
+# Stack: ( INT ULONG -- INT )
+
+instruction peeki (?n nenc_printer,?n endian_printer,?n bits_printer)
+  code
+    PVM_PEEK (int, int, JITTER_ARGN0, JITTER_ARGN1, JITTER_ARGN2,
+              PVM_IOS_ARGS_INT);
+  end
+end
+
+# Instruction: peekiu ENDIAN,BITS
+#
+# Given an IOS descriptor and a bit-offset, peek an unsigned integer
+# value of width BITS bits.  The endianness to be used is specified in
+# the instruction arguments.
+#
+# Stack: ( INT ULONG -- INT )
+
+instruction peekiu (?n endian_printer,?n bits_printer)
+  code
+   PVM_PEEK (uint, uint, 0 /* unused */, JITTER_ARGN0, JITTER_ARGN1,
+             PVM_IOS_ARGS_UINT);
+  end
+end
+
+# Instruction: peekl NENC,ENDIAN,BITS
+#
+# Given an IOS descriptor and a bit-offset, peek a long value of width
+# BITS bits.  The negative encoding and endianness to be used are
+# specified in the instruction arguments.
+#
+# Stack: ( INT ULONG -- LONG )
+
+instruction peekl (?n nenc_printer,?n endian_printer,?n bits_printer)
+  code
+    PVM_PEEK (long, int, JITTER_ARGN0, JITTER_ARGN1, JITTER_ARGN2,
+              PVM_IOS_ARGS_INT);
+  end
+end
+
+# Instruction: peeklu ENDIAN,BITS
+#
+# Given an IOS descriptor and a bit-offset, peek an unsigned long value
+# of width BITS bits.  The endianness to be used is specified in the
+# instruction arguments.
+#
+# Stack: ( INT ULONG -- ULONG )
+
+instruction peeklu (?n endian_printer,?n bits_printer)
+  code
+   PVM_PEEK (ulong, uint, 0 /* unused */, JITTER_ARGN0, JITTER_ARGN1,
+             PVM_IOS_ARGS_UINT);
+  end
+end
+
+# Instruction: peekdi BITS
+#
+# Given an IOS descriptor and a bit-offset, peek an integer value of
+# width BITS bits.  Use the default endianness and negative encoding.
+#
+# Stack: ( INT ULONG -- INT )
+
+instruction peekdi (?n bits_printer)
+  code
+    PVM_PEEK (int, int, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_INT);
+  end
+end
+
+# Instruction: peekdiu BITS
+#
+# Given an IOS descriptor and a bit-offset, peek an unsigned integer
+# value of width BITS bits.  Use the default endianness.
+#
+# Stack: ( INT ULONG -- UINT )
+
+instruction peekdiu (?n bits_printer)
+  code
+    PVM_PEEK (uint, uint, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_UINT);
+  end
+end
+
+# Instruction: peekdl BITS
+#
+# Given an IOS descriptor and a bit-offset, peek a long value of width
+# BITS bits.  Use the default endianness and negative encoding.
+#
+# Stack: ( INT ULONG -- LONG )
+
+instruction peekdl (?n bits_printer)
+  code
+    PVM_PEEK (long, int, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_INT);
+  end
+end
+
+# Instruction: peekdlu BITS
+#
+# Given an IOS descriptor and a bit-offset, peek an unsigned long value
+# of width BITS bits.  Use the default endianness.
+#
+# Stack: ( INT ULONG -- ULONG )
+
+instruction peekdlu (?n bits_printer)
+  code
+    PVM_PEEK (ulong, uint, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_UINT);
+  end
+end
+
+# Instruction: pokei NENC,ENDIAN,BITS
+#
+# Given an IOS descriptor, a bit-offset and an integer value of BITS
+# bits, poke it.  Use the negative encoding and endianness specified
+# in the instruction arguments.
+#
+# Stack: ( INT ULONG INT -- )
+
+instruction pokei (?n nenc_printer,?n endian_printer,?n bits_printer)
+  code
+    PVM_POKE (INT, int, JITTER_ARGN0, JITTER_ARGN1, JITTER_ARGN2,
+              PVM_IOS_ARGS_WRITE_INT);
+  end
+end
+
+# Instruction: pokeiu ENDIAN,BITS
+#
+# Given an IOS descriptor, a bit-offset and an unsigned integer value
+# of BITS bits, poke it.  Use the endianness specified in the
+# instruction arguments.
+#
+# Stack: ( INT ULONG INT -- )
+
+instruction pokeiu (?n endian_printer,?n bits_printer)
+  code
+   PVM_POKE (UINT, uint, 0 /* unused */, JITTER_ARGN0, JITTER_ARGN1,
+             PVM_IOS_ARGS_WRITE_UINT);
+  end
+end
+
+# Instruction: pokel NENC,ENDIAN,BITS
+#
+# Given an IOS descriptor, a bit-offset and a long value of BITS bits,
+# poke it.  Use the negative encoding and endianness specified in the
+# instruction arguments.
+#
+# Stack: ( INT ULONG LONG -- )
+
+instruction pokel (?n nenc_printer,?n endian_printer,?n bits_printer)
+  code
+    PVM_POKE (LONG, int, JITTER_ARGN0, JITTER_ARGN1, JITTER_ARGN2,
+              PVM_IOS_ARGS_WRITE_INT);
+  end
+end
+
+# Instruction: pokelu ENDIAN,BITS
+#
+# Given an IOS descriptor, a bit-offset and an unsigned long value of
+# BITS bits, poke it.  Use the endianness specified in the instruction
+# arguments.
+#
+# Stack: ( INT ULONG ULONG -- )
+
+instruction pokelu (?n endian_printer,?n bits_printer)
+  code
+   PVM_POKE (ULONG, uint, 0 /* unused */, JITTER_ARGN0, JITTER_ARGN1,
+             PVM_IOS_ARGS_WRITE_UINT);
+  end
+end
+
+# Instruction: pokedi BITS
+#
+# Given an IOS descriptor, a bit-offset and an integer of BITS bits,
+# poke it.  Use the default negative encoding and endianness.
+#
+# Stack: ( INT ULONG INT -- )
+
+instruction pokedi (?n bits_printer)
+  code
+    PVM_POKE (INT, int, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_WRITE_INT);
+  end
+end
+
+# Instruction: pokediu BITS
+#
+# Given an IOS descriptor, a bit-offset and an unsigned integer of BITS
+# bits, poke it.  Use the default endianness.
+#
+# Stack: ( INT ULONG UINT -- )
+
+instruction pokediu (?n bits_printer)
+  code
+    PVM_POKE (UINT, uint, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_WRITE_UINT);
+  end
+end
+
+# Instruction: pokedl BITS
+#
+# Given an IOS descriptor, a bit-offset and a long of BITS bits, poke
+# it.  Use the default negative encoding and endianness.
+#
+# Stack: ( INT ULONG LONG -- )
+
+instruction pokedl (?n bits_printer)
+  code
+    PVM_POKE (LONG, int, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_WRITE_INT);
+  end
+end
+
+# Instruction: pokedlu BITS
+#
+# Given an IOS descriptor, a bit-offset and an unsigned long of BITS
+# bits, poke it.  Use the default endianness.
+#
+# Stack: ( INT ULONG ULONG -- )
+
+instruction pokedlu (?n bits_printer)
+  code
+    PVM_POKE (ULONG, uint, jitter_state_runtime.nenc, jitter_state_runtime.endian,
+              JITTER_ARGN0, PVM_IOS_ARGS_WRITE_UINT);
+  end
+end
+
+# Instruction: peeks
+#
+# Given an IOS descriptor and a bit-offset, peek a string.
+#
+# Stack: ( INT ULONG -- STR )
+
+instruction peeks ()
+  code
+    ios io;
+    ios_off offset;
+    char *ios_str;
+    int ret;
+
+    offset = PVM_VAL_ULONG (JITTER_TOP_STACK ());
+    io = ios_search_by_id (PVM_VAL_INT (JITTER_UNDER_TOP_STACK ()));
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_NO_IOS);
+
+    JITTER_DROP_STACK ();
+    if ((ret = ios_read_string (io, offset, 0 /* flags */, &ios_str)) != IOS_OK)
+    {
+      if (ret == IOS_EIOFF)
+         PVM_RAISE_DFL (PVM_E_EOF);
+      else if (ret == IOS_ENOMEM)
+         PVM_RAISE (PVM_E_IO, "out of memory", PVM_E_IO_ESTATUS);
+      else
+         PVM_RAISE_DFL (PVM_E_IO);
+      JITTER_TOP_STACK () = PVM_NULL;
+    }
+    else
+      JITTER_TOP_STACK () = pvm_make_string (ios_str);
+  end
+end
+
+# Instruction: pokes
+#
+# Given an IOS descriptor, a bit-offset and a string, poke it.
+#
+# Stack: ( INT ULONG STR -- )
+
+instruction pokes ()
+  code
+    ios io;
+    ios_off offset;
+    char *str;
+    int ret;
+
+    str = PVM_VAL_STR (JITTER_TOP_STACK ());
+    offset = PVM_VAL_ULONG (JITTER_UNDER_TOP_STACK ());
+    JITTER_DROP_STACK();
+    JITTER_DROP_STACK();
+
+    io = ios_search_by_id (PVM_VAL_INT (JITTER_TOP_STACK ()));
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_NO_IOS);
+
+    JITTER_DROP_STACK ();
+    if ((ret = ios_write_string (io, offset, 0 /* flags */, str)) != IOS_OK)
+    {
+      if (ret == IOS_EIOFF)
+         PVM_RAISE_DFL (PVM_E_EOF);
+      else
+         PVM_RAISE_DFL (PVM_E_IO);
+    }
+  end
+end
+
+
+## Exceptions handling instructions
+
+# Instruction: pushe LABEL
+#
+# Given an exception, push a handler for it on the exceptions stack.
+#
+# Stack: ( EXCEPTION -- )
+# Exceptions Stack: ( -- EXCEPTION_HANDLER )
+
+instruction pushe (?l)
+  code
+   struct pvm_exception_handler *ehandler
+      = pvm_alloc (sizeof (struct pvm_exception_handler));
+   pvm_val exception = JITTER_TOP_STACK ();
+   pvm_val exception_code = pvm_ref_struct (exception,
+                                            pvm_make_string ("code"));
+
+   ehandler->exception = PVM_VAL_INT (exception_code);
+   JITTER_DROP_STACK ();
+   ehandler->main_stack_height = JITTER_HEIGHT_STACK ();
+   ehandler->return_stack_height = JITTER_HEIGHT_RETURNSTACK ();
+   ehandler->code = JITTER_ARGP0;
+   ehandler->env = jitter_state_runtime.env;
+
+   JITTER_PUSH_EXCEPTIONSTACK (ehandler);
+  end
+end
+
+# Instruction: pope
+#
+# Pop an exception handler from the exceptions stack.
+#
+# Stack: ( -- )
+# Exceptions Stack: ( EXCEPTION_HANDLER -- )
+
+instruction pope ()
+  code
+    JITTER_DROP_EXCEPTIONSTACK ();
+  end
+end
+
+# Instruction: raise
+#
+# Raise the given exception.
+#
+# Stack: ( EXCEPTION -- )
+# Exceptions Stack: ( -- )
+
+instruction raise ()
+  code
+    pvm_val exception = JITTER_TOP_STACK ();
+    JITTER_DROP_STACK ();
+    PVM_RAISE_DIRECT (exception);
+  end
+end
+
+
+## Debugging Instructions
+
+# Instruction: strace DEPTH
+#
+# Print a debugging trace with the elements of the top of the stack.
+# The number of elements to print is specified in DEPTH.  A depth of
+# zero means to print the whole stack.
+#
+# Stack: ( -- )
+
+instruction strace (?n)
+  code
+     pvm_val tmp[1024];
+     int i = 0, j;
+     int num_elems = (int) JITTER_ARGN0;
+
+     while (((num_elems == 0 || i < num_elems)
+             && (JITTER_HEIGHT_STACK () !=
+                 jitter_original_state->pvm_state_backing.canary)))
+        {
+          assert (i < 1024);
+          pvm_print_val_with_params (jitter_original_state->pvm_state_backing.vm,
+                                     JITTER_TOP_STACK (),
+                                     0 /* depth */,
+                                     PVM_PRINT_FLAT,
+                                     16 /* base */,
+                                     2 /* indent */,
+                                     0 /* acutoff */,
+                                     PVM_PRINT_F_MAPS);
+          pk_puts ("\n");
+          tmp[i++] = JITTER_TOP_STACK ();
+          JITTER_DROP_STACK ();
+        }
+
+     /* Restore the stack.  */
+     for (j = (i - 1); j >= 0; j--)
+        JITTER_PUSH_STACK (tmp[j]);
+  end
+end
+
+# Instruction: note VALUE
+#
+# This instruction is intended to be used to insert annotations that
+# help to understand disassemblies.  Most of the times VALUE is a
+# string.
+#
+# Semantically, this instruction does nothing.
+#
+# Stack: ( -- )
+
+instruction note (?n pvm_literal_printer)
+  code
+  end
+end
+
+
+## System Interaction Instructions
+
+# Instruction: getenv
+#
+# This instruction gets the name of an environment variable on the
+# stack and pushes the value of the corresponding environment
+# variable.  If no variable with the given name is defined on the
+# environment, then push PVM_NULL.
+#
+# Stack: ( STR -- STR STR )
+
+instruction getenv ()
+  code
+    const char *varname = PVM_VAL_STR (JITTER_TOP_STACK ());
+    char *value = secure_getenv (varname);
+
+    if (value == NULL)
+      JITTER_PUSH_STACK (PVM_NULL);
+    else
+      JITTER_PUSH_STACK (pvm_make_string (value));
+  end
+end
+
+
+## Miscellaneous Instructions
+
+# Instruction: nop
+#
+# Do nothing.
+#
+# Stack: ( -- )
+
+instruction nop ()
+  code
+  end
+end
+
+# Instruction: rand
+#
+# Push a pseudo-random integer to the stack.
+#
+# Stack: ( -- INT )
+
+instruction rand ()
+  code
+    JITTER_PUSH_STACK (pvm_make_int (random (), 32));
+  end
+end
+
+# Instruction: siz
+#
+# Given a value, push its size as a bit-offset.
+#
+# Stack: ( VAL -- VAL ULONG )
+
+instruction siz ()
+  code
+    uint64_t size = pvm_sizeof (JITTER_TOP_STACK ());
+    JITTER_PUSH_STACK (pvm_make_ulong (size, 64));
+  end
+end
+
+# Instruction: sel
+#
+# Given a value, push its length as an unsigned long.
+#
+# The length of an array is the number of values contained in it.
+# The lenght of a struct is the number of fields contained in it.
+# The lenght of a string is the number of characters contained in it.
+# The length of any other value is 1.
+#
+# Stack: ( VAL -- VAL ULONG )
+
+instruction sel ()
+  code
+    JITTER_PUSH_STACK (pvm_elemsof (JITTER_TOP_STACK ()));
+  end
+end
+
+### End of instructions
+
+
+## Peephole optimizations
+
+rule swap-drop-to-nip rewrite
+  swap; drop
+into
+  nip
+end
+
+rule rot-rot-to-nrot rewrite
+  rot; rot
+into
+  nrot
+end
+
+rule nip-nip-to-nip2 rewrite
+  nip; nip
+into
+  nip2
+end
+
+rule nip2-nip-to-nip3 rewrite
+  nip2; nip
+into
+  nip3
+end
+
+rule drop-drop-to-drop2 rewrite
+  drop; drop
+into
+  drop2
+end
+
+rule drop2-drop-to-drop3 rewrite
+  drop2; drop
+into
+  drop3
+end
+
+rule drop3-drop-to-drop4 rewrite
+  drop3; drop
+into
+  drop4
+end
+
+rule swap-over-to-tuck rewrite
+  swap; over
+into
+  tuck
+end
+
+rule rot-swap-to-quake rewrite
+  rot; swap
+into
+  quake
+end

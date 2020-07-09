@@ -1,0 +1,37 @@
+/* pkl-attrs.def - Attributes for Poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* The first column is the code for the attribute.
+   The second column is the attribute identifier, that the user writes
+   in the program code to invoke the attribute.  */
+
+PKL_DEF_ATTR (PKL_AST_ATTR_SIZE, "size")
+PKL_DEF_ATTR (PKL_AST_ATTR_SIGNED, "signed")
+PKL_DEF_ATTR (PKL_AST_ATTR_MAGNITUDE, "magnitude")
+PKL_DEF_ATTR (PKL_AST_ATTR_UNIT, "unit")
+PKL_DEF_ATTR (PKL_AST_ATTR_LENGTH, "length")
+PKL_DEF_ATTR (PKL_AST_ATTR_ALIGNMENT, "alignment")
+PKL_DEF_ATTR (PKL_AST_ATTR_OFFSET, "offset")
+PKL_DEF_ATTR (PKL_AST_ATTR_MAPPED, "mapped")
+PKL_DEF_ATTR (PKL_AST_ATTR_IOS, "ios")
+
+/*
+Local variables:
+mode:c
+End:
+*/

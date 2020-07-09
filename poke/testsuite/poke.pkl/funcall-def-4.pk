@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+defun def3 = (int a, int b, int c = 1) int: { return a + b + c; }
+
+/* { dg-command { def3 (10, 20) } } */
+/* { dg-output "31" } */
+
+/* { dg-command { def3 :a 10 :b 20 } } */
+/* { dg-output "\n31" } */

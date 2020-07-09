@@ -1,0 +1,14 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { .set omode tree } } */
+/* { dg-command { .set oindent 4 } } */
+/* { dg-command { .set odepth 1 } } */
+/* { dg-command { deftype Foo = struct { byte b; } } } */
+/* { dg-command { deftype Bar = struct { Foo foo; } } } */
+/* { dg-command { Bar @ 0#B } } */
+/* { dg-output "Bar \{" } */
+/* { dg-output "\n    foo=Foo \{...\}" } */
+/* { dg-output "\n\}" } */

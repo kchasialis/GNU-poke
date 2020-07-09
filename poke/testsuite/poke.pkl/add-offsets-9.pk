@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+deftype Packet = struct { int i; long j; };
+
+defvar x = 4#Packet;
+defvar y = 8#b;
+
+/* { dg-command {  x + y } } */
+/* { dg-output "392#b" } */
+
+/* For constant folding:  */
+/* { dg-command {  4#Packet + 8#b } } */
+/* { dg-output "\n392#b" } */

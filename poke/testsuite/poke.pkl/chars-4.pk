@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  '\0' } } */
+/* { dg-output "0UB" } */

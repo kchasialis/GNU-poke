@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { printf "%u6b\n",4L } } */
+/* { dg-output "0b000100" } */

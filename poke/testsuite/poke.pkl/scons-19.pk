@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+deftype Foo = struct { int i; method foo = void: { printf "%v\n", i; } };
+
+/* { dg-command { .set pretty-print yes } } */
+/* { dg-command { defvar f = Foo { i = 33 } } } */
+/* { dg-command { f.foo } } */
+/* { dg-output "33" } */

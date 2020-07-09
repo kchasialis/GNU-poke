@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  20#long/#int } } */
+/* { dg-output "40" } */

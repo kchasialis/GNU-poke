@@ -1,0 +1,8 @@
+/* { dg-do compile } */
+
+/* Struct element constraints should evaluate to a boolean.  */
+
+deftype Packet = struct
+  {
+    int i : "foo"; /* { dg-error "" } */
+  };

@@ -1,0 +1,226 @@
+/* bson.pk - Binary JSON support for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* The specification implemented here is in
+   http://bsonspec.org/spec.html  */
+
+// struct BSON_Doc; /* Forward declaration.  */
+
+/* Note that doubles are handled like 64-bit integers, since poke
+   doesn't support FP types yet.  */
+
+deftype BSON_Bool = byte;
+
+defvar BSON_FALSE = 0;
+defvar BSON_TRUE = 1;
+
+deftype BSON_Subtype = byte;
+
+defvar BSON_SUBTYPE_GENERIC = 0;
+defvar BSON_SUBTYPE_FUNCTION = 1;
+defvar BSON_SUBTYPE_BINARY = 2;
+defvar BSON_SUBTYPE_UUID_OLD = 3;
+defvar BSON_SUBTYPE_UUID = 4;
+defvar BSON_SUBTYPE_MD5 = 5;
+defvar BSON_SUBTYPE_USER = 8;
+
+deftype BSON_Binary =
+  struct
+  {
+    int32 size;
+    BSON_Subtype subtype;
+    byte[size] data;
+  };
+
+deftype BSON_String =
+  struct
+  {
+    int32 size;
+    string value : value'size == size - 1;
+  };
+
+deftype BSON_Regexp =
+  struct
+  {
+    string patterns;
+    string opts;
+  };
+
+/* XXX uncomment when forward declarations are supported
+deftype BSON_Code_Scope =
+  struct
+  {
+    int32 size;
+    BSON_String code;
+    BSON_Doc doc;
+    int doc;
+  };
+*/
+
+deftype BSON_Elem =
+  union
+  {
+    struct
+    {
+      byte tag : tag == 0x02;
+      string name;
+      BSON_String value;
+    } str;
+
+    /* XXX uncomment when forward declarations are supported
+    struct
+    {
+      byte tag : tag == 0x03;
+      string name;
+      BSON_Doc value;
+    } doc;
+
+    struct
+    {
+      byte tag : tag == 0x04;
+      string name;
+      BSON_Doc value;
+    } array;
+    */
+    
+    struct
+    {
+      byte tag : tag == 0x05;
+      string name;
+      BSON_Binary value;
+    } binary;
+    
+    struct
+    {
+      byte tag : tag == 0x06;
+      string name;
+    } undefined;
+    
+    struct
+    {
+      byte tag : tag == 0x07;
+      string name;
+      byte[12] value;
+    } obj_id;
+    
+    struct
+    {
+      byte tag : tag == 0x08;
+      string name;
+      BSON_Bool value;
+    } boolean;
+    
+    struct
+    {
+      byte tag : tag == 0x09;
+      string name;
+      int64 value;
+    } datetime;
+    
+    struct
+    {
+      byte tag : tag == 0x0a;
+      string name;
+    } null_elem;
+    
+    struct
+    {
+      byte tag : tag == 0x0b;
+      string name;
+      BSON_Regexp value;
+    } regexp;
+    
+    struct
+    {
+      byte tag : tag == 0x0c;
+      string name;
+      BSON_String;
+      byte[12];
+    } dbpointer;
+    
+    struct
+    {
+      byte tag : tag == 0x0d;
+      string name;
+      BSON_String value;
+    } js;
+    
+    struct
+    {
+      byte tag : tag == 0x0e;
+      string name;
+      BSON_String value;
+    } symbol;
+
+    /* XXX uncomment when forward declarations are supported
+    struct
+    {
+      byte tag : tag == 0x0f;
+      string name;
+      BSON_Code_Scope value;
+    } js_scope;
+    */
+    
+    struct
+    {
+      byte tag : tag == 0x10;
+      string name;
+      int32 value;
+    } integer32;
+    
+    struct
+    {
+      byte tag : tag == 0x11;
+      string name;
+      uint64 value;
+    } timestamp;
+    
+    struct
+    {
+      byte tag : tag == 0x12;
+      string name;
+      int64 value;
+    } integer64;
+    
+    struct
+    {
+      byte tag : tag == 0x13;
+      string name;
+      byte[16] value;
+    } decimal128;
+    
+    struct
+    {
+      byte tag : tag == 0xff;
+      string name;
+    } min_key;
+    
+    struct
+    {
+      byte tag : tag == 0x7f;
+      string name;
+    } max_key;
+  };
+
+deftype BSON_Doc =
+  struct
+  {
+    offset<int32,B> size;
+    BSON_Elem[size - size'size - 1#B] elements;
+    byte endmark : endmark == 0x0;
+  };

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype imm13 = int<13>;
+
+/* { dg-command {  sizeof (imm13) } } */
+/* { dg-output "13UL#b" } */

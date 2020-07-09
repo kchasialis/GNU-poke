@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+printf "foo %ix bar", 10; /* { dg-error "" } */

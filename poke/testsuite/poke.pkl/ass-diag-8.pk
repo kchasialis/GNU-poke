@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+(2 + 3) = 5; /* { dg-error "invalid l-value" } */

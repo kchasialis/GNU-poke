@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 0U;
+
+/* { dg-command {  !x } } */
+/* { dg-output "1" } */
+
+/* For constant folding:  */
+/* { dg-command {  !0U } } */
+/* { dg-output "\n1" } */

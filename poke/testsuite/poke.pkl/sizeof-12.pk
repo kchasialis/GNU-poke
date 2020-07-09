@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  sizeof (offset<int,B>) } } */
+/* { dg-output "32UL#b" } */

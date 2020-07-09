@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 10U;
+
+/* { dg-command {  x /^ 3U } } */
+/* { dg-output "4U" } */
+
+/* For constant folding: */
+/* { dg-command {  10U /^ 3U } } */
+/* { dg-output "\n4U" } */

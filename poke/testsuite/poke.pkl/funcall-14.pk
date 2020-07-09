@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defun xxx = int: { print "foo\n"; return 10; }
+defun yyy = int: { print "bar\n"; return 20; }
+defun zzz = (int a, int b) int: { return a + b; }
+
+/* { dg-command { zzz (xxx, yyy) } } */
+/* { dg-output "foo\nbar\n30" } */
+
+/* { dg-command { zzz (yyy, xxx) } } */
+/* { dg-output "\nbar\nfoo\n30" } */

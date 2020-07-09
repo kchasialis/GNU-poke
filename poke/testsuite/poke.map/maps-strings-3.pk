@@ -1,0 +1,6 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0xff 0xff 0xff 0xff  0xff 0xff 0xff 0xff} } */
+
+/* { dg-command { string @ 1#b = "foo" } } */
+/* { dg-command { string @ 1#b } } */
+/* { dg-output {"foo"} } */

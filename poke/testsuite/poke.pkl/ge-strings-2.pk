@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = "bbb";
+
+/* { dg-command { x >= "bbb" } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command { "bbb" >= "bbb" } } */
+/* { dg-output "\n1" } */

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Foo = struct { byte a; int b = a; };
+
+/* { dg-command "Foo { a = 2 }" } */
+/* { dg-output "Foo \{a=2UB,b=2\}" } */

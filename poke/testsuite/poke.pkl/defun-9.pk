@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* Function with an empty body and empty compound statements.  */
+
+defun nothing = void: {{{}}}
+
+/* { dg-command {  nothing } } */
+/* { dg-output "" } */

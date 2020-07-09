@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+defun def = (int a = 1, int b, int c = 0) int: /* { dg-error "" } */
+  {
+   return a + b + c;
+  }

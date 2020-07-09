@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun foo = void: { if (1 - 1) print "foo"; else print "bar"; }
+
+/* { dg-command { foo } } */
+/* { dg-output "bar" } */

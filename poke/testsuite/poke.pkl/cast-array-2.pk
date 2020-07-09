@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar a = [1,2] as int[];
+defvar b = [[1,2],[3,4]] as int[][];
+
+/* { dg-command {a[1]} } */
+/* { dg-output "2" } */
+
+/* { dg-command {b[1][1]} } */
+/* { dg-output "\n4" } */

@@ -1,0 +1,83 @@
+/* pkl-ops.def - Operators for Poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* The first column is the code for the operator.
+   The second column is a printable name for the operator.  */
+
+/* Binary operators.  */
+PKL_DEF_OP (PKL_AST_OP_OR, "OR")
+PKL_DEF_OP (PKL_AST_OP_IOR, "IOR")
+PKL_DEF_OP (PKL_AST_OP_XOR, "XOR")
+PKL_DEF_OP (PKL_AST_OP_AND, "AND")
+PKL_DEF_OP (PKL_AST_OP_BAND, "BAND")
+PKL_DEF_OP (PKL_AST_OP_EQ, "EQ")
+PKL_DEF_OP (PKL_AST_OP_NE, "NE")
+PKL_DEF_OP (PKL_AST_OP_SL, "SL")
+PKL_DEF_OP (PKL_AST_OP_SR, "SR")
+PKL_DEF_OP (PKL_AST_OP_ADD, "ADD")
+PKL_DEF_OP (PKL_AST_OP_SUB, "SUB")
+PKL_DEF_OP (PKL_AST_OP_MUL, "MUL")
+PKL_DEF_OP (PKL_AST_OP_DIV, "DIV")
+PKL_DEF_OP (PKL_AST_OP_CEILDIV, "CEILDIV")
+PKL_DEF_OP (PKL_AST_OP_POW, "POW")
+PKL_DEF_OP (PKL_AST_OP_MOD, "MOD")
+PKL_DEF_OP (PKL_AST_OP_LT, "LT")
+PKL_DEF_OP (PKL_AST_OP_GT, "GT")
+PKL_DEF_OP (PKL_AST_OP_LE, "LE")
+PKL_DEF_OP (PKL_AST_OP_GE, "GE")
+PKL_DEF_OP (PKL_AST_OP_SCONC, "SCONC")
+PKL_DEF_OP (PKL_AST_OP_MAP, "MAP")
+PKL_DEF_OP (PKL_AST_OP_ATTR, "ATTR")
+PKL_DEF_OP (PKL_AST_OP_BCONC, "BCONC")
+PKL_DEF_OP (PKL_AST_OP_IN, "IN")
+PKL_DEF_OP (PKL_AST_OP_GCD, "GCD")
+
+/* Unary operators.  */
+PKL_DEF_OP (PKL_AST_OP_PREINC, "PREINC")
+PKL_DEF_OP (PKL_AST_OP_PREDEC, "PREDEC")
+PKL_DEF_OP (PKL_AST_OP_POSTINC, "POSTINC")
+PKL_DEF_OP (PKL_AST_OP_POSTDEC, "POSTDEC")
+PKL_DEF_OP (PKL_AST_OP_SIZEOF, "SIZEOF")
+PKL_DEF_OP (PKL_AST_OP_ELEMSOF, "ELEMSOF")
+PKL_DEF_OP (PKL_AST_OP_TYPEOF, "TYPEOF")
+PKL_DEF_OP (PKL_AST_OP_POS, "POS")
+PKL_DEF_OP (PKL_AST_OP_NEG, "NEG")
+PKL_DEF_OP (PKL_AST_OP_BNOT, "BNOT")
+PKL_DEF_OP (PKL_AST_OP_NOT, "NOT")
+PKL_DEF_OP (PKL_AST_OP_UNMAP, "UNMAP")
+
+#if 0
+/* Assign operators.  */
+PKL_DEF_OP (PKL_AST_OP_ASSIGN, "ASSIGN")
+PKL_DEF_OP (PKL_AST_OP_MULA, "MULA")
+PKL_DEF_OP (PKL_AST_OP_DIVA, "DIVA")
+PKL_DEF_OP (PKL_AST_OP_MODA, "MODA")
+PKL_DEF_OP (PKL_AST_OP_ADDA, "ADDA")
+PKL_DEF_OP (PKL_AST_OP_SUBA, "SUBA")
+PKL_DEF_OP (PKL_AST_OP_SLA, "SLA")
+PKL_DEF_OP (PKL_AST_OP_SRA, "SRA")
+PKL_DEF_OP (PKL_AST_OP_BANDA, "BANDA")
+PKL_DEF_OP (PKL_AST_OP_XORA, "XORA")
+PKL_DEF_OP (PKL_AST_OP_IORA, "IORA")
+#endif
+
+/*
+Local variables:
+mode:c
+End:
+*/

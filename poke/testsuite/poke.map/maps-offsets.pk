@@ -1,0 +1,23 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+/* { dg-command {defvar a = byte[2] @ 3#B} } */
+/* { dg-command { a'offset } } */
+/* { dg-output "24UL#b" } */
+/* { dg-command { (byte[2] @ 0#B)'offset } } */
+/* { dg-output "\n0UL#b" } */
+/* { dg-command { a'offset + a'size} } */
+/* { dg-output "\n40UL#b" } */
+
+/* { dg-command { a'offset + 1#B} } */
+/* { dg-output "\n32UL#b" } */
+
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { defvar b = int[2*4UL#B] @ 0#B } } */
+/* { dg-command { b } } */
+/* { dg-output "\n\\\[0x10203040,0x50607080\\\]" } */
+
+/* { dg-command { defvar c = int[2*4#B] @ 0#B } } */
+/* { dg-command { c } } */
+/* { dg-output "\n\\\[0x10203040,0x50607080\\\]" } */

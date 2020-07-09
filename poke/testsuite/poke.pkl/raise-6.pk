@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+defun foo = void:
+  {
+   raise Exception { code = EC_io, msg = "double upset event" };
+  }
+
+/* { dg-command { try foo; catch (Exception e) { if (e.code == EC_io) printf "IO error: %s", e.msg; else raise e; } } } */
+/* { dg-output "IO error: double upset event" } */

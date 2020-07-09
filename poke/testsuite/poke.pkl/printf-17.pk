@@ -1,0 +1,3 @@
+/* { dg-do run } */
+
+printf "%i7x", 1;             /* { dg-output "01" } */

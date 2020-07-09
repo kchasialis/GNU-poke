@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defun foo = int[3]: { return [1,2]; }  /* { dg-error "" } */

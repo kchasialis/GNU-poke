@@ -1,0 +1,7 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x51 0x23 0x45 0x67 0x89 0xab 0xcd 0xef} } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { int<47> @ 15#b } } */
+/* { dg-output "-51290995756165" } */

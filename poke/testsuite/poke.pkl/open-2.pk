@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar foo = open ("*foo*") } } */
+/* { dg-command { get_ios == foo } } */
+/* { dg-output "1" } */

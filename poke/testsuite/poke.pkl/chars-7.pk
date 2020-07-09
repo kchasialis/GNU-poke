@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { '\n' } } */
+/* { dg-output "10UB" } */

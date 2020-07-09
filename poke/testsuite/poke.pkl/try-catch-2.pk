@@ -1,0 +1,26 @@
+/* { dg-do run } */
+
+defun foo = (int n) int:
+{
+   defvar a = 100;
+   return a / n;
+}
+
+defun baz = (int n) int:
+{
+   defvar ret = 0;
+
+   try
+     ret = foo (n);
+   catch
+   {
+     print ("division by zero\n");
+     ret = 0;
+   }
+
+   return ret;
+}
+
+/* { dg-command {  baz (2) } } */
+/* { dg-command {  baz (0) } } */
+/* { dg-output "50\ndivision by zero" } */

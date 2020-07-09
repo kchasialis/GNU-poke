@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar x = 4#B;
+defvar a = [1,2] as int[x + 4#B];
+
+/* { dg-command {a[1]} } */
+/* { dg-output "2" } */

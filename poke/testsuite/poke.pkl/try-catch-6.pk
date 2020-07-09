@@ -1,0 +1,29 @@
+/* { dg-do run } */
+
+defun foo = (Exception e) int:
+  {
+   try
+     raise e;
+   catch if E_div_by_zero
+   {
+     print ("caught\n");
+   }
+
+   return 0;
+  }
+
+defun bar = (Exception e) int:
+  {
+   try
+     return foo (e);
+   catch
+   {
+     print ("uncaught\n");
+   }
+
+   return 0;
+  }
+
+/* { dg-command {  bar (E_no_ios) } } */
+/* { dg-command {  bar (E_div_by_zero) } } */
+/* { dg-output "uncaught\n0\ncaught\n0" } */

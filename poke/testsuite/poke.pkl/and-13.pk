@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* Make sure && is lazy.  */
+
+defvar zero = 0;
+
+/* { dg-command {  0 && 1/zero } } */
+/* { dg-output "0" } */

@@ -1,0 +1,19 @@
+/* { dg-do run } */
+
+deftype Callback = (int)int;
+
+defun identity = (int n) int: { return n; }
+defun double = (int n) int: { return n * 2; }
+defun half = (int n) int: { return n / 2; }
+
+defun apply = (Callback[] callbacks, int data) int:
+  {
+   defvar sum = 0;
+
+   for (e in callbacks)
+     sum = sum + e (data);
+   return sum;
+  }
+
+/* { dg-command {  apply ([identity, double, half], 10) } } */
+/* { dg-output "35" } */

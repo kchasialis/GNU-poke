@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar x = "foo" as uint<13>; /* { dg-error "not allowed" } */

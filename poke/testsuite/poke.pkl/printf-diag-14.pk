@@ -1,0 +1,3 @@
+/* { dg-do compile} */
+
+printf "foo%x", 12; /* { dg-error "invalid format specifier" } */

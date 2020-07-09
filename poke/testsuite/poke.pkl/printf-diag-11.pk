@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+/* Invalid base.  */
+
+printf "xxx%i32Xxxx", 10L; /* { dg-error "" } */

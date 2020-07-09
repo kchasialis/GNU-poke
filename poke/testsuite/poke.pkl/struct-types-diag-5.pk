@@ -1,0 +1,10 @@
+/* { dg-do compile } */
+
+/* Struct elements can't have duplicated names.  */
+
+deftype Packet = struct
+ {
+   int foo;
+   long bar;
+   string foo;  /* { dg-error "" } */
+ };

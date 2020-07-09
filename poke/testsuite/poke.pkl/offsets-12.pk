@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  3#nibble%#byte } } */
+/* { dg-output "1#N" } */

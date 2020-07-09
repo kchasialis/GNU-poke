@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar o = 23#0; /* { dg-error "bigger than zero" } */

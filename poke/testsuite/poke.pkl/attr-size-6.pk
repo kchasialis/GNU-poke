@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  (1 as uint<33>)'size } } */
+/* { dg-output "33UL#b" } */

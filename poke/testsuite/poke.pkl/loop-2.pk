@@ -1,0 +1,21 @@
+/* { dg-do run } */
+
+defun loop_2 = (int i) int:
+  {
+   defvar n = 0;
+   defvar res = 0;
+
+   while (n < i)
+     {
+       if (n % 2 == 0)
+         res = res + 1;
+
+       n = n + 1;
+     }
+
+   return res;
+   }
+
+/* { dg-command {  loop_2 (0) } } */
+/* { dg-command {  loop_2 (10) } } */
+/* { dg-output "0\n5" } */

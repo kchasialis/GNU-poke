@@ -1,0 +1,3 @@
+/* { dg-do compile} */
+
+printf "foo%Ti32d", 12; /* { dg-error "invalid flag" } */

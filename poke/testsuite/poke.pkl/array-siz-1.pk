@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar a = ["foo", "bar", "baz"]
+           as string["foo"'size+"bar"'size+"baz"'size];
+
+/* { dg-command {a[1] = "xxx"} } */
+/* { dg-command {a[1]} } */
+/* { dg-output "xxx" } */

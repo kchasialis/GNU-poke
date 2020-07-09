@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar a = [10,2,3];
+
+/* { dg-command { a in [[1,2,3],[4,5,6]] } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command { [10,2,3] in [[1,2,3],[4,5,6]] } } */
+/* { dg-output "\n0" } */

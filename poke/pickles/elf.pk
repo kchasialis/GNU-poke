@@ -1,0 +1,278 @@
+/* elf.pk - ELF implementation for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* This file contains a Poke description of the ELF (Executable and
+ * Linking Format) object file format.  The ELF format is described in
+ * the chapter 4 of the SysV ABI.
+ *
+ * Both ELF32 and ELF64 are supported.
+ *
+ * In general, we use the same field names used in the C structs
+ * documented in the gABI, that are also used in the widely used ELF
+ * implementations like in the GNU binutils and also in elfutils.
+ * This makes life easier for system hackers who are already familiar
+ * with these names.
+ */
+
+deftype Elf_Half = uint<16>;
+deftype Elf_Word = uint<32>;
+deftype Elf64_Xword = uint<64>;
+deftype Elf64_Sxword = int<64>;
+deftype Elf64_Addr = offset<uint<64>,B>;
+deftype Elf64_Off = offset<uint<64>,B>;
+
+/****** Relocation Entries.  ******/
+
+/* r_sym is the symbol table index with respect to which the
+   relocation must be made.
+
+   r_type is the type of relocation to apply, which is
+   architecture-specific.  See the elf-ARCH pickles.  */
+
+deftype Elf64_RelInfo =
+  struct
+  {
+    uint<32> r_sym @ get_endian == ENDIAN_BIG ? 0#b : 32#b;
+    uint<32> r_type @ get_endian == ENDIAN_BIG ? 32#b : 0#b;
+  };
+
+/* r_offset holds a section offset in relocatable files, a virtual
+   address in executable and shared object files.
+
+   r_addend holds a constant value to be added to the relocation's
+   value.  In architectures using Rel relocations this addend is
+   somehow stored in the relocation's memory location.  */
+
+deftype Elf64_Rel =
+  struct
+  {
+    Elf64_Addr r_offset;
+    Elf64_RelInfo r_info;
+  };
+
+deftype Elf64_Rela =
+  struct
+  {
+    Elf64_Addr r_offset;
+    Elf64_RelInfo r_info;
+    Elf64_Sxword r_addend;
+  };
+
+defvar STB_LOCAL = 0;
+defvar STB_GLOBAL = 1;
+defvar STB_WEAK = 2;
+defvar STB_LOOS = 10;
+defvar STB_HIOS = 12;
+defvar STB_LOPROC = 13;
+defvar STB_HIPROC = 15;
+
+defvar STV_DEFAULT = 0;
+defvar STV_INTERNAL = 1;
+defvar STV_HIDDEN = 2;
+defvar STV_PROTECTED = 3;
+
+deftype Elf64_Sym =
+  struct
+  {
+    offset<Elf_Word,B> st_name;
+    struct
+    {
+      uint<4> st_bind @ get_endian == ENDIAN_BIG ? 0#b : 4#b;
+      uint<4> st_type @ get_endian == ENDIAN_BIG ? 4#b : 0#b;
+    } st_info;
+
+    uint<8> st_other;
+    method st_visibility = uint<3>:
+      {
+       return st_other & 0x3;
+      }
+
+    Elf_Half st_shndx;
+    Elf64_Addr st_value;
+    Elf64_Xword st_size;
+  };
+
+/****** Sections.  ******/
+
+/* Section types.  */
+
+defvar SHT_STRTAB = 3;
+defvar SHT_RELA = 4;
+defvar SHT_REL = 9;
+defvar SHT_DYNSYM = 11;
+
+/* Section Attribute Flags.  */
+
+defvar SHF_WRITE = 0x1;
+defvar SHF_ALLOC = 0x2;
+defvar SHF_EXECINSTR = 0x4;
+defvar SHF_MERGE = 0x10;
+defvar SHF_STRINGS = 0x20;
+defvar SHF_INFO_LINK = 0x40;
+defvar SHF_LINK_ORDER = 0x80;
+defvar SHF_OS_NONCONFORMING = 0x100;
+defvar SHF_GROUP = 0x200;
+defvar SHF_TLS = 0x400;
+defvar SHF_COMPRESSED = 0x800;
+defvar SHF_MASKOS = 0x0ff0_0000;
+defvar SHF_MASKPROC = 0xf000_0000;
+
+deftype Elf64_SectionFlags =
+  struct
+  {
+    Elf64_Xword flags;
+
+    method _print = void:
+      {
+        defvar s = "";
+
+        if (flags & SHF_WRITE)
+          s = s + "WRITE,";
+        if (flags & SHF_ALLOC)
+          s = s + "ALLOC,";
+        if (flags & SHF_EXECINSTR)
+          s = s + "EXECINSTR,";
+        if (flags & SHF_MERGE)
+          s = s + "MERGE,";
+        if (flags & SHF_STRINGS)
+          s = s + "STRINGS,";
+        if (flags & SHF_INFO_LINK)
+          s = s + "INFO_LINK,";
+        if (flags & SHF_LINK_ORDER)
+          s = s + "LINK_ORDER,";
+        if (flags & SHF_OS_NONCONFORMING)
+          s = s + "OS_NONCONFORMING,";
+        if (flags & SHF_GROUP)
+          s = s + "GROUP,";
+        if (flags & SHF_TLS)
+          s = s + "TLS,";
+        if (flags & SHF_COMPRESSED)
+          s = s + "COMPRESSED,";
+        if (flags & SHF_MASKOS)
+          /* XXX call os-specific printer in elf-OS.pk */
+          ;
+        if (flags & SHF_MASKPROC)
+          /* XXX call arch-specific printer in elf-ARCH.pk */
+          ;
+
+        print "#<" + rtrim (s, ",") + ">";
+      }
+  };
+
+/* sh_name specifies the name of the section.  It is an index into the
+   file's string table.
+
+   sh_type is the type of the section, one of the SHT_* values defined
+   above.
+
+   sh_flags is the ORed value of the 1-bit flags SHF_* defined
+   above.  */
+
+deftype Elf64_Shdr =
+  struct
+  {
+    offset<Elf_Word,B> sh_name;
+    Elf_Word sh_type;
+    Elf64_SectionFlags sh_flags;
+    Elf64_Addr sh_addr;
+    Elf64_Off sh_offset;
+    offset<Elf64_Xword,B> sh_size;
+    Elf_Word sh_link;
+    Elf_Word sh_info;
+    Elf64_Xword sh_addralign;
+    offset<Elf64_Xword,b> sh_entsize;
+  };
+
+defvar ELFDATANONE = 0;
+defvar ELFDATA2LSB = 1;
+defvar ELFDATA2MSB = 2;
+
+deftype Elf64_Ehdr =
+  struct
+  {
+    struct
+    {
+      byte[4] ei_mag = [0x7fUB, 'E', 'L', 'F'];
+      byte ei_class;
+      byte ei_data :
+        (ei_data == ELFDATA2LSB) ? set_endian (ENDIAN_LITTLE) : set_endian (ENDIAN_BIG);
+      byte ei_version;
+      byte ei_osabi;
+      byte ei_abiversion;
+      byte[6] ei_pad;
+      offset<byte,B> ei_nident;
+    } e_ident;
+
+    Elf_Half e_type;
+    Elf_Half e_machine;
+    Elf_Word e_version;
+
+    Elf64_Addr e_entry;
+    Elf64_Off e_phoff;
+    Elf64_Off e_shoff;
+
+    Elf_Word e_flags;
+    offset<Elf_Half,B> e_ehsize;
+    offset<Elf_Half,B> e_phentsize;
+    Elf_Half e_phnum;
+    offset<Elf_Half,B> e_shentsize;
+    Elf_Half e_shnum;
+    Elf_Half e_shstrndx : e_shnum == 0 || e_shstrndx < e_shnum;
+  };
+
+deftype Elf64_File =
+  struct
+  {
+    Elf64_Ehdr ehdr;
+
+    Elf64_Shdr[ehdr.e_shnum] shdr @ ehdr.e_shoff
+      if ehdr.e_shnum > 0;
+
+    /* Given an offset in the ELF file's string table, return the
+       string.  */
+    method get_string = (offset<Elf_Word,B> offset) string:
+      {
+        defvar strtab = ehdr.e_shstrndx;
+        return string @ (shdr[strtab].sh_offset + offset);
+      }
+
+    /* Given a section name, return the section header corresponding
+       to the first section in the ELF file featuring that name.  In
+       case no such section exists, raise a generic error
+       exception.  */
+    method get_section_by_name = (string name) Elf64_Shdr:
+      {
+        for (s in shdr)
+          if (get_string (s.sh_name) == name)
+            return s;
+
+        raise E_generic;
+      }
+
+    /* Given a section type (SHT_* value) return the section header
+       corresponding to the first section in the ELF file featuring
+       that name.  In case no such section exists, raise a generic
+       error exception.  */
+    method get_section_by_type = (Elf_Word type) Elf64_Shdr:
+      {
+        for (s in shdr where s.sh_type == type)
+          return s;
+
+        raise E_generic;
+      }
+  };

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar x = 2;
+defun foo = (int n, int[n+x] a) int: { return a[1]; }
+
+/* { dg-command {foo (1, [1,2,3])} } */
+/* { dg-output "2" } */

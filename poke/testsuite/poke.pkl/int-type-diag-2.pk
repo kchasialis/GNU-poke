@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+deftype foo = uint<65>; /* { dg-error "" } */

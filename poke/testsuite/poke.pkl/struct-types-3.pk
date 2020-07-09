@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+deftype Packet =
+  struct
+  {
+    int b;
+    defvar a = 10;
+    int c;
+  };

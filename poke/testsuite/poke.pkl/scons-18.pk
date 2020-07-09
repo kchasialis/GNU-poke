@@ -1,0 +1,21 @@
+/* { dg-do run } */
+
+deftype BPF_Reg =
+  struct
+  {
+   uint<4> code;
+
+   method _print = void:
+   {
+    print "#<";
+    if (code < 9)
+      printf "%<insn-register:%sr%i32d%>", "%", code;
+    else
+      printf "%<insn-register:fp%>";
+    print ">";
+   }
+  };
+
+/* { dg-command { .set pretty-print yes } } */
+/* { dg-command { BPF_Reg { code = 3 } } } */
+/* { dg-output "#<%r3>" } */

@@ -1,0 +1,18 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x61 0x62 0x63 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Foo =
+  struct
+  {
+    byte a;
+    byte b;
+    byte c;
+    method _print = void: { printf "b is '%c'\n", b; }
+  };
+
+/* { dg-command {.set obase 16 } } */
+/* { dg-command {defvar f = Foo @ 0#B} } */
+/* { dg-command {f._print()} } */
+/* { dg-output "b is 'b'" } */
+/* { dg-command {f._print} } */
+/* { dg-output "\nb is 'b'\n" } */

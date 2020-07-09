@@ -1,0 +1,10 @@
+/* Map file for MP3 files -*- mode: poke-map -*- */
+
+load id3v1;
+
+%%
+
+%entry
+%name tag
+%type ID3V1_Tag
+%offset iosize - 128#B

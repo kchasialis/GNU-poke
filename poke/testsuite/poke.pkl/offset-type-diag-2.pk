@@ -1,0 +1,8 @@
+/* { dg-do compile } */
+
+defun foo = (offset<byte[],byte> input, /* { dg-error "shall be integral" } */
+             int len) int:
+{
+    defvar ret = 0;
+    return ret;
+}

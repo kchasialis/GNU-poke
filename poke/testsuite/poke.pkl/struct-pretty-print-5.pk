@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+/* A defun _print should not be interpreted as a pretty-printer.  */
+
+deftype Foo =
+  struct
+  {
+    int i;
+    defun _print = void: { print "#<bleh>"; }
+  };
+
+/* { dg-command { Foo {} } } */
+/* { dg-output "Foo \{i=0\}" } */

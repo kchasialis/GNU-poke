@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int i;
+    method foo = int: { defvar n = 10; return n + i; }
+  };
+
+/* { dg-command { (Foo {i = 2}).foo } } */
+/* { dg-output "12" } */

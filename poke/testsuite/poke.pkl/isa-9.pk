@@ -1,0 +1,31 @@
+/* { dg-do run } */
+
+deftype Struct = struct { int i; string j; };
+
+defun foo2 = (any a) void:
+  {
+   if (a isa int<32>)
+     print "an int32";
+   else if (a isa uint<7>)
+     print "an uint7";
+   else if (a isa uint<64>[])
+     print "an uint64 array";
+   else
+     print "unknown";
+   print "\n";
+  }
+
+/* { dg-command { foo2 (10) } } */
+/* { dg-output "an int32" } */
+
+/* { dg-command { foo2 (666) } } */
+/* { dg-output "\nan int32" } */
+
+/* { dg-command { foo2 (10 as uint<7>) } } */
+/* { dg-output "\nan uint7" } */
+
+/* { dg-command { foo2 ([1UL, 2UL]) } } */
+/* { dg-output "\nan uint64 array" } */
+
+/* { dg-command { foo2 (Struct {i=10, j="foo"}) } } */
+/* { dg-output "\nunknown" } */

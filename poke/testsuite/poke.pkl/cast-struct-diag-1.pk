@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+deftype Packet = struct { };
+
+defvar x = 10 as Packet; /* { dg-error "expected struct" } */

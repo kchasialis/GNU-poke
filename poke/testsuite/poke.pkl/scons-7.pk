@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Packet = struct { int i; long l; };
+
+/* { dg-command { .set omode flat } } */
+/* { dg-command { Packet { i=10 } } } */
+/* { dg-output "Packet \{i=10,l=0L\}" } */

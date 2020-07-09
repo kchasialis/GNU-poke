@@ -1,0 +1,11 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x01 0x02 0x03} foo.data } */
+/* { dg-data {c*} {0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18} bar.data } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar foo = open ("foo.data") } } */
+/* { dg-command { defvar bar = open ("bar.data") } } */
+/* { dg-command { iosize (foo) } } */
+/* { dg-output "24UL#b" } */
+/* { dg-command { iosize (bar) } } */
+/* { dg-output "\n64UL#b" } */

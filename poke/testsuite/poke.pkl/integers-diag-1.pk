@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar i = 0x1_ffff_ffff_ffff_ffff; /* { dg-error "too big" } */

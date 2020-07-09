@@ -1,0 +1,7 @@
+/* { dg-do compile } */
+
+deftype Packet = struct
+ {
+   little string foo; /* { dg-error "" } */
+   long bar;
+ };

@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar a = ["","bar","baz"];
+
+/* { dg-command { a != ["foo","bar","baz"] } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command { ["","bar","baz"] != ["foo","bar","baz"] } } */
+/* { dg-output "\n1" } */

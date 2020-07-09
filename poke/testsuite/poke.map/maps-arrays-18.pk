@@ -1,0 +1,20 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x02 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype fbs = struct
+{
+  int<8> bps;
+};
+
+deftype ffs = struct
+{
+  fbs bs;
+  byte[bs.bps][2] reserved;
+};
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { defvar f = ffs @ 0#B } } */
+/* { dg-command { f.reserved[0] } } */
+/* { dg-output "\\\[0x20UB,0x30UB\\\]" } */
+/* { dg-command { f.reserved[1] } } */
+/* { dg-output "\n\\\[0x40UB,0x50UB\\\]" } */

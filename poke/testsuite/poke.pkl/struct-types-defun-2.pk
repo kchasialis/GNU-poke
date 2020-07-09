@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int a;
+    defun twoa = int: { return a * 2; }
+    int b : b == twoa;
+  };
+
+/* { dg-command {try Foo {a = 1}; catch if E_constraint { print "caught\n"; } } } */
+/* { dg-output "caught" } */

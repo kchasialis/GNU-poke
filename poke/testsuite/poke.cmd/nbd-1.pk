@@ -1,0 +1,8 @@
+/* { dg-do run } */
+/* { dg-require nbd } */
+/* { dg-nbd {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} [dg-tmpdir]/nbd-1 } */
+
+/* { dg-command ".nbd nbd+unix:///?socket=[dg-tmpdir]/nbd-1" } */
+/* { dg-command {.set obase 16} }  */
+/* { dg-command { byte[8] @ 0#B } } */
+/* { dg-output {[0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80]} } */

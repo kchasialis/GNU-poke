@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+if ("foo")  /* { dg-error "expected boolean" } */
+  {
+  }

@@ -1,0 +1,14 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x04 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Packet = struct
+  {
+    byte ndata;
+    byte[ndata] bytes;
+  };
+
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { defvar p = Packet @ 0#B } } */
+/* { dg-command { p } } */
+/* { dg-output "Packet \\{ndata=0x4UB,bytes=\\\[0x20UB,0x30UB,0x40UB,0x50UB\\\]\\}" } */

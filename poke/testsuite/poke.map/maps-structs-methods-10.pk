@@ -1,0 +1,23 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x61 0x59 0x63 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+defvar n = 3;
+deftype Foo =
+  struct
+  {
+    struct
+    {
+      byte x;
+      method foo = byte:
+        {
+          return x - 1;
+        }
+    } je;
+
+    byte y : y > je.foo;
+    method bar = byte: { return je.foo; }
+  };
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command {try (Foo @ 0#B).bar; catch if E_constraint { print "caught\n"; } } } */
+/* { dg-output "caught" } */

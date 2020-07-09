@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 1;
+
+/* { dg-command {  x as int } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command {  1 as int } } */
+/* { dg-output "\n1" } */

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Struct = struct {int i; string bar;};
+
+/* { dg-command {  Struct {i=1, bar="foo"}'length } } */
+/* { dg-output "2UL" } */

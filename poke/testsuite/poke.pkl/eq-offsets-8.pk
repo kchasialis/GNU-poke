@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 10U#B;
+defvar y = 10U#B;
+
+/* { dg-command { x as offset<int<1>,B> == y } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command { 10U#B as offset<int<1>,B> == 10U#B } } */
+/* { dg-output "\n0" } */

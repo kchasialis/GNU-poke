@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 1UL#b;
+
+/* { dg-command {  x + 2UL#b } } */
+/* { dg-output "3UL#b" } */
+
+/* For constant folding:  */
+/* { dg-command {  1UL#b + 2UL#b } } */
+/* { dg-output "\n3UL#b" } */

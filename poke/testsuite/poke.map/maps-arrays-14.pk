@@ -1,0 +1,41 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* This test triggered a GC-related error due to not have roots for
+   the closures in array and struct nodes.  */
+
+deftype Packet = struct { int i; long j; };
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { defvar p = Packet @ 0#B } } */
+/* { dg-command { p } } */
+/* { dg-output "Packet \\{i=0x10203040,j=0x5060708090a0b0c0L\\}" } */
+
+/* { dg-command { p.i } } */
+/* { dg-output "\n0x10203040" } */
+
+/* { dg-command { p.j } } */
+/* { dg-output "\n0x5060708090a0b0c0L" } */
+
+deftype Packet2 = struct {byte[3] magic; int data; };
+
+/* { dg-command { defvar p2 = Packet2 @ 0#B } } */
+/* { dg-command { p2 } } */
+/* { dg-output "\nPacket2 \\{magic=\\\[0x10UB,0x20UB,0x30UB\\\],data=0x40506070\\}" } */
+
+deftype Packet3 = struct { byte uno; byte; byte tres; };
+
+/* { dg-command { Packet3 @ 0#B } } */
+/* { dg-output "\nPacket3 \\{uno=0x10UB,0x20UB,tres=0x30UB\\}" } */
+
+deftype Packet4 = struct {int i; struct { long l; } s;};
+
+/* { dg-command { Packet4 @ 0#B } } */
+/* { dg-output "\nPacket4 \\{i=0x10203040,s=struct \\{l=0x5060708090a0b0c0L\\}\\}" } */
+
+deftype Empty = struct {};
+
+/* { dg-command { Empty @ 0#B } } */
+/* { dg-output "\nEmpty {}" } */

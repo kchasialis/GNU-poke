@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype struct_for_sizeof = struct { int; long; };
+
+/* { dg-command {  sizeof (struct_for_sizeof) } } */
+/* { dg-output "96UL#b" } */

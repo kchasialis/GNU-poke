@@ -1,0 +1,253 @@
+# poke-dg.exp - Infrastructure for testing the poke compiler.
+
+# Copyright (C) 2019, 2020 Jose E. Marchesi
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GCC; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.
+
+load_lib dg.exp
+
+# Our own dg-* handlers
+#
+# Note that in all the handlers the first argument is the line number
+# where the dg-* element appears in the source file.
+
+set poke_commands {}
+set poke_data_files {}
+set poke_nbd_pids {}
+
+# Append the specified command to `poke_commands'.  The commands added
+# this way will be executed in order by the poke invocation.
+
+proc dg-command { args } {
+    global poke_commands
+    upvar dg-do-what do-what
+
+    if { [llength $args] > 2 } {
+        error "[lindex $args 0]: too many arguments"
+    }
+
+    # If this test is unsupported, then do not append anything to
+    # poke_commands.  This is needed because poke_commands doesn't get
+    # reset to {} in these cases.
+    if { [lindex ${do-what} 1] == N } {
+        return;
+    }
+
+    # Prepare the command for shell unquoting.
+    set cmd \"[string map \
+               {$ \\$ \\ \\\\ \" \\" ` \\`} \
+               [lindex $args 1]]\"
+    # Do not remove this comment. It is to avoid Emacs to
+    # get confused while font-locking"
+
+    set poke_commands "$poke_commands -c $cmd"
+}
+
+# Require a certain capability.
+
+set skip_test 0;
+
+proc dg-require { args } {
+
+    upvar dg-do-what do-what
+
+    # Please update HACKING if you add support for more capabilities
+    # here.
+
+    if {[lindex $args 1] == "libtextstyle" \
+            && $::env(HAVE_LIBTEXTSTYLE) != "yes"} {
+        # Mark the test as unsupported
+        set do-what [list [lindex do-what 0] N P]
+    }
+    if {[lindex $args 1] == "nbd" \
+            && $::env(NBDKIT) == "no"} {
+        # Mark the test as unsupported
+        set do-what [list [lindex do-what 0] N P]
+    }
+}
+
+# Create a temporary data file containing the data specified as an
+# argument, with either a random name or a given name.  The incoming
+# data is encoded in a Tcl list, like in:
+#
+# dg-data {c*} {0x00 0x01 0x02 0x03 0x0a 0xf3 0xb5} [filename]
+#
+# The first argument to dg-data is the format argument expected by the
+# binary(3tcl) Tcl command.  This should be flexible enough for most
+# purposes.
+#
+# Note that it is possible for a single test to specify several
+# dg-data.  Commands acting on IOS will operate on the most recent
+# dg-data stored in a random file.
+#
+# Note that named data files are not opened automatically.
+
+proc dg-data { args } {
+    global poke_commands
+    global poke_data_files
+    global objdir
+
+    set basename {}
+
+    if { [llength $args] != 3 && [llength $args] != 4 } {
+        error "[lindex $args 0]: invalid arguments"
+    }
+    set format [lindex $args 1]
+    set bytes [lindex $args 2]
+
+    if { [llength $args] == 4 } {
+        set basename [lindex $args 3]
+    } else {
+        set basename [pid].data
+    }
+
+    # Write the data to the file.
+    set output_file ${objdir}/${basename}
+    set fd [open $output_file w]
+    fconfigure $fd -translation binary
+    puts -nonewline $fd [binary format $format $bytes]
+    close $fd
+
+    # Append commands to open the file in poke and make it the current
+    # IOS.  But only if the file is not named.  Named data files are
+    # intended to be opened explicitly as part of the test procedure.
+    if { [llength $args] < 4 } {
+        set poke_commands \
+            "$poke_commands -c [exec printf %q ".file $output_file"]"
+    }
+
+    if { [lsearch -exact $poke_data_files $output_file] == -1} {
+        lappend poke_data_files $output_file
+    }
+}
+
+# Return the name of a temporary directory honoring $TMPDIR.  The
+# directory and all content therein will be cleaned up at the end of
+# the testsuite.
+#
+# dg-tmpdir
+
+proc dg-tmpdir { args } {
+    global poke_data_files
+
+    set tmpdir /tmp
+    catch {set tmpdir $::env(TMPDIR)}
+    set subdir [file join $tmpdir poketest.[pid]]
+
+    if {! [file exists $subdir]} {
+        file mkdir $subdir
+        lappend poke_data_files $subdir
+    }
+    return $subdir
+}
+
+# Create a temporary NBD server with the given initial contents over
+# the given Unix socket (dg-tmpdir is useful for creating a
+# reasonable-length socket name).  The server will be cleaned up at
+# the end of the testsuite.
+#
+# The data argument is passed to nbdkit's data plugin (which parses
+# slightly differently than the Poke language).
+#
+# The test can then use open ("nbd+unix:///?socket=[dg-tmpdir]/sock"),
+# if nbd support was compiled in (the test is automatically skipped
+# otherwise).
+#
+# dg-nbd data socketname
+
+proc dg-nbd { args } {
+    global poke_commands
+    global poke_nbd_pids
+
+    if { [llength $args] != 3 } {
+        error "[lindex $args 0]: invalid arguments"
+    }
+
+    set nbdkit $::env(NBDKIT)
+    if {$nbdkit != "no"} {
+        set data [lindex $args 1]
+        set sock [lindex $args 2]
+
+        set fh [open |[list $nbdkit -f -U $sock data data=$data]]
+        lappend poke_nbd_pids [pid $fh]
+    }
+}
+
+# We set LC_ALL and LANG to C so that we get the same error messages
+# as expected.
+setenv LC_ALL C
+setenv LANG C
+
+proc poke-dg-test { prog do_what extra_tool_flags } {
+
+    global poke_commands
+    global objdir
+    global srcdir
+    global POKE
+    global SHELL
+
+    set VALGRIND ""
+    # Uncomment the following couple of lines to run the testsuite with
+    # valgrind.
+#    set VALGRIND "valgrind --quiet --suppressions=${srcdir}/../etc/boehm-gc.suppressions \
+#                           --tool=memcheck --gen-suppressions=all"
+
+    switch $do_what {
+        "compile" {
+            catch "exec $POKE -q --quiet --color=no -l $prog -c .exit $extra_tool_flags" comp_output
+            set output_file ""
+        }
+        "run" {
+            # This requires at least one command
+            if {$poke_commands eq {}} {
+                set poke_commands {-c ""}
+            }
+
+            # Create a script in `output_file'.  DG will run it after
+            # we return.
+            set comp_output ""
+            set output_file "${objdir}/[file rootname [file tail $prog]]"
+            set fd [open $output_file w]
+            puts $fd "#!$SHELL"
+            puts $fd "$VALGRIND $POKE -q --quiet --color=no -q -l $prog $extra_tool_flags $poke_commands"
+            close $fd
+            file attributes $output_file -permissions a+rx
+        }
+        default {
+            perror "$do_what: not a valid dg-do keyword"
+            return ""
+        }
+    }
+
+    set poke_commands {}
+
+    return [list $comp_output $output_file]
+}
+
+# Cleanup.
+#
+# This function is invoked by dg-finish.
+proc poke_finish {} {
+    global poke_data_files
+    global poke_nbd_pids
+
+    foreach p $poke_nbd_pids {
+	exec kill $p
+    }
+
+    foreach f $poke_data_files {
+        file delete -force $f
+    }
+}

@@ -1,0 +1,10 @@
+/* { dg-do compile } */
+
+deftype Struct = struct {int a; int b;};
+
+defvar s = Struct
+           {
+             a = 10, /* { dg-error "duplicated" } */
+             b = 20,
+             a = 30
+           };

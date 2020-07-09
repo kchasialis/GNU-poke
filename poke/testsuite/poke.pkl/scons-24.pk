@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defun bar = int: { return 10; }
+deftype Foo = struct { int i; long j : j != bar; };
+
+/* { dg-command { try Foo { j = bar }; catch if E_constraint { printf "caught\n"; } } } */
+/* { dg-output "caught" } */

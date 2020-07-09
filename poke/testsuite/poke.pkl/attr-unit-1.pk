@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  10'size'unit } } */
+/* { dg-output "1UL" } */

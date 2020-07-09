@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+/* This tests that expressions in defunit are properly promoted.  */
+
+defunit x = 3;
+
+defun foo = uint<64>: { defunit x = 4; return 1#x'unit; }
+
+/* { dg-command { foo } } */
+/* { dg-output "4UL" } */

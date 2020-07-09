@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar x = 1;
+deftype Foo = struct { byte n; struct { byte[n+x] data; } payload; };
+
+/* { dg-command { Foo { n = 1 } } } */
+/* { dg-output "Foo \{n=1UB,payload=struct \{data=\\\[0UB,0UB\\\]\}\}" } */

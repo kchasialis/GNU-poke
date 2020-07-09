@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Struct = struct { };
+
+/* { dg-command {  Struct {}'size } } */
+/* { dg-output "0UL#b" } */

@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  10 isa int<32> } } */
+/* { dg-output "1" } */

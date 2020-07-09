@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+/* Invalid \-sequence in string.  */
+
+defvar s = "foo\xbar"; /* { dg-error "" } */

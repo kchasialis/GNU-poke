@@ -1,0 +1,11 @@
+/* { dg-do compile } */
+
+defun def = (int a, int b, int c = 0) int:
+  {
+   return a + b + c;
+  }
+
+defun bar = void:
+  {
+   def (1,2,3,4); /* { dg-error "" } */
+  }

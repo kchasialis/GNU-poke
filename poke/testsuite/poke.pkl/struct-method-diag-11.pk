@@ -1,0 +1,13 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    defvar n = 10;
+    defun fn = int: { return n; }
+    int i;
+    method foo = int:
+      {
+        return fn + i; /* { dg-error "invalid.*function" } */
+      }
+  };

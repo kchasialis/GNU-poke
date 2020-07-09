@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun bar = (int a, int b, args ...) int: { return a + b + (args[0] as int); }
+
+/* { dg-command { try bar :b 2 :a 1; catch if E_out_of_bounds { print "caught\n";  } } } */
+/* { dg-output "caught" } */

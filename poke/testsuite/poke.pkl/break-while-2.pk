@@ -1,0 +1,21 @@
+/* { dg-do run } */
+
+defvar i = 0;
+defvar j = 0;
+
+while (i < 10)
+  {
+    if (i == 2)
+      break;
+    while (j < 10)
+      {
+        if (j == 2)
+          break;
+        print "foo\n";
+        j = j + 1;
+      }
+    j = 0;
+    i = i + 1;
+  }
+
+/* { dg-output "foo\nfoo\nfoo\nfoo" } */

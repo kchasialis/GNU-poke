@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar n = 1;
+deftype Fo = byte[n+1];
+deftype Packet = struct { Fo[n][n] a; };
+
+/* { dg-command { Packet { } } } */
+/* { dg-output "Packet \{a=\\\[\\\[\\\[0UB,0UB\\\]\\\]\\\]\}" } */

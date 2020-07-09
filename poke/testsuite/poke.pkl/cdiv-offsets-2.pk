@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 10L#b;
+
+/* { dg-command {  x /^ 3#b } } */
+/* { dg-output 4L } */
+
+/* For constant folding: */
+/* { dg-command {  10L#b /^ 3#b } } */
+/* { dg-output "\n4L" } */

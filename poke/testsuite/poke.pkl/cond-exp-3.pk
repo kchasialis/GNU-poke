@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar x = 10;
+
+/* { dg-command { ( x > 2 ? 100 : 200) + 2 } } */
+/* { dg-output "102" } */

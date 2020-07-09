@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 10;
+
+/* { dg-command {  x / 5 } } */
+/* { dg-output 2 } */
+
+/* For constant folding: */
+/* { dg-command {  10 / 5 } } */
+/* { dg-output "\n2" } */

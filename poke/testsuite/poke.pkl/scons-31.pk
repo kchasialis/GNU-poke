@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Foo = struct { byte b; byte[] a; };
+
+/* { dg-command { Foo { b = 10 } } } */
+/* { dg-output "Foo \{b=10UB,a=\\\[\\\]\}" } */

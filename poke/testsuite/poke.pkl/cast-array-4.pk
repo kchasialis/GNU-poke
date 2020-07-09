@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Matrix = int[2][2];
+defvar a = [[1,2],[3,4]] as Matrix;
+
+/* { dg-command {a[1][1]} } */
+/* { dg-output "4" } */

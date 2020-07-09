@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Struct = struct { int i; long l; };
+
+printf ("%Fv\n", Struct { i = 10, l = 20L });
+
+/* { dg-output "Struct \{i=10,l=20L\}" } */

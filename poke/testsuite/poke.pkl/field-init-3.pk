@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar n = 2;
+deftype Foo = struct { int[n] i = [n,n]; };
+
+/* { dg-command { Foo {} } } */
+/* { dg-output "Foo \{i=\\\[2,2\\\]\}" } */

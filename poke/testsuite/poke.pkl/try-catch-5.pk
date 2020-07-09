@@ -1,0 +1,37 @@
+/* { dg-do run } */
+
+defun baz = (int n) int:
+{
+   defun foo = (int n) int:
+   {
+      defvar a = 100;
+      return a / n;
+   }
+
+   defvar ret = 0;
+
+   try
+     ret = foo (n);
+   catch
+   {
+     print ("re-raising\n");
+     raise E_div_by_zero;
+   }
+
+   return ret;
+}
+
+defun quux = (int n) int:
+  {
+   try
+     return baz (n);
+   catch
+   {
+     print ("got exception\n");
+   }
+   return 666;
+  }
+
+/* { dg-command {  quux (2) } } */
+/* { dg-command {  quux (0) } } */
+/* { dg-output "re-raising\ngot exception\n666" } */

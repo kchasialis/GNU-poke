@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 12#b;
+defvar y = 11#b;
+
+/* { dg-command {  x > y } } */
+/* { dg-output "1" } */
+
+/* For constant folding:  */
+/* { dg-command {  12#b > 11#b } } */
+/* { dg-output "\n1" } */

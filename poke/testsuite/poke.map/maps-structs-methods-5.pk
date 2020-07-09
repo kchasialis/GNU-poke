@@ -1,0 +1,45 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x88 0x62 0x63 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype ULEB_128 =
+  struct
+  {
+    deftype ULEB_128_Byte =
+      struct
+      {
+        byte b : b < 0x7f;
+      };
+
+    ULEB_128_Byte[] variable;
+    byte last;
+
+    method value = uint<64>:
+      {
+       defvar result = 0UL;
+       defvar shift = 0;
+
+       if (variable'length > 8)
+         /* For now poke supports up to 64-bit integers.  */
+         raise E_generic;
+
+       for (v in variable)
+         result = result | ((v.b & 0x7f) <<. shift);
+       result = result | (last & 0x7f) <<. shift;
+
+       return result;
+      }
+
+    method _print = void:
+      {
+       defvar val = 0UL;
+
+       try val = value;
+       catch { print "<inv>"; return; }
+
+       printf ("<%u64d>", value);
+      }
+  };
+
+/* { dg-command {defvar u = ULEB_128 @ 0#B} } */
+/* { dg-command {u.value} } */
+/* { dg-output "8UL" } */

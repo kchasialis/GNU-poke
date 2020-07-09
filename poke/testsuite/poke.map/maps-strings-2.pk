@@ -1,0 +1,9 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0xff 0xff 0xff 0xff  0xff 0xff 0xff 0xff} } */
+
+/* { dg-command { byte @ 1#b = 'f' } } */
+/* { dg-command { byte @ (1+8)#b = 'o' } } */
+/* { dg-command { byte @ (1+8*2)#b = 'o' } } */
+/* { dg-command { byte @ (1+8*3)#b = '\0' } } */
+/* { dg-command { string @ 1#b } } */
+/* { dg-output {"foo"} } */

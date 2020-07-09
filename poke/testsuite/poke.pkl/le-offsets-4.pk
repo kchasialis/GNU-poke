@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 9U#b;
+defvar y = 1U#B;
+
+/* { dg-command {  x <= y } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command {  9U#b <= 1U#B } } */
+/* { dg-output "\n0" } */

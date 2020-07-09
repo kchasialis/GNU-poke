@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar x = 10UB;
+
+/* { dg-command {x in [10L,3L,4L]} } */
+/* { dg-output "1" } */

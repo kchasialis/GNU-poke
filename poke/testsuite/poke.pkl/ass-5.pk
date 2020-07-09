@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+/* { dg-command { defvar o = 2#B } } */
+
+/* { dg-command { o = 20UL#b } } */
+/* { dg-command { o } } */
+/* { dg-output "2#B" } */

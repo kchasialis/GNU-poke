@@ -1,0 +1,19 @@
+/* { dg-do run } */
+
+
+defun if_3 = (uint<64> a, uint<64> b) uint<64>:
+  {
+   if (b == 0)
+     {
+      return a;
+     }
+   else
+     {
+      return if_3 (b, a % b);
+     }
+  }
+
+/* { dg-command {  if_3 (2UL, 8UL) } } */
+/* { dg-command {  if_3 (4UL, 8UL) } } */
+/* { dg-command {  if_3 (4UL, 10UL) } } */
+/* { dg-output "2UL\n4UL\n2UL" } */

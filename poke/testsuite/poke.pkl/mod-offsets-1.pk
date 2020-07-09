@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 22#b;
+
+/* { dg-command {  x % 10#b } } */
+/* { dg-output "2#b" } */
+
+/* For constant folding: */
+/* { dg-command {  22#b % 10#b } } */
+/* { dg-output "\n2#b" } */

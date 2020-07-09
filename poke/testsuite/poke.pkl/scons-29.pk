@@ -1,0 +1,22 @@
+/* { dg-do run } */
+
+deftype Bar =
+  struct
+  {
+    int b;
+    struct
+    {
+      int c;
+      int d;
+    } baz;
+  };
+
+deftype Foo =
+  struct
+  {
+    int a;
+    Bar bar;
+  };
+
+/* { dg-command { Foo { a = 666 } } } */
+/* { dg-output {Foo {a=666,bar=Bar {b=0,baz=struct {c=0,d=0}}}} } */

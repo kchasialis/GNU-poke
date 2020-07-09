@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 3L#byte;
+defvar y = 16U#b;
+
+/* { dg-command {  x != y } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command {  3L#byte != 16U#b } } */
+/* { dg-output "\n1" } */

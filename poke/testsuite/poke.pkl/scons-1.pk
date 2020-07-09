@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Packet = struct { };
+
+/* { dg-command { Packet {} } } */
+/* { dg-output "Packet \{\}" } */

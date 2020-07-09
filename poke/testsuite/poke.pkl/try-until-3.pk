@@ -1,0 +1,18 @@
+/* { dg-do run } */
+
+defun foo = void:
+  {
+   defvar x = 0;
+
+   try
+   {
+     if (x == 5)
+       raise Exception {code = 777};
+     printf "%v\n", x;
+     x = x + 1;
+   }
+   until Exception {code = 666};
+  }
+
+/* { dg-command { try foo; catch { print "caught\n"; } } } */
+/* { dg-output "caught" } */

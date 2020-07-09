@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar n = 1;
+
+/* { dg-command {  [0,1,2][n] } } */
+/* { dg-output "1" } */
+
+/* For constant-folding: */
+/* { dg-command {  [0,1,2][1] } } */
+/* { dg-output "\n1" } */

@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 11U;
+defvar y = 1U;
+
+/* { dg-command {  12U#b == (x + y)#b } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command {  12U#b == (11U + 1U)#b } } */
+/* { dg-output "\n1" } */

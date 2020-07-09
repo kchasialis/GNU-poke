@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+deftype Struct = struct {};
+
+defvar x = Struct {} as int<32>; /* { dg-error "expected struct" } */

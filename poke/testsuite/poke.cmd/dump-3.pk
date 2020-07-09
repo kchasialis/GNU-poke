@@ -1,0 +1,10 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+pk_dump_size = 8#B;
+pk_dump_group_by = 2#B;
+pk_dump_ruler = 0;
+pk_dump_ascii = 0;
+
+/* { dg-command { dump :from 0#B :group_by 4#B } } */
+/* { dg-output "00000000: 10203040 50607080" } */

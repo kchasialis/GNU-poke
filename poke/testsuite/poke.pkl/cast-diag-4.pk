@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+defun foo = string:
+  {
+   return 10 as string; /* { dg-error "" } */
+  }

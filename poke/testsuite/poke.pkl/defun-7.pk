@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+defun foo = (int n) int:
+  {
+   defun bar = (int n) int:
+   {
+    return n;
+   }
+
+   return bar (n);
+  }
+
+/* { dg-command {  foo (10) } } */
+/* { dg-output 10 } */

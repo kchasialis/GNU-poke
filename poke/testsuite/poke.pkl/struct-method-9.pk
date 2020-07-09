@@ -1,0 +1,34 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x00 0x00 0x00 0x01  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Foo =
+  struct
+  {
+    int i;
+
+    defun foo = int:
+      {
+        return i + 1;
+      }
+
+    method bar = int:
+      {
+        deftype Bar =
+          struct
+          {
+            int j;
+            method bar = int: { return j + 1; }
+          };
+
+        defun jorl = int:
+        {
+          return (Bar { j = 1 }).bar;
+        }
+
+        return jorl + i;
+      }
+  };
+
+/* { dg-command {.set endian big } } */
+/* { dg-command { (Foo @ 0#B).bar } } */
+/* { dg-output "3" } */

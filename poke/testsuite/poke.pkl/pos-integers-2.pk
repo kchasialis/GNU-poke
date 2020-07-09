@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = -666;
+
+/* { dg-command { +x } } */
+/* { dg-output "-666" } */
+
+/* For constant folding: */
+/* { dg-command { +-666} } */
+/* { dg-output "\n-666" } */

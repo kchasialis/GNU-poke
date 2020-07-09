@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { try getenv ("THISSHOULDNTEXIST"); catch if E_inval { print "caught\n"; } } } */
+/* { dg-output "caught" } */

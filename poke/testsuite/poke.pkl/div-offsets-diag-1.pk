@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar x = 1024UL#b / (2-2)#B;  /* { dg-error "" } */

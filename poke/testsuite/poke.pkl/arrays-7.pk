@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  [2#b, 3#b] } } */
+/* { dg-output "\\\[2#b,3#b\\\]" } */

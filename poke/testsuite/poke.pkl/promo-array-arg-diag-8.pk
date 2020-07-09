@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar x = 2;
+deftype Array = int[x+1];
+defun foo = (Array a) int: { return a[1]; }
+
+/* { dg-command {try foo ([1,2,3,4]); catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "caught" } */

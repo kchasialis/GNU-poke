@@ -1,0 +1,19 @@
+/* { dg-do run } */
+
+/* This tests that the PVM struct types are generated correctly for
+   struct types that contain declarations.  */
+
+deftype Foo =
+  struct
+  {
+    defvar a = 10;
+    defun b = void: {}
+    deftype je = int;
+
+    byte c;
+  };
+
+/* { dg-command { defvar f = Foo {} } } */
+/* { dg-command { defvar a = [f,f] } } */
+/* { dg-command { a } } */
+/* { dg-output "\\\[Foo {c=0UB},Foo {c=0UB}\\\]" } */

@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+defun foo = void:
+  {
+   defvar x = 10;
+
+   try x = 20;
+   until E_eof;
+  }

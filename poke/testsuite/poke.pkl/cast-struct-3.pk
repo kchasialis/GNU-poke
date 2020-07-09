@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Foo = struct { int i; int j; };
+deftype Bar = struct { int k; int j; };
+
+/* { dg-command { Bar {j=3} as Foo } } */
+/* { dg-output"Foo \{i=0,j=3\}" } */

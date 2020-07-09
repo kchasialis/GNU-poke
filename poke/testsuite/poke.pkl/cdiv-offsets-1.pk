@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 10#B;
+
+/* { dg-command {  x /^ 3#B } } */
+/* { dg-output 4 } */
+
+/* For constant folding: */
+/* { dg-command {  10#B /^ 3#B } } */
+/* { dg-output "\n4" } */

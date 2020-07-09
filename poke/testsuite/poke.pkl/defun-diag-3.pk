@@ -1,0 +1,11 @@
+/* { dg-do compile } */
+
+defun foo = (int arg, int arg2, int arg3) int:
+  {
+   return arg + arg2 + arg3;
+  }
+
+defun bar = void:
+  {
+    foo :arg 10 :arg2 30; /* { dg-error "" } */
+  }

@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype struct_with_array =
+  struct
+  {
+    int;
+    int[5];
+    int[3];
+  };
+
+/* { dg-command {  sizeof (struct_with_array) } } */
+/* { dg-output "288UL#b" } */

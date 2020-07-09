@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  "foo" isa string } } */
+/* { dg-output "1" } */

@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+defun hello = string:
+  {
+    return "hello";
+  }
+
+/* { dg-command {  hello () } } */
+/* { dg-output {"hello"} } */
+
+/* { dg-command {  hello () + " world" } } */
+/* { dg-output "\n\"hello world\"" } */

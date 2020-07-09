@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+/* Test promotion of struct type field initializers.  */
+
+defvar n = 3;
+deftype Foo = struct { int[n] a = [1,2,3]; };
+
+/* { dg-command { Foo {} } } */
+/* { dg-output "Foo \{a=\\\[1,2,3\\\]\}" } */

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun bar = (int a, int b, args ...) int: { return a + b + (args[0] as int); }
+
+/* { dg-command { try bar (1,2,"foo",3); catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "caught" } */

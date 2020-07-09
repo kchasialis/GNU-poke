@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar n = 2;
+deftype BAZ = struct { byte[n][n][n] d; };
+defun foo = BAZ: { return BAZ {}; }
+
+/* { dg-command { foo } } */
+/* { dg-output "BAZ \{d=\\\[\\\[\\\[0UB,0UB\\\],\\\[0UB,0UB\\\]\\\],\\\[\\\[0UB,0UB\\\],\\\[0UB,0UB\\\]\\\]\\\]\}" } */

@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+/* Initializer for the argument, which is an array statically bounded
+   to a number of elements, is not of the right dimensions.  */
+
+defun baz2 = (int[2][2] a = [[1],[2]]) int: /* { dg-error "" } */
+  {
+   return a[1][1];
+  }

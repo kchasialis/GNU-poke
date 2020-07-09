@@ -1,0 +1,15 @@
+/* { dg-do run } */
+
+/* Test that accessing an absent field from within a method raises
+   E_elem.  */
+
+deftype Foo =
+  struct
+  {
+    int a if a > 10;
+    method foo = int: { return a; }
+  };
+
+/* { dg-command { defvar f = Foo {} } } */
+/* { dg-command { try f.foo; catch if E_elem { print "caught\n"; } } } */
+/* { dg-output "caught" } */

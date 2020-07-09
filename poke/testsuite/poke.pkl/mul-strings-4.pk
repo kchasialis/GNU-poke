@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = "foo";
+
+/* { dg-command { 0 * x } } */
+/* { dg-output {""} } */
+
+/* For constant folding: */
+/* { dg-command { 0 * "foo" } } */
+/* { dg-output "\n\"\"" } */

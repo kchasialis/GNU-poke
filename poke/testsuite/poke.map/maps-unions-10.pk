@@ -1,0 +1,17 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 } } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+defvar n = 10;
+
+deftype Foo =
+  union
+  {
+    byte b : n != 10;
+    long l;
+  };
+
+/* { dg-command { try Foo @ 0#B; catch if E_eof { printf "caught\n"; } } } */
+/* { dg-output "caught" } */

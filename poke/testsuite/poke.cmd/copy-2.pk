@@ -1,0 +1,7 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { copy :from 1#B :to 5#B :size 0#B } } */
+/* { dg-command { byte[3] @ 5#B } } */
+/* { dg-output "\\\[0x60UB,0x70UB,0x80UB\\\]" } */

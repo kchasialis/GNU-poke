@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Struct = struct { offset<int,B> fo; };
+defvar struct_ref_2 = Struct {fo = 10#Kb};
+
+/* { dg-command {  struct_ref_2.fo/2#Kb } } */
+/* { dg-output "5" } */

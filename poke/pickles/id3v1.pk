@@ -1,0 +1,142 @@
+/* id3v1.pk - ID3v1 implementation for GNU poke */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* Implemented as specified in http://id3.org/id3v1.html  */
+
+/* Table containing the names of the different supported genres.  Note
+   that there are 255 possible genres, because the code 255 denotes
+   no-genre according to the spec.  */
+
+defvar id3v1_genres =
+  ["blues", "classic rock", "country", "dance", "disco", "funk",
+   "grunge", "hip-hop", "jazz", "metal", "new age", "oldies",
+   "other", "pop", "rhythm and blues", "rap", "reggae", "rock",
+   "techno", "industrial", "alternative", "ska", "death metal",
+   "pranks", "soundtrack", "euro-techno", "ambient", "trip-hop",
+   "vocal", "jazz and funk", "fusion",  "trance", "classical",
+   "instrumental", "acid", "house", "game", "sound clip", "gospel",
+   "noise", "alternative rock", "bass", "soul", "punk", "space",
+   "meditative", "instrumental pop", "instrumental rock", "ethnic",
+   "gothic", "darkwave", "techno-industrial", "electronic",
+   "pop-folk", "eurodance", "dream", "southern rock", "comedy",
+   "cult", "gangsta", "top 40", "christian rap", "pop/funk",
+   "jungle music", "native US", "cabaret", "new wave",
+   "psychedelic", "rave",   "showtunes", "trailer", "lo-fi",
+   "tribal", "acid punk", "acid jazz", "polka", "retro",
+   "musical", "rock n roll", "hard rock",
+   .[254] = ""];
+
+/* Given a genre name, return its code.  Raise E_inval if the genre is
+   not found.  */
+
+defun id3v1_search_genre = (string name) uint<8>:
+{
+  defvar i = 0;
+  while (i < id3v1_genres'length)
+    {
+      if (id3v1_genres[i] == name)
+        return i;
+      i = i + 1;
+    }
+
+  raise Exception { code = EC_inval,
+                    msg = "cannot find ID3V1 genre" };
+}
+
+/* The ID3V1_Tag type denotes an ID3 tag.  */
+
+deftype ID3V1_Tag =
+  struct
+  {
+    char[3] id = ['T', 'A', 'G'];
+
+    char[30] title;
+    char[30] artist;
+    char[30] album;
+    char[4] year;
+
+    union
+    {
+      /* ID3v1.1  */
+      struct
+      {
+        char[28] comment;
+        byte zero = 0;
+        byte track : track != 0;
+      } extended;
+      /* ID3v1  */
+      char[30] comment;
+    } data;
+
+    uint<8> genre;
+
+    /* Setters and getters.  */
+
+    method get_title = string: { return rtrim (catos (title)); }
+    method set_title = (string val) void: { stoca (val, title, ' '); }
+    method get_artist = string: { return rtrim (catos (artist)); }
+    method set_artist = (string val) void: { stoca (val, artist, ' '); }
+    method get_album = string: { return rtrim (catos (album)); }
+    method set_album = (string val) void: { stoca (val, album, ' '); }
+    method get_year = int: { return atoi (catos (year)); }
+
+    method get_comment = string:
+      {
+        try return rtrim (catos (data.comment));
+        catch if E_elem { return rtrim (catos (data.extended.comment)); };
+      }
+    method set_comment = (string val) void:
+      {
+        try stoca (val, data.comment, ' ');
+        catch if E_elem { stoca (val, data.extended.comment, ' '); }
+      }
+
+    method get_genre = string:
+      {
+        if (genre == 255)
+          raise E_generic;
+        return id3v1_genres[genre];
+      }
+
+    method set_genre = (string val) void:
+      {
+        genre = id3v1_search_genre (val);
+      }
+
+    /* Pretty printer.  */
+    method _print = void:
+      {
+        print "#<\n";
+        if (genre == 255)
+          printf "  genre: %<integer:%u8d%>\n", genre;
+        else
+          printf "  genre: %s\n", id3v1_genres[genre];
+        printf "  title: %<string:%s%>\n", catos (title);
+        printf "  artist: %<string:%s%>\n", catos (artist);
+        printf "  album: %<string:%s%>\n", catos (album);
+        printf "  year: %<integer:%s%>\n", catos (year);
+        try {data.comment;
+             printf "  comment:%<string:%s%>\n", catos (data.comment);}
+        catch if E_elem
+        {
+          printf "  comment: %<string:%s%>\n", catos (data.extended.comment);
+          printf "  track: %<integer:%u8d%>\n", data.extended.track;
+        }
+        print ">";
+      }
+  };

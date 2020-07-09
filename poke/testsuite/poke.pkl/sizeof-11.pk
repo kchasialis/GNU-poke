@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype struct_with_intconstr =
+  struct
+  {
+    int<5> foo;
+    int<6> bar;
+    int<7> baz;
+  };
+
+/* { dg-command {  sizeof (struct_with_intconstr) } } */
+/* { dg-output "18UL#b" } */

@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+defvar x = 1;
+defvar c = 32;
+
+/* { dg-command { .set obase 10 } } */
+
+/* { dg-command { try x <<. c; catch if E_out_of_bounds { printf "caught\n"; } } } */
+/* { dg-output "caught" } */

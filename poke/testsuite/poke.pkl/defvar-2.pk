@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar foo = 10 + 20;
+
+/* { dg-command {  foo } } */
+/* { dg-output 30 } */

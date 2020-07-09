@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar foo = ''; /* { dg-error "" } */

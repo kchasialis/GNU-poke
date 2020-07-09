@@ -1,0 +1,14 @@
+/* { dg-do compile } */
+
+/* This tests that the emitted diagnostic has the right location.  */
+
+defun foo = int:
+  {
+   try
+     raise Exception {code = 1};
+   catch if 10  /* { dg-error "expected" } */
+   {
+     raise Exception {code = 0};
+   }
+   return 666;
+  }

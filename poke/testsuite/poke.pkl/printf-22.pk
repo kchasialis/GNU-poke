@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+deftype Struct = struct { int i; long l; };
+
+/* { dg-command { .set omode tree } } */
+/* { dg-command { printf ("%v\n", Struct { i = 10, l = 20L }); } } */
+
+/* { dg-output "Struct \{i=10,l=20L\}" } */

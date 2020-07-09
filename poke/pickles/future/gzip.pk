@@ -1,0 +1,55 @@
+/* gzip.pk  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* GZIP format spec: http://www.zlib.org/rfc-gzip.html  */
+
+load deflate;
+
+deftype gzip_header =
+  struct
+  {
+    byte magic[2];
+    gzip_compression compression_method;
+    gzip_flags flags;
+    uint32 modification_time;
+    byte extra_flags;
+    gzip_os operating_system;
+
+    uint16 part if flags.FLAGS_CONTINUATION;
+
+    struct
+    {
+      uint16 extra_length;
+      byte extra_bytes[extra_length];
+    } if flags.FLAGS_EXTRA;
+
+    string original_file_name if flags.FLAG_NAME;
+    string file_comment if flags.FLAG_COMMENT;
+    byte[12] encryption_header_data if flags.FLAG_ENCRYPTED;
+  };
+
+deftype gzip_member =
+  struct
+  {
+    gzip_header header;
+    deflate_block[] compressed_blocks;
+    uint32 crc32;
+    uint32 uncompressed_size;
+  };
+
+deftype gzip = gzip_member[];

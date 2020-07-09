@@ -1,0 +1,3 @@
+/* { dg-do run } */
+
+printf "%i32x", -10;          /* { dg-output "fffffff6" } */

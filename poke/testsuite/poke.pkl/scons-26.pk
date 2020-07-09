@@ -1,0 +1,18 @@
+/* { dg-do run } */
+
+defvar DATUM_UNKNOWN = 0;
+defvar DATUM_NUMBER = 1;
+defvar DATUM_STRING = 2;
+
+deftype Datum =
+  struct {
+    int tag;
+    union
+    {
+      int number : tag == DATUM_NUMBER;
+      string str : tag == DATUM_STRING;
+    } value;
+  };
+
+/* { dg-command { Datum { tag = DATUM_NUMBER } } } */
+/* { dg-output {Datum {tag=1,value=struct {number=0}}} } */

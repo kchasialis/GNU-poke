@@ -1,0 +1,10 @@
+/* { dg-do run } */
+/* { dg-require nbd } */
+/* { dg-nbd {0 0 0 0x10} [dg-tmpdir]/ios-nbd-1 } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command "defvar foo = open (\"nbd+unix:///?socket=[dg-tmpdir]/ios-nbd-1\")" } */
+/* { dg-command { byte @ 2#B = 66 } } */
+/* { dg-command { int32 @ 0#B } } */
+/* { dg-output "16912" } */
+/* { dg-command { close (foo) } } */

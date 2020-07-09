@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 9#b;
+
+/* { dg-command {  x / +#B } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command {  9#b / +#B } } */
+/* { dg-output "\n1" } */

@@ -1,0 +1,11 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+deftype Packet2 = struct {byte[3] magic; int data; };
+
+/* { dg-command { defvar p2 = Packet2 @ 0#B } } */
+/* { dg-command { p2 } } */
+/* { dg-output "Packet2 \\{magic=\\\[0x10UB,0x20UB,0x30UB\\\],data=0x40506070\\}" } */

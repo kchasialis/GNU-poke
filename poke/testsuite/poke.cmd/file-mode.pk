@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* { dg-command { .file /etc/passwd } } */
+/* { dg-command { .file /dev/null } } */
+/* { dg-command { .info ios } } */
+/* { dg-output "  Id\tMode\tSize\t\tName" } */
+/* { dg-output {\n. #1\trw\t0x00000000#B\t/dev/null} } */
+/* { dg-output {\n  #0\tr[w ]\t0x[0-9a-f]*#B\t/etc/passwd} } */

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar n = 2;
+defun foo = int[n][n]: { return [[1,2],[3,4]] as int[n][n]; }
+
+/* { dg-command { foo } } */
+/* { dg-output "\\\[\\\[1,2\\\],\\\[3,4\\\]\\\]" } */

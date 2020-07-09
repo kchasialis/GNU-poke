@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+defun foo = string: { return "foo"; }
+
+defunit x = foo; /* { dg-error "" } */

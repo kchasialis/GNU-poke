@@ -1,0 +1,17 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+deftype Foo = struct { byte a; byte b if b != 0x20; byte c; };
+
+/* { dg-command { defvar f = Foo @ 0#B } } */
+/* { dg-command { f } } */
+/* { dg-output "Foo {a=0x10UB,c=0x20UB}" } */
+/* { dg-command { f.a = 0x66 } } */
+/* { dg-command { f.c = 0x77 } } */
+/* { dg-command { byte @ 0#B } } */
+/* { dg-output "\n0x66UB" } */
+/* { dg-command { byte @ 1#B } } */
+/* { dg-output "\n0x77UB" } */

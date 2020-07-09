@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+/* Unclosed class tag.  */
+
+printf "xxx%<foo:xxx%<bar:xxx%>xxx"; /* { dg-error "" } */

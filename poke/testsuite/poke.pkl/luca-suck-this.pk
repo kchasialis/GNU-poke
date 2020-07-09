@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+defun bruno_solved_it = (any[] a, any[] b, any tmp = a[0]) void:
+  {
+   a[0] = b[0];
+   b[0] = tmp;
+  }
+
+/* { dg-command {defvar v1 = [1,2,3]} } */
+/* { dg-command {defvar v2 = [10,20,30]} } */
+/* { dg-command {bruno_solved_it (v1, v2)} } */
+/* { dg-command {v1} } */
+/* { dg-command {v2} } */
+/* { dg-output "\\\[10,2,3\\\]\n\\\[1,20,30\\\]" } */

@@ -1,0 +1,4 @@
+/* { dg-do compile } */
+
+defvar n = 10;
+defunit x = 2 + n; /* { dg-error "constant" } */

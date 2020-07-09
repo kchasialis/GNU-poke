@@ -1,0 +1,15 @@
+/* { dg-do run } */
+
+defun if_1 = (int i) int:
+{
+ defvar res = 0;
+
+ if (i > 10)
+   res = 666;
+
+ return res;
+}
+
+/* { dg-command {  if_1 (10) } } */
+/* { dg-command {  if_1 (20) } } */
+/* { dg-output "0\n666" } */

@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar foo = 10 in 20; /* { dg-error "wrong type.*expected array" } */

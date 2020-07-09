@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+printf "%i9x", 1;             /* { dg-output "001" } */
+printf "%u64x", 0xdeadbeef;   /* { dg-output "00000000deadbeef" } */

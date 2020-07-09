@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set odepth 3 } } */
+/* { dg-command { .set odepth } } */
+/* { dg-output "3" } */

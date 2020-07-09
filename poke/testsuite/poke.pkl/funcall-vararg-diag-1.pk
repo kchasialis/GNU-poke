@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+defun foo = (args...) int:
+  {
+   return args[0]; /* { dg-error ".*\n.*" } */
+  }

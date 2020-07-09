@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Packet = struct { byte n; byte[n] d; };
+
+/* { dg-command { Packet { n = 2UB } } } */
+/* { dg-output "Packet \{n=2UB,d=\\\[0UB,0UB\\\]\}" } */

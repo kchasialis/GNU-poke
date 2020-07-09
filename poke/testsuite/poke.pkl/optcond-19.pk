@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int a;
+    defvar n = a;
+    int b if n > 10;
+  };
+
+/* { dg-command {  Foo { a = 11 } } } */
+/* { dg-output "Foo \{a=11,b=0\}" } */

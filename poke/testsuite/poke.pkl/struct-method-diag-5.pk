@@ -1,0 +1,21 @@
+/* { dg-do compile } */
+
+defvar n = 3;
+deftype Foo =
+  struct
+  {
+    byte j;
+    struct
+    {
+      byte x;
+      method foo = byte:
+        {
+          return (x
+                  + j /* { dg-error "field" } */
+                  - 1);
+        }
+    } je;
+
+    byte y : y > je.foo;
+    method bar = byte: { return je.foo; }
+  };

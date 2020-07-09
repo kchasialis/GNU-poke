@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+deftype Callback = (...,)int; /* { dg-error "" } */

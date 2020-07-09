@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defunit x = 3UL;
+
+/* { dg-command { 2#x } } */
+/* { dg-output "2#3" } */

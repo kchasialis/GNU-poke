@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { try atoi("deadbeef", 88); catch if E_inval { print "caught\n"; } } } */
+/* { dg-output "caught" } */

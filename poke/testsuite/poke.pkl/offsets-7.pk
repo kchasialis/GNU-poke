@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+/* { dg-command {  12#Kb } } */
+/* { dg-output "12#Kb" } */
+
+/* { dg-command {  12#KB } } */
+/* { dg-output "\n12#KB" } */

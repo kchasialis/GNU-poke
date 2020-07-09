@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar n = 1;
+deftype Matrix= byte[n+2][n+1][n];
+deftype Foo = struct { Matrix a; };
+
+/* { dg-command { Foo {} } } */
+/* { dg-output "Foo \{a=\\\[\\\[\\\[0UB,0UB,0UB\\\],\\\[0UB,0UB,0UB\\\]\\\]\\\]\}" } */

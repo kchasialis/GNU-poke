@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+defvar x = 2;
+
+/* { dg-command { .set obase 16 } } */
+
+
+/* { dg-command { 1:::x } } */
+/* { dg-output "0x100000002L" } */
+
+/* For constant folding:  */
+/* { dg-command { 1:::2 } } */
+/* { dg-output "\n0x100000002L" } */

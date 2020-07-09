@@ -1,0 +1,8 @@
+/* { dg-do compile } */
+
+defun foo = offset<uint<64>,b>:
+  {
+   deftype t = int[];
+
+   return sizeof (t); /* { dg-error "" } */
+  }

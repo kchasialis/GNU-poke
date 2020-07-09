@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun ja = offset<int,Kib>: { return 1#Mib; }
+
+/* { dg-command { ja } } */
+/* { dg-output "1024#Kib" } */

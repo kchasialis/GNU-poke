@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+deftype foo = int[0];

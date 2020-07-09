@@ -1,0 +1,16 @@
+/* { dg-do run } */
+
+/* Varargs in methods.  */
+
+deftype Foo =
+  struct
+  {
+    int x;
+    method foo = (int j, args...) int:
+      {
+        return (args[0] as int) + j + x;
+      }
+  };
+
+/* { dg-command {(Foo{}).foo (2,3,4)} } */
+/* { dg-output "5" } */

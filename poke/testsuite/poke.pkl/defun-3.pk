@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+defun anoffset = offset<int,B>:
+  {
+   return 2#B;
+  }
+
+/* { dg-command {   anoffset() } } */
+/* { dg-output 2#B } */

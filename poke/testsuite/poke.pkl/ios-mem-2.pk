@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+/* The purpose of this test is to test the auto-growing capabilities
+   of memory IOS.  Therefore the offset in the map below should be
+   bigger than MEM_STEP in src/ios-dev-mem.c */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar buffer = open ("*foo*") } } */
+/* { dg-command { byte @ buffer:(4096 + 10)#B = 66 } } */
+/* { dg-command { byte @ buffer:(4096 + 10)#B } } */
+/* { dg-output "66UB" } */
+/* { dg-command { close (buffer) } } */

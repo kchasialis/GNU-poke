@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar foo = 10 in ["a","b","c"]; /* { dg-error "wrong type.*expected string" } */

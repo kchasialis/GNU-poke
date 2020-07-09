@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Bar = union { int i : i != 0; long l : l == 0; };
+
+/* { dg-command { Bar { } } } */
+/* { dg-output "Bar \{l=0L\}" } */

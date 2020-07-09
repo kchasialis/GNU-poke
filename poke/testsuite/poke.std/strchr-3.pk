@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { strchr ("", 'x') } } */
+/* { dg-output "0" } */

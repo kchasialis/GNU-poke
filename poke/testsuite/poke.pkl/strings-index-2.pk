@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar n = 3;
+defvar s = "bar";
+
+/* { dg-command { ("foo" + s)[n] } } */
+/* { dg-output "98UB" } */
+
+/* For constant folding: */
+/* { dg-command { ("foo" + "bar")[3] } } */
+/* { dg-output "\n98UB" } */

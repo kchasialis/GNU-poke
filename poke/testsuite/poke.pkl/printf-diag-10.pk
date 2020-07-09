@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+printf "xxx%i32cxxx", 10L; /* { dg-error "" } */

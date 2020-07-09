@@ -1,0 +1,22 @@
+/* { dg-do run } */
+
+defvar x = 3;
+deftype Foo = struct { byte[x] a; };
+defvar y = 2;
+deftype Bar = Foo[y];
+deftype Baz = struct { Bar a; Bar b; };
+
+/* { dg-command { .set omode tree } } */
+/* { dg-command { Baz { b = [Foo {a=[x as uint<8> - 2UB,2UB,3UB]}, Foo {}] } } } */
+/* { dg-output "Baz \{" } */
+/* { dg-output "\n  a=\\\[Foo \{" } */
+/* { dg-output "\n    a=\\\[0UB,0UB,0UB\\\]" } */
+/* { dg-output "\n  \},Foo \{" } */
+/* { dg-output "\n    a=\\\[0UB,0UB,0UB\\\]" } */
+/* { dg-output "\n  \}\\\]," } */
+/* { dg-output "\n  b=\\\[Foo \{" } */
+/* { dg-output "\n    a=\\\[1UB,2UB,3UB\\\]" } */
+/* { dg-output "\n  \},Foo \{" } */
+/* { dg-output "\n    a=\\\[0UB,0UB,0UB\\\]" } */
+/* { dg-output "\n  \}\\\]" } */
+/* { dg-output "\n\}" } */

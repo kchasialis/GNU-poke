@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defun foo = (string[] array) void:
+  {
+   for (a in array where a'length > 2)
+     print (a + "\n");
+  }
+
+/* { dg-command {  foo (["a", "foo", "bar", "superduper"]) } } */
+/* { dg-output "foo\nbar\nsuperduper" } */

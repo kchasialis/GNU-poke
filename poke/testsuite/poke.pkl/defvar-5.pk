@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+deftype Struct = struct { int uno; int dos; string tres; };
+
+defvar triplet = Struct {uno = 1, dos = 2, tres = "foo"};
+
+/* { dg-command {  triplet.uno } } */
+/* { dg-command {  triplet.dos } } */
+/* { dg-command {  triplet.tres } } */
+/* { dg-output "1\n2\n\"foo\"" } */

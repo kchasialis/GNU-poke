@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype anint = int;
+
+/* { dg-command {  sizeof (anint) } } */
+/* { dg-output 32UL#b } */

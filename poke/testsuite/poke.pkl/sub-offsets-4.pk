@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 2U#b;
+
+/* { dg-command {  x - 1U#b } } */
+/* { dg-output "1U#b" } */
+
+/* For constant folding: */
+/* { dg-command {  2U#b - 1U#b } } */
+/* { dg-output "\n1U#b" } */

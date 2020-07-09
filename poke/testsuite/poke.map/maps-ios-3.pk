@@ -1,0 +1,11 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x66 0x6f 0x6f 0x00  0x50 0x60 0x70 0x80} foo.data } */
+/* { dg-data {c*} {0x6f 0x6f 0x66 0x00  0x50 0x60 0x70 0x80} bar.data } */
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { defvar foo = open ("foo.data") } } */
+/* { dg-command { defvar bar = open ("bar.data") } } */
+/* { dg-command { string @ foo:0#B } } */
+/* { dg-output {"foo"} } */
+/* { dg-command { string @ bar:0#B } }*/
+/* { dg-output "\n\"oof\"" } */

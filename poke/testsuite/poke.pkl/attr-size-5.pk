@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  (1 as int<3>)'size } } */
+/* { dg-output "3UL#b" } */

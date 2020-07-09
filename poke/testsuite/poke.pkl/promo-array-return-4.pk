@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar x = 3;
+deftype List = int[x];
+defun foo = List: { return [1,2,3] as int[]; }
+
+/* { dg-command {foo[1]} } */
+/* { dg-output "2" } */

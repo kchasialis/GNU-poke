@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+deftype Packet = byte[3];
+
+defvar x = 1#Packet;
+defvar y = 16#b;
+
+/* { dg-command { x == y } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command {  1#Packet == 16#b } } */
+/* { dg-output "\n0" } */

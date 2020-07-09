@@ -1,0 +1,12 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40} foo } */
+/* { dg-data {c*} {0x50 0x60 0x70 0x80} bar } */
+
+/* { dg-command { .set endian big } } */
+
+/* { dg-command { .file foo } } */
+/* { dg-command { defvar bar = open ("bar") } } */
+/* { dg-command { dump :ruler 0 :ascii 0 :size 4#B} } */
+/* { dg-output "00000000: 1020 3040" } */
+/* { dg-command { dump :ios bar :ruler 0 :ascii 0 :size 4#B} } */
+/* { dg-output "\n00000000: 5060 7080" } */

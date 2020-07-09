@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+/* This test checks that the evaluation order of actual arguments in a
+   funcall is correct.  */
+
+defun tweet1 = (string s) int: { print (s); return 1; }
+defun tweet2 = (string s) int: { print (s); return 2; }
+defun tweet3 = (string s) int: { print (s); return 3; }
+
+defun args = (int a, int b, int c) int: { return a; }
+
+/* { dg-command {  args (tweet1 ("a"), tweet2 ("b"), tweet3 ("c")) } } */
+/* { dg-output "abc1" } */

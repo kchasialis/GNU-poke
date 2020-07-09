@@ -1,0 +1,17 @@
+/* { dg-do run } */
+
+deftype Callback = (int)int;
+
+defun call_cb = (int[] a, Callback cb) int:
+  {
+   defvar sum = 0;
+
+   for (e in a)
+     sum = sum + cb (e);
+   return sum;
+  }
+
+defun double = (int n) int: { return n * 2; }
+
+/* { dg-command {  call_cb ([1,2,3], double) } } */
+/* { dg-output "12" } */

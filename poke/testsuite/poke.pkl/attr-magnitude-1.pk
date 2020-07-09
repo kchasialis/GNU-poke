@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  10'size'magnitude } } */
+/* { dg-output "32UL" } */

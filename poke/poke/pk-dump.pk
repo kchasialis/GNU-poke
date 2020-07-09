@@ -1,0 +1,161 @@
+/* pk-dump.pk - `dump' command.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+pk_help_str = pk_help_str
+  + "\ndump\t\tDisplay the contents of an IO range.";
+
+/* The operation of `dump' can be configured by the user by
+   customizing the following variables.  */
+
+defvar pk_dump_size = 128#B;
+defvar pk_dump_group_by = 2#B;
+defvar pk_dump_cluster_by = 8;
+defvar pk_dump_ruler = 1;
+defvar pk_dump_ascii = 1;
+
+/* `pk_dump_offset' keeps the last base offset used by `dump'.  It is
+   the offset to be used in case the command is invoked with no :from
+   argument.  */
+
+defvar pk_dump_offset = 0#B;
+
+/* And the command itself.  */
+
+defun dump = (int<32> ios = get_ios,
+              off64 from = pk_dump_offset,
+              off64 size = pk_dump_size,
+              off64 group_by = pk_dump_group_by,
+              int cluster_by = pk_dump_cluster_by,
+              int ruler = pk_dump_ruler,
+              int ascii = pk_dump_ascii) void:
+{
+  defun print_ruler = void:
+  {
+    defvar o = 0#B;
+
+    defun itoa = (uint<8> x) char:
+    {
+      if (x >= 0 && x <= 9) return x + '0';
+      if (x >= 10 && x <= 15) return x + 'A' - 10;
+    }
+
+    printf "%<dump-ruler:76543210 %>";
+    for (s in ["00", "11", "22", "33", "44", "55", "66",
+	       "77", "88", "99", "aa", "bb", "cc", "dd",
+	       "ee", "ff"])
+      {
+	if (o % group_by == 0#B)
+	  printf "%<dump-ruler: %>";
+	printf "%<dump-ruler:%s%>", s;
+	o = o + 1#B;
+	if (o < 16#B && (o % (cluster_by * group_by)) == 0#B)
+	   printf (" ");
+      }
+    if (ascii)
+      {
+	defvar x = 0 as uint<8>;
+	defvar s = "";
+	while (x < 16)
+	  {
+	    s = s + itoa(x) as string;
+	    x = x + 1;
+	    if (x < 16 && (x % ((cluster_by * group_by)/1#B)) == 0)
+	      s = s + " ";
+	  }
+	printf "%<dump-ruler:  %s%>", s;
+      }
+    print "\n";
+  }
+
+  defun print_ascii = (off64 offset, off64 top, off64 step,
+		       off64 group_by, int cluster_by) void:
+  {
+    print("  ");
+    defvar o = 0#B;
+    while (o < step && offset + o < top)
+      {
+	defvar v = byte @ ios : (offset + o);
+	if (v < ' ' || v > '~')
+	  printf "%<dump-ascii:%c%>", '.';
+	else
+	  printf "%<dump-ascii:%c%>", v;
+	o = o + 1#B;
+	if (o < 16#B && (o % (cluster_by * group_by)) == 0#B)
+	   printf (" ");
+      }
+  }
+
+  defun print_hex = (char c, off64 o) void:
+  {
+    if (o % group_by == 0#B)
+      print " ";
+    printf ("%u8x", c);
+  }
+
+  defun print_data = (off64 offset, off64 top, off64 step,
+		      off64 group_by , int cluster_by) void:
+  {
+    while (offset < top)
+      {
+	printf ("%<dump-address:%u32x:%>", offset / #B);
+
+	defvar o = 0#B;
+	try
+	{
+	  while (o < step && offset + o < top)
+	    {
+	      print_hex (byte @ ios : (offset + o), o);
+	      o = o + 1#B;
+	      if (o < 16#B && (o % (cluster_by * group_by)) == 0#B)
+		printf (" ");
+	    }
+	}
+	catch if E_eof {}
+	if (ascii)
+	  {
+	    while (o < step && ((offset + o) % 16#B) != 0#B)
+	      {
+		if (o % group_by == 0#B)
+		  print " ";
+		print ("  ");
+		o = o + 1#B;
+	      }
+	    print_ascii (offset, top, step, group_by, cluster_by);
+	  }
+	print "\n";
+
+	offset = offset + step;
+      }
+  }
+
+  /* The `dump' command is byte-oriented.  Both the base offset and
+     the size of the dump are truncated to bytes.  Hence the casts
+     below.  */
+  defvar offset = from as offset<uint<64>,B>;
+  defvar top = (from + size) as offset<uint<64>,B>;
+
+  if (ruler)
+    print_ruler;
+
+  try print_data :offset offset :top top :step 16#B
+                 :group_by group_by :cluster_by cluster_by;
+
+  catch if E_eof { print "\n"; }
+
+  pk_dump_offset = from;
+}

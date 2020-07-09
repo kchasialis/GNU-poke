@@ -1,0 +1,185 @@
+/* btf.pk - BTF implementation for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* This file contains a description of the Linux BPF Type Format, as
+   documented in https://www.kernel.org/doc/html/latest/bpf/btf.html
+   (fetched 2019-10-25) */
+
+defvar BTF_KIND_INT = 1;
+defvar BTF_KIND_PTR = 2;
+defvar BTF_KIND_ARRAY = 3;
+defvar BTF_KIND_STRUCT = 4;
+defvar BTF_KIND_UNION = 5;
+defvar BTF_KIND_ENUM = 6;
+defvar BTF_KIND_FWD = 7;
+defvar BTF_KIND_TYPEDEF = 8;
+defvar BTF_KIND_VOLATILE = 9;
+defvar BTF_KIND_CONST = 10;
+defvar BTF_KIND_RESTRICT = 11;
+defvar BTF_KIND_FUNC = 12;
+defvar BTF_KIND_FUNC_PROTO = 13;
+defvar BTF_KIND_VAR = 14;
+defvar BTF_KIND_DATASEC = 15;
+
+deftype BTF_Type_Id = uint<32>;
+
+deftype BTF_Int =
+  struct
+  {
+    uint<4>;
+    struct
+    {
+      uint<1> bool_p;
+      uint<1> char_p;
+      uint<1> signed_p;
+    } encoding;
+    uint<8> offset;
+    uint<8>;
+    uint<8> bits;
+  };
+
+deftype BTF_Array =
+  struct
+  {
+    BTF_Type_Id type;
+    uint<32> index_type;
+    uint<32> nelems;
+  };
+
+deftype BTF_Enum =
+  struct
+  {
+    offset<uint<32>,B> name;
+    int<32> val;
+  };
+
+deftype BTF_Param =
+  struct
+  {
+    offset<uint<32>,B> name;
+    BTF_Type_Id type;
+  };
+
+deftype BTF_Variable =
+  struct
+  {
+    uint<32> linkage;
+  };
+
+deftype BTF_Var_SecInfo =
+  struct
+  {
+    BTF_Type_Id type;
+    offset<uint<32>,B> offset;
+    offset<uint<32>,B> size;
+  };
+
+deftype BTF_Type =
+  struct
+  {
+    offset<uint<32>,B> name;
+
+    struct
+    {
+      uint<16> vlen;
+      uint<8>;
+      uint<4> kind;
+      uint<3>;
+      uint<1> kind_flag;
+    } info;
+
+    union
+    {
+      uint<32> size : (info.kind in [BTF_KIND_INT,
+                                     BTF_KIND_ENUM,
+                                     BTF_KIND_STRUCT,
+                                     BTF_KIND_UNION]);
+      BTF_Type_Id type;
+    } attrs;
+
+    /* XXX move these types to the top-level once we get support to
+       pass arguments to struct types.  */
+
+    deftype BTF_Member =
+      struct
+      {
+        offset<uint<32>,B> name;
+        BTF_Type_Id type;
+        union
+        {
+          uint<32> member_offset : !info.kind_flag;
+          struct
+          {
+            uint<8> bitfield_size;
+            uint<24> bit_offset;
+          } bitfield;
+        } offset;
+      };
+
+    deftype BTF_Func_Proto =
+      struct
+      {
+        BTF_Param[info.vlen] params;
+
+        method vararg_p = int:
+          {
+           defvar last_param = params[info.vlen - 1];
+           return (last_param.name == 0#B && last_param.type == 0);
+           }
+      };
+
+    union
+    {
+      BTF_Int integer                    : info.kind == BTF_KIND_INT;
+      BTF_Array array                    : info.kind == BTF_KIND_ARRAY;
+      BTF_Enum[info.vlen] enum           : info.kind == BTF_KIND_ENUM;
+      BTF_Func_Proto func_proto          : info.kind == BTF_KIND_FUNC_PROTO;
+      BTF_Variable variable              : info.kind == BTF_KIND_VAR;
+      BTF_Member[info.vlen] members      : info.kind == BTF_KIND_UNION;
+      BTF_Var_SecInfo[info.vlen] datasec : info.kind == BTF_KIND_DATASEC;
+
+      struct {};
+    } data;
+
+  };
+
+deftype BTF_Header =
+  struct
+  {
+    uint<16> magic : ((magic == 0x9feb && set_endian (ENDIAN_LITTLE)
+                       || (magic == 0xeb9f && set_endian (ENDIAN_BIG))));
+    uint<8> version;
+    uint<8> flags;
+    offset<uint<32>,B> hdr_len; /* Size of this header.  */
+
+    /* The offsets below are relative to the end of this header.  */
+    offset<uint<32>,B> type_off;
+    offset<uint<32>,B> type_len;
+    offset<uint<32>,B> str_off;
+    offset<uint<32>,B> str_len;
+  };
+
+defun btf_types = (BTF_Header hdr) BTF_Type[]:
+  {
+   return BTF_Type[hdr.type_len] @ (hdr'size + hdr.type_off);
+  }
+
+defun btf_strings = (BTF_Header hdr) string[]:
+  {
+   return string[hdr.str_len] @ (hdr'size + hdr.str_off);
+  }

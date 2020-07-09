@@ -1,0 +1,17 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Packet = struct { int i; long j; };
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { defvar p = Packet @ 0#B } } */
+/* { dg-command { p } } */
+/* { dg-output "Packet \\{i=0x10203040,j=0x5060708090a0b0c0L\\}" } */
+
+/* { dg-command { p.i } } */
+/* { dg-output "\n0x10203040" } */
+
+/* { dg-command { p.j } } */
+/* { dg-output "\n0x5060708090a0b0c0L" } */

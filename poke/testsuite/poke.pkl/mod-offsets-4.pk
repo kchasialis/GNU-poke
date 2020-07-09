@@ -1,0 +1,13 @@
+/* { dg-do run } */
+
+deftype Packet = struct { int<1>[5]; };
+deftype Byte = byte;
+
+defvar x = 2#Packet;
+
+/* { dg-command {  x % 1#Byte } } */
+/* { dg-output "2#b" } */
+
+/* For constant folding: */
+/* { dg-command {  2#Packet % 1#Byte } } */
+/* { dg-output "\n2#b" } */

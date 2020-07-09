@@ -1,0 +1,6 @@
+/* { dg-do compile } */
+
+defun foo = void:
+  {
+   break;  /* { dg-error "" } */
+  }

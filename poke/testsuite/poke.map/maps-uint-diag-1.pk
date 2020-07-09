@@ -1,0 +1,6 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x51 0x23 } } */
+
+/* { dg-command { .set endian little } } */
+/* { dg-command {try uint<16> @ 8#b; catch if E_eof { print ("caught\n"); } } } */
+/* { dg-output "caught" } */

@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 0L;
+
+/* { dg-command {  x && 0 } } */
+/* { dg-output "0" } */
+
+/* Constant folding: */
+/* { dg-command {  0L && 0 } } */
+/* { dg-output "\n0" } */

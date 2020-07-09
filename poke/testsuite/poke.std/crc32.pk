@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { crc32([0x01UB, 0x02UB, 0x03UB, 0x04UB, 0x05UB, 0x06UB, 0x07UB, 0x08UB]) } } */
+/* { dg-output "0x3fca88c5U" } */

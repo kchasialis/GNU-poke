@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int i : i != 20 if i > 0;
+    method foo = int: { {return i;} }
+  };
+
+/* { dg-command { try (Foo {i = 20}).foo; catch if E_constraint { print "caught\n"; } } } */
+/* { dg-output "caught" } */

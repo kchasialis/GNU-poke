@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+load rgb24;
+
+/* { dg-command {rgb24_color[color_tomato]} } */
+/* { dg-output "\\\[255UB,99UB,71UB\\\]" } */

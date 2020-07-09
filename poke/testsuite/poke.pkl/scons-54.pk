@@ -1,0 +1,17 @@
+/* { dg-do run } */
+
+/* This tests that the struct constructors do the right thing with
+   anonymous fields.  */
+
+deftype BMP_Header =
+  struct
+  {
+    byte[2] magic = ['B','M'];
+    offset<uint<32>,B> file_size;
+    uint<32>; /* Reserved.  */
+    uint<32>; /* Reserved.  */
+    offset<uint<32>,B> data_offset;
+  };
+
+/* { dg-command { BMP_Header {} } } */
+/* { dg-output "BMP_Header \{magic=\\\[66UB,77UB\\\],file_size=0U#B,0U,0U,data_offset=0U#B\}" } */

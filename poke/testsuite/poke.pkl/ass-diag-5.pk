@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+defvar b = [[1],[2]];
+defun foo = any[]: { return [1,2,3]; }
+b[0] = foo;  /* { dg-error "" } */

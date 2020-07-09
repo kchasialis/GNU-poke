@@ -1,0 +1,23 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x02 0x62 0x63 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Foo =
+  struct
+  {
+    struct
+    {
+      byte a;
+      method geta = (args...) int: { return a + args[1] as int; }
+    } prefix;
+    defvar xxx = 10;
+    byte b;
+    byte c;
+    method bar = int: { return prefix.geta (0,1); }
+  };
+
+/* { dg-command {.set obase 10 } } */
+/* { dg-command {defvar f = Foo @ 0#B} } */
+/* { dg-command { f.bar } } */
+/* { dg-output "3" } */
+/* { dg-command { f.prefix.geta (0,2) } } */
+/* { dg-output "\n4" } */

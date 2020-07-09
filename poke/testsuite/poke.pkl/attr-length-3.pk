@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  ""'length } } */
+/* { dg-output "0UL" } */

@@ -1,0 +1,15 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command {.set obase 16 } } */
+/* { dg-command {.set endian big} } */
+/* { dg-command { defvar a = int[3] @ 0#B } } */
+/* { dg-command { defvar b = a[1:] } } */
+/* { dg-command { b[0] = 0x0eadbeef } } */
+/* { dg-command { a[1] } } */
+/* { dg-output "0xeadbeef" } */
+/* { dg-command { b[0] } } */
+/* { dg-output "\n0xeadbeef" } */
+/* { dg-command { a[2] = 0x12345678 } } */
+/* { dg-command { b[1] } } */
+/* { dg-output "\n0x12345678" } */

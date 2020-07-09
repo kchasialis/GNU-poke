@@ -1,0 +1,284 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "",
+    "title": "Poke values",
+    "description": "JSON Representation for Poke values",
+    "definitions": {
+        "UnsignedInteger": {
+            "type": "object",
+            "properties": {
+                "type" : {
+                    "type" : "string",
+                    "const" : "UnsignedInteger"
+                },
+                "value": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 18446744073709551615
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                }
+            },
+            "maxProperties" : 3,
+            "required": [
+                "size",
+                "value",
+                "type"
+            ],
+            "title": "UnsignedInteger"
+            },
+        "Integer": {
+            "type": "object",
+            "properties": {
+                "type" : {
+                    "type" : "string",
+                    "const" : "Integer"
+                },
+                "value": {
+                    "type": "integer",
+                    "minimum": -9223372036854775808,
+                    "maximum": 9223372036854775807
+                },
+                "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                }
+            },
+            "maxProperties" : 3,
+            "required": [
+                "size",
+                "value",
+                "type"
+            ],
+            "title": "Integer"
+        },
+        "String": {
+            "type": "object",
+            "properties": {
+                "type" : {
+                    "type" : "string",
+                    "const" : "String"
+                },
+                "value": {
+                    "type": "string"
+                }
+            },
+            "maxProperties" : 2,
+            "required": [
+                "value",
+                "type"
+            ],
+            "title": "String"
+        },
+        "Offset": {
+            "type": "object",
+            "properties": {
+                "type" : {
+                    "type" : "string",
+                    "const" : "Offset"
+                },
+                "magnitude": {
+                    "type": "object",
+                    "oneOf": [
+                    {
+                        "$ref": "#/definitions/UnsignedInteger"
+                    },
+                    {
+                        "$ref": "#/definitions/Integer"
+                    }
+                    ]
+                },
+                "unit": {
+                    "type": "object",
+                    "allOf" : [
+                    {"$ref": "#/definitions/UnsignedInteger"}
+                    ],
+                    "properties" : {
+                        "size" : {
+                            "const" : 64
+                        }
+                    },
+                    "required" : ["size"]
+                }
+            },
+            "maxProperties" : 3,
+            "required": [
+                "magnitude",
+                "base",
+                "type"
+            ],
+            "title": "Offset"
+        },
+        "StructField" : {
+            "type" : "object",
+            "properties" : {
+                "offset" : {
+                    "type" : "object",
+                    "$ref" : "#/definitions/Offset"
+                },
+                "name" : {
+                    "type" : "object",
+                    "$ref" : "#/definitions/String"
+                },
+                "value" : {
+                    "type" : "object",
+                    "anyOf" : [
+                        {"$ref": "#/definitions/String"},
+                        {"$ref": "#/definitions/Struct"},
+                        {"$ref": "#/definitions/Array"},
+                        {"$ref": "#/definitions/UnsignedInteger"},
+                        {"$ref": "#/definitions/Integer"},
+                        {"$ref": "#/definitions/Offset"}
+                    ]
+                }
+            },
+            "maxProperties": 3,
+            "required" : [
+                "offset",
+                "name",
+                "value"
+            ]
+        },
+        "Struct": {
+            "type":"object",
+            "properties":{
+                "type" : {
+                    "type" : "string",
+                    "const" : "Struct"
+                },
+                "name" : {
+                    "type" : "object",
+                    "$ref" : "#/definitions/String"
+                },
+                "fields": {
+                    "type" : "array",
+                    "items" : {
+                        "type" : "object",
+                        "$ref" : "#/definitions/StructField"
+                    }
+                },
+                "mapping" : {
+                    "type" : "object",
+                    "oneOf" : [
+                        {"$ref" : "#/definitions/Mapping"},
+                        {"$ref" : "#/definitions/Null"}
+                    ]
+                }
+            },
+            "maxProperties" : 3,
+            "required": [
+                "fields",
+                "type",
+                "mapping",
+                "name"
+            ],
+            "title": "Struct"
+        },
+        "Mapping": {
+            "type": "object",
+            "properties": {
+                "IOS": {
+                    "type": "integer",
+                    "minimum" : -2147483648,
+                    "maximum" :  2147483647
+                },
+                "offset": {
+                    "type": "object",
+                    "$ref": "#/definitions/Offset"
+                }
+            },
+            "maxProperties": 2,
+            "required": [
+            "IOS",
+            "offset"
+            ],
+            "title": "Mapping"
+        },
+        "Array": {
+            "type" : "object",
+            "properties" : {
+                "type" : {
+                    "type" : "string",
+                    "const" : "Array"
+                },
+                "elements" : {
+                "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties" : {
+                            "value" : {
+                                "type" : "object",
+                                "oneOf" : [
+                                    {"$ref": "#/definitions/Integer"},
+                                    {"$ref": "#/definitions/UnsignedInteger"},
+                                    {"$ref": "#/definitions/String"},
+                                    {"$ref": "#/definitions/Struct"},
+                                    {"$ref": "#/definitions/Array"},
+                                    {"$ref": "#/definitions/Offset"},
+                                    {"$ref": "#/definitions/Null"}
+                                    ]
+                            },
+                            "offset" : {
+                                "type" : "object",
+                                "$ref" : "#/definitions/Offset"
+                            }
+                        },
+                        "maxProperties" : 2,
+                        "required" : [
+                            "value",
+                            "offset"
+                        ]
+                    }
+                },
+                "mapping" : {
+                    "type" : "object",
+                        "oneOf" : [
+                        {"$ref" : "#/definitions/Mapping"},
+                        {"$ref" : "#/definitions/Null"}
+                        ]
+                }
+            },
+            "maxProperties" : 3,
+            "required" : [
+                    "elements",
+                    "type",
+                    "mapping"
+                ]
+        },
+        "Null": {
+            "type": "object",
+            "properties" : {
+            "type" : {
+                    "type" : "string",
+                    "const" : "Null"
+                },
+                    "value" : {
+                    "type" : "null"
+                }
+            },
+            "maxProperties" : 2,
+            "required" : ["type", "value"],
+            "title": "Null"
+        }
+    },
+    "type": "object",
+    "properties": {
+      "PokeValue" : {
+        "type" : "object",
+         "anyOf" : [
+            {"$ref": "#/definitions/Integer"},
+            {"$ref": "#/definitions/UnsignedInteger"},
+            {"$ref": "#/definitions/String"},
+            {"$ref": "#/definitions/Struct"},
+            {"$ref": "#/definitions/Array"},
+            {"$ref": "#/definitions/Offset"},
+            {"$ref": "#/definitions/Null"}
+          ]
+      }
+    },
+    "additionalProperties": false
+}

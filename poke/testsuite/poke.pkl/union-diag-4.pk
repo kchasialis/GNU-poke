@@ -1,0 +1,12 @@
+/* { dg-do compile } */
+
+/* Declarations are only allowed in unions if they appear before any
+   of the alternatives. */
+
+defun pred = int: { return 0; }
+
+deftype Foo = union
+ {
+   int bar : pred;
+   defvar foo = 10; /* { dg-error "" } */
+ };

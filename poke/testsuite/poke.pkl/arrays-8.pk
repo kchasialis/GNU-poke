@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar a = [1,2,3] as int[2+1];
+
+/* { dg-command { a = [0,1,.[1+1]=10] } } */
+/* { dg-command { a } } */
+/* { dg-output "\\\[0,1,10\\\]" } */

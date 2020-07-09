@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 16 } } */
+
+defvar x = -1;
+
+/* { dg-command { x as int<4> } } */
+/* { dg-output "0xfN" } */
+
+/* For constant folding: */
+/* { dg-command { -1 as int<4> } } */
+/* { dg-output "\n0xfN" } */

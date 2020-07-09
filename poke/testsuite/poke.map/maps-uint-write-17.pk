@@ -1,0 +1,9 @@
+/* { dg-do run } */
+/* { dg-command {.set obase 16} }  */
+
+/* { dg-data {c*} {0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00} } */
+/* { dg-command { .set endian little } } */
+
+/* { dg-command { uint<9> @ 15#b = 0x145 } } */
+/* { dg-command { uint<16> @ 8#b } } */
+/* { dg-output "0x8b00" } */

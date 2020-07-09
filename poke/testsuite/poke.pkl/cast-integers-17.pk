@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 1;
+defvar y = 2;
+
+/* { dg-command {  x as uint<2> + y as int<5> } } */
+/* { dg-output "\\(uint<5>\\) 3" } */
+
+/* For constant folding: */
+/* { dg-command {  1 as uint<2> + 2 as int<5> } } */
+/* { dg-output "\n\\(uint<5>\\) 3" } */

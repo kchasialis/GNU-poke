@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+int @ 2#B : 2#B;  /* { dg-error "expected integer" } */

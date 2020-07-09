@@ -1,0 +1,22 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    int i;
+
+    method foo = int:
+      {
+        return i + 1;
+      }
+
+    method bar = int:
+      {
+        defun jorl = int:
+        {
+          return foo; /* { dg-error "method" } */
+        }
+
+        return jorl;
+      }
+  };

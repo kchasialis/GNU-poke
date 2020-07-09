@@ -1,0 +1,36 @@
+/* { dg-do compile } */
+
+/* Type constructor.  */
+
+deftype int1 = int<1>;
+deftype uint1 = uint<1>;
+
+deftype int2 = int<2>;
+deftype uint2 = uint<2>;
+
+deftype i64 = int<64>;
+deftype u64 = uint<64>;
+
+/* Predefined integral types in the standard library.  */
+
+deftype xbit = bit;
+deftype xnibble = nibble;
+
+deftype xuint8 = uint8;
+deftype xuint16 = uint16;
+deftype xuint32 = uint32;
+deftype xuint64 = uint64;
+
+deftype xint8 = int8;
+deftype xint16 = int16;
+deftype xint32 = int32;
+deftype xint64 = int64;
+
+deftype xuint = uint;
+deftype xint = int;
+deftype xchar = char;
+deftype xbyte = byte;
+deftype xushort = ushort;
+deftype xshort = short;
+deftype xulong = ulong;
+deftype xlong = long;

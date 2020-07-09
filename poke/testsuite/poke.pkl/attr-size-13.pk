@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Foo = struct { offset<int,B> o; };
+
+/* { dg-command { (Foo {})'size / #B } } */
+/* { dg-output "4" } */

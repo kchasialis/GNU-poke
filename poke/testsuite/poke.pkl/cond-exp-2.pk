@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 0;
+
+/* { dg-command { x ? [1,2] as int[] :[10,20,30] as int[] } } */
+/* { dg-output "\\\[10,20,30\\\]" } */
+
+/* For constant folding: */
+/* { dg-command { 0 ? [1,2] as int[] :[10,20,30] as int[] } } */
+/* { dg-output "\n\\\[10,20,30\\\]" } */

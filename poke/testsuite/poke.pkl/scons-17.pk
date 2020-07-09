@@ -1,0 +1,9 @@
+/* { dg-do run } */
+
+/* This tests promotion of struct constructor fields.  */
+
+deftype Packet = struct { int i; offset<long,B> l; };
+
+/* { dg-command { .set omode flat } } */
+/* { dg-command { Packet { l = (2 as int<3>)#B, i = 66UL } } } */
+/* { dg-output "Packet \{i=66,l=2L#B\}" } */

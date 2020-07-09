@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Packet = struct { offset<int,Kib> o; };
+
+/* { dg-command { .set omode flat } } */
+/* { dg-command { Packet { o = 66#Kib } } } */
+/* { dg-output "Packet \{o=66#Kib\}" } */

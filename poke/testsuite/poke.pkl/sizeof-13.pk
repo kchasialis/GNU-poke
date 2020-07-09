@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  sizeof (offset<int<5>,B>) } } */
+/* { dg-output "5UL#b" } */

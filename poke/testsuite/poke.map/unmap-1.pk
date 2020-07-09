@@ -1,0 +1,21 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command {.set obase 16} } */
+
+/* { dg-command {unmap 10} } */
+/* { dg-output "0xa" } */
+/* { dg-command {unmap [1,2,3]} } */
+/* { dg-output "\n\\\[0x1,0x2,0x3\\\]" } */
+
+/* { dg-command {defvar b = byte[3] @ 0#B} } */
+
+/* { dg-command {b[1] = 0x66} } */
+/* { dg-command {byte @ 1#B} } */
+/* { dg-output "\n0x66UB" } */
+
+/* { dg-command {b = unmap b} } */
+
+/* { dg-command {b[1] = 0x88} } */
+/* { dg-command {byte @ 1#B} } */
+/* { dg-output "\n0x66UB" } */

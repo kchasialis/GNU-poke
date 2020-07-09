@@ -1,0 +1,9 @@
+/* { dg-do run} */
+
+deftype Function = (int)int;
+
+defun double = (int a) int: { return a * 2; }
+defun foo = Function: { return double; }
+
+/* {dg-command {  foo()(10) } } */
+/* {dg-output "20"} */

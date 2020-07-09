@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { try [1,2] as int[12#B]; catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "caught" } */

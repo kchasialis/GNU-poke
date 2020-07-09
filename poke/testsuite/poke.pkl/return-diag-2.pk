@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+return 0; /* { dg-error "" } */

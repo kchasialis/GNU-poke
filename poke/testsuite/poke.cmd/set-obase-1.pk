@@ -1,0 +1,5 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 8 } } */
+/* { dg-command { .set obase } } */
+/* { dg-output "8" } */

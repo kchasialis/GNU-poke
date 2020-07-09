@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+void @ 0#B; /* { dg-error "" } */

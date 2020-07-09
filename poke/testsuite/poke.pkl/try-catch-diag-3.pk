@@ -1,0 +1,25 @@
+/* { dg-do compile } */
+
+defun foo = (Exception e) int:
+  {
+   try
+     raise e;
+   catch if "foo" /* { dg-error "" } */
+   {
+     print ("caught\n");
+   }
+
+   return 0;
+  }
+
+defun bar = (Exception e) int:
+  {
+   try
+     return foo (e);
+   catch
+   {
+     print ("uncaught\n");
+   }
+
+   return 0;
+  }

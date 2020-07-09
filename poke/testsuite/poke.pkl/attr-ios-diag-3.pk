@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun bar = (any v) int: { return v'ios; }
+
+/* { dg-command {try bar ([1,2,3]); catch if E_map { print "caught\n"; } } } */
+/* { dg-output "caught" } */

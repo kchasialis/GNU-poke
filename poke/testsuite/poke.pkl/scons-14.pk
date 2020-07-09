@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+deftype Prolog = struct { byte magic; };
+deftype Packet = struct { Prolog p; byte data; };
+
+/* { dg-command { .set omode flat } } */
+/* { dg-command { Packet { p = Prolog { magic = 66UB } } } } */
+/* { dg-output "Packet \{p=Prolog \{magic=66UB\},data=0UB\}" } */

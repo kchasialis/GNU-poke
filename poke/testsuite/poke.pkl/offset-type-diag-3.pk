@@ -1,0 +1,8 @@
+/* { dg-do compile } */
+
+defun foo = (offset<int,0> input, /* { dg-error "bigger than zero" } */
+             int len) int:
+{
+    defvar ret = 0;
+    return ret;
+}

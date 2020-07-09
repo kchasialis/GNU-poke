@@ -1,0 +1,250 @@
+/* bpf.pk - eBPF implementation for GNU poke.  */
+
+/* Copyright (C) 2019, 2020 Jose E. Marchesi.  */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* This file contains a description of the Linux eBPF instruction
+   set.  */
+
+/* Instruction classes.  */
+
+deftype BPF_Insn_Class = uint<3>;
+
+defvar BPF_INSN_CLASS_LD  = 0b000;
+defvar BPF_INSN_CLASS_LDX = 0b001;
+defvar BPF_INSN_CLASS_ST  = 0b010;
+defvar BPF_INSN_CLASS_STX = 0b011;
+defvar BPF_INSN_CLASS_ALU = 0b100;
+defvar BPF_INSN_CLASS_JMP = 0b101;
+defvar BPF_INSN_CLASS_ALU64 = 0b111;
+
+defun bpf_class_is_alujmp = (uint<3> class) int:
+  {
+   return (class in [BPF_INSN_CLASS_ALU,
+                     BPF_INSN_CLASS_ALU64,
+                     BPF_INSN_CLASS_JMP]);
+  }
+
+/* ALU instructions operation codes.  */
+
+deftype BPF_Insn_Op_Code = uint<4>;
+
+defvar BPF_ALU_INSN_ADD = 0x0;
+defvar BPF_ALU_INSN_SUB = 0x1;
+defvar BPF_ALU_INSN_MUL = 0x2;
+defvar BPF_ALU_INSN_DIV = 0x3;
+defvar BPF_ALU_INSN_OR  = 0x4;
+defvar BPF_ALU_INSN_AND = 0x5;
+defvar BPF_ALU_INSN_LSH = 0x6;
+defvar BPF_ALU_INSN_RSH = 0x7;
+defvar BPF_ALU_INSN_NEG = 0x8;
+defvar BPF_ALU_INSN_MOD = 0x9;
+defvar BPF_ALU_INSN_XOR = 0xa;
+defvar BPF_ALU_INSN_MOV = 0xb;
+defvar BPF_ALU_INSN_ARSH = 0xc;
+defvar BPF_ALU_INSN_END = 0xd;
+
+defvar bpf_alu_opcodes =
+  ["add", "sub", "mul", "div", "or", "and", "lsh",
+   "rsh", "neg", "mod", "xor", "mov", "arsh", "end"];
+
+/* JMP instructions operation codes.  */
+
+defvar BPF_JMP_INSN_JA  = 0x0;
+defvar BPF_JMP_INSN_JEQ = 0x1;
+defvar BPF_JMP_INSN_JGT = 0x2;
+defvar BPF_JMP_INSN_JGE = 0x3;
+defvar BPF_JMP_INSN_JSET = 0x4;
+defvar BPF_JMP_INSN_JNE = 0x5;
+defvar BPF_JMP_INSN_JSGT = 0x6;
+defvar BPF_JMP_INSN_JSGE = 0x7;
+defvar BPF_JMP_INSN_CALL = 0x8;
+defvar BPF_JMP_INSN_EXIT = 0x9;
+defvar BPF_JMP_INSN_JLT = 0xa;
+defvar BPF_JMP_INSN_JLE = 0xb;
+defvar BPF_JMP_INSN_JSLT = 0xc;
+defvar BPF_JMP_INSN_JSLE = 0xd;
+
+defvar bpf_jmp_opcodes =
+  ["ja", "jeq", "jgt", "jge", "jset", "jne", "jsgt",
+   "jsge", "call", "exit", "jlt", "jle", "jslt", "jsle"];
+
+/* Instruction source for ALU and JMP instructions.  */
+
+deftype BPF_Insn_Source = uint<1>;
+
+defvar BPF_INSN_SOURCE_K = 0b0;
+defvar BPF_INSN_SOURCE_X = 0b1;
+
+/* LD and ST instruction sizes.  */
+
+deftype BPF_Insn_Data_Size = uint<2>;
+
+defvar BPF_LDST_INSN_SIZE_W = 0b00;
+defvar BPF_LDST_INSN_SIZE_H = 0b01;
+defvar BPF_LDST_INSN_SIZE_B = 0b10;
+defvar BPF_LDST_INSN_SIZE_DW = 0b11;
+
+defvar bpf_ldst_sizes = ["w", "h", "b", "dw"];
+
+/* LD and ST instruction modes.  */
+
+deftype BPF_Insn_LDST_Mode = uint<3>;
+
+defvar BPF_LDST_INSN_MODE_IMM = 0b000;
+defvar BPF_LDST_INSN_MODE_ABS = 0b001;
+defvar BPF_LDST_INSN_MODE_IND = 0b010;
+defvar BPF_LDST_INSN_MODE_MEM = 0b011;
+defvar BPF_LDST_INSN_MODE_XADD = 0b110;
+
+/* Offsets in instructions are measured in 64-bit words.  */
+
+deftype BPF_Insn_Offset = offset<int<16>,64>;
+
+/* Registers.  */
+
+defvar BPF_R0 = 0x0;
+defvar BPF_R1 = 0x1;
+defvar BPF_R2 = 0x2;
+defvar BPF_R3 = 0x3;
+defvar BPF_R4 = 0x4;
+defvar BPF_R5 = 0x5;
+defvar BPF_R6 = 0x6;
+defvar BPF_R7 = 0x7;
+defvar BPF_R8 = 0x8;
+defvar BPF_R9 = 0x9;
+defvar BPF_FP = 0xa;
+
+deftype BPF_Reg =
+  struct
+  {
+   uint<4> code;
+
+   method _print = void:
+   {
+    print "#<";
+    if (code < BPF_R9)
+      printf "%<insn-register:%sr%i32d%>", "%", code;
+    else
+      printf "%<insn-register:fp%>";
+    print ">";
+   }
+  };
+
+/* Instructions.  */
+
+deftype BPF_Insn_Opcode =
+  union
+    {
+      struct
+      {
+        BPF_Insn_Op_Code code;
+        BPF_Insn_Source src;
+        BPF_Insn_Class class : bpf_class_is_alujmp (class);
+
+        method _print = void:
+          {
+           print "#<";
+           if (class in [BPF_INSN_CLASS_ALU, BPF_INSN_CLASS_ALU64])
+             printf "%<insn-mnemonic:%s%>", bpf_alu_opcodes[code];
+           else
+             printf "%<insn-mnemonic:%s%>", bpf_jmp_opcodes[code];
+           print ">";
+          }
+      } alujmp;
+
+      struct
+      {
+        BPF_Insn_LDST_Mode mode;
+        BPF_Insn_Data_Size size;
+        BPF_Insn_Class class;
+
+        method _print = void:
+          {
+           print "#<";
+           if (class == BPF_INSN_CLASS_LDX)
+             printf "%<insn-mnemonic:ldx%>";
+           else if (class == BPF_INSN_CLASS_LD)
+             printf "%<insn-mnemonic:ld%>";
+           else if (class == BPF_INSN_CLASS_STX)
+             printf "%<insn-mnemonic:stx%>";
+           else if (class == BPF_INSN_CLASS_ST)
+             printf "%<insn-mnemonic:st%>";
+           printf "%<insn-mnemonic:%s%>",  bpf_ldst_sizes[size];
+           print ">";
+          }
+      } ldst;
+  };
+
+defun bpf_opcode_class = (BPF_Insn_Opcode opcode) BPF_Insn_Class:
+  {
+    try return opcode.alujmp.class;
+    catch if E_elem
+    {
+      return opcode.ldst.class;
+    }
+  }
+
+defun bpf_opcode_imm64_p = (BPF_Insn_Opcode opcode) BPF_Insn_Class:
+  {
+    return (bpf_opcode_class (opcode) == BPF_INSN_CLASS_LD
+            && opcode.ldst.mode == BPF_LDST_INSN_MODE_IMM
+            && opcode.ldst.size == BPF_LDST_INSN_SIZE_DW);
+  }
+
+deftype BPF_Insn_Regs =
+  struct
+  {
+    defvar little_p = (get_endian == ENDIAN_LITTLE);
+
+    BPF_Reg src @ !little_p * 4#b;
+    BPF_Reg dst @ little_p * 4#b;
+  };
+
+deftype BPF_Insn =
+  struct
+  {
+    BPF_Insn_Opcode opcode;
+    BPF_Insn_Regs regs;
+    BPF_Insn_Offset offset;
+
+    union
+    {
+      struct
+      {
+        uint<32> lo;
+        uint<32>;
+        uint<32> hi;
+
+        method _print = void:
+          {
+           print "#<";
+           printf "%<integer:%v%>", hi:::lo;
+           print ">";
+          }
+      } imm64 : bpf_opcode_imm64_p (opcode);
+
+      int<32> imm32;
+    } imm;
+
+    method imm_value = int<64>:
+      {
+        if (bpf_opcode_imm64_p (opcode))
+         return imm.imm64.hi:::imm.imm64.lo;
+       else
+         return imm.imm32;
+      }
+  };

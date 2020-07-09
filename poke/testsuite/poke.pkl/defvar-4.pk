@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar offset = 12#B;
+
+/* { dg-command {  offset + #b } } */
+/* { dg-output 97#b } */

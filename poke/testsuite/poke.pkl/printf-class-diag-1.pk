@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+printf "%<foo:blahblah"; /* { dg-error "" } */

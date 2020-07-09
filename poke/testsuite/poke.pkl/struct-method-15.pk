@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int x;
+    method foo = (int i = x * x) int:
+      {
+        return i;
+      }
+  };
+
+/* { dg-command { (Foo {x = 2}).foo } } */
+/* { dg-output "4" } */

@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+deftype AFunc = (any,any)int;
+
+AFunc @ 0#B; /* { dg-error "" } */

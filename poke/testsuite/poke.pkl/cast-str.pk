@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+/* { dg-command { 'a' as string } } */
+/* { dg-output "\"a\"" } */
+
+/* { dg-command { '\0' as string } } */
+/* { dg-output "\n\"\"" } */

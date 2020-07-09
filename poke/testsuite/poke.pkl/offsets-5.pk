@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  12#b } } */
+/* { dg-output "12#b" } */

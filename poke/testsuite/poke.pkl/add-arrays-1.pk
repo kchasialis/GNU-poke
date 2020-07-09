@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar a = [1,2];
+
+/* { dg-command {a + [3,4] } } */
+/* { dg-output "\\\[1,2,3,4\\\]" } */
+
+/* For constant folding: */
+
+/* { dg-command {[1,2] + [3,4]} } */
+/* { dg-output "\n\\\[1,2,3,4\\\]" } */

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Foo = struct { byte a; byte b; };
+
+/* { dg-command { Foo {b = 11} in [Foo {}, Foo {a = 10}] } } */
+/* { dg-output "0" } */

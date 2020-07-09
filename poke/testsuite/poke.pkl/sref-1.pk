@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+deftype Struct = struct { int fo; };
+
+/* { dg-command {  (Struct {fo=10}).fo } } */
+/* { dg-output "10" } */

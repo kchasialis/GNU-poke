@@ -1,0 +1,14 @@
+/* { dg-do compile } */
+
+/* Check for unreachable alternatives in unions.  */
+
+defvar a = 10;
+
+deftype Foo = union
+ {
+   big
+   int
+     foo : a < 20;
+   int quux;
+   int bar; /* { dg-warning "" } */
+ };

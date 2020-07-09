@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar foo = open ("*foo*") } } */
+/* { dg-command { defvar bar = open ("*bar*") } } */
+/* { dg-command { get_ios == foo } } */
+/* { dg-output "1" } */
+/* { dg-command { close (foo) } } */
+/* { dg-command { get_ios == bar } } */
+/* { dg-output "\n1" } */
+/* { dg-command { close (bar) } } */

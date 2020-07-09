@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar a = [[1],[2]];
+
+/* { dg-command { a == [[1],[2]] } } */
+/* { dg-output "1" } */
+
+/* For constant folding: */
+/* { dg-command { [[1],[2]] == [[1],[2]] } } */
+/* { dg-output "\n1" } */

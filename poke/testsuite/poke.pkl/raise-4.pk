@@ -1,0 +1,18 @@
+/* { dg-do run } */
+
+defun foo = int:
+  {
+   try
+     raise Exception {code=1UL};
+   catch (Exception e)
+   {
+     if (e.code == EC_div_by_zero)
+       print ("got division by zero exception\n");
+     else
+       print ("got some other exception\n");
+   }
+   return 666;
+  }
+
+/* { dg-command {  foo } } */
+/* { dg-output "got division by zero exception\n666" } */

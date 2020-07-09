@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun aa = (args...) int: { return args[0] as int; }
+
+/* { dg-command { aa (10) } } */
+/* { dg-output "10" } */

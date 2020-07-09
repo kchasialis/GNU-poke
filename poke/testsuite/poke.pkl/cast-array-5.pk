@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar a = [[1,2],[3,4]] as int[][] as int[2][2];
+
+/* { dg-command {a[1][1]} } */
+/* { dg-output "4" } */

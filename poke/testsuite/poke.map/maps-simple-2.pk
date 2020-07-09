@@ -1,0 +1,7 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} } */
+
+/* { dg-command {.set obase 16} } */
+
+/* { dg-command {byte @ 1#B} } */
+/* { dg-output "0x20UB" } */

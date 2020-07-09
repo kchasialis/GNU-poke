@@ -1,0 +1,13 @@
+/* { dg-do compile } */
+
+/* This test makes sure that built-in identifiers are no longer
+   reserved after the compiler is bootstrapped.  */
+
+defvar __PKL_BUILTIN_RAND__ = 10;
+defvar __PKL_BUILTIN_GET_ENDIAN__ = 10;
+defvar __PKL_BUILTIN_SET_ENDIAN__ = 10;
+defvar __PKL_BUILTIN_GET_IOS__ = 10;
+defvar __PKL_BUILTIN_SET_IOS__ = 10;
+defvar __PKL_BUILTIN_OPEN__ = 10;
+defvar __PKL_BUILTIN_CLOSE__ = 10;
+defvar __PKL_BUILTIN_IOSIZE__ = 10;

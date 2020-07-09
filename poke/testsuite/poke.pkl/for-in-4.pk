@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+/* { dg-command { for (c in "foo") { print "loop\n"; } } } */
+/* { dg-output "loop\nloop\nloop" } */
+
+/* { dg-command { for (c in "") { print "loop\n"; } } } */
+/* { dg-output "" } */

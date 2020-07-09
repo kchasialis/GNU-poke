@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+/* { dg-command { 12#0x8 } } */
+/* { dg-output "12#B" } */
+
+/* { dg-command { 12#0x9 } } */
+/* { dg-output "\n12#9" } */
+
+/* { dg-command { 0UL#1024 } }*/
+/* { dg-output "\n0UL#Kib" } */

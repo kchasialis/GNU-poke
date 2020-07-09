@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype Bar =
+  union
+  {
+    int a : a == 0;
+    int b : b == 1;
+    int c : c == 2;
+  };
+
+/* { dg-command { Bar { c = 2, a = 20 } } } */
+/* { dg-output "Bar \{c=2\}" } */

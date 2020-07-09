@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { set_endian (ENDIAN_LITTLE) } } */
+/* { dg-output "1" } */
+/* { dg-command { .set endian } } */
+/* { dg-output "\nlittle" } */
+
+/* { dg-command { set_endian (ENDIAN_BIG) } } */
+/* { dg-output "\n1" } */
+/* { dg-command { .set endian } } */
+/* { dg-output "\nbig" } */

@@ -1,0 +1,9 @@
+/* { dg-do run } */
+/* { dg-command {.set obase 16} }  */
+
+/* { dg-data {c*} {0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00} } */
+/* { dg-command { .set endian little } } */
+
+/* { dg-command { uint<59> @ 9#b = 0x5de9b5713cf8a46 } } */
+/* { dg-command { printf "%u64x\n", uint<64> @ 8#b } } */
+/* { dg-output "50efcdab89674523" } */

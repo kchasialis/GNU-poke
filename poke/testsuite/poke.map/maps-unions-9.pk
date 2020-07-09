@@ -1,0 +1,17 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40 } } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+defvar n = 10;
+
+deftype Foo =
+  union
+  {
+    long l : n < 10;
+    byte b;
+  };
+
+/* { dg-command { Foo @ 0#B } } */
+/* { dg-output "Foo \\{b=0x10UB\\}" } */

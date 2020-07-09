@@ -1,0 +1,46 @@
+2020-05-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Update files.
+
+2020-05-12  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Update files.
+
+2020-05-09  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Update files.
+
+2020-05-02  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Rename src->poke and lib->libpoke.
+
+2020-02-13  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Remove pk-file.c.
+	Add pk-utils.[ch].
+
+2019-11-12  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Remove pk-print.c.
+	Update with new files in src/.
+	* poke.pot: Regenerate.
+
+2019-10-04  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Remove empty line at the end of the file.
+	* ChangeLog: Likewise.
+
+2019-10-02  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* Makefile.in.in: Upgrade to gettext-0.19.8.1.
+	* Rules-quot: Upgrade to gettext-0.19.8.1.
+
+2019-10-02  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* POTFILES.in: Updated.
+
+2019-10-02  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* Makefile.in.in: Upgrade to gettext-0.19.8.1.
+	* Rules-quot: Upgrade to gettext-0.19.8.1.
+	* POTFILES.in: New file.

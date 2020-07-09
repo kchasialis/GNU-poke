@@ -1,0 +1,15 @@
+/* { dg-do run } */
+
+defun foo = int:
+  {
+   try
+     raise;
+   catch
+   {
+     print ("got an exception\n");
+   }
+   return 666;
+  }
+
+/* { dg-command {  foo } } */
+/* { dg-output "got an exception\n" } */

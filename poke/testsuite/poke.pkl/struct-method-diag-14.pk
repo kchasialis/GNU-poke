@@ -1,0 +1,16 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    int foo;
+
+    deftype Bar =
+      struct
+      {
+        method bar = void:
+        {
+          foo; /* { dg-error "field.*not in this struct" } */
+        }
+      };
+  };

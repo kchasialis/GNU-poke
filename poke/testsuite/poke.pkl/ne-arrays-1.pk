@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar n = 2;
+defvar m = 3;
+
+/* { dg-command {  [1,2] as int[n] != [1,2,3] as int[m] } } */
+/* { dg-output "1" } */

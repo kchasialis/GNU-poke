@@ -1,0 +1,11 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x30 0x31 0x32 0x33 0x34 0x35 0x36 0x37 0x38 0x39 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48 0x49} } */
+
+pk_dump_size = 18#B;
+pk_dump_group_by = 2#B;
+pk_dump_ruler = 0;
+pk_dump_ascii = 1;
+
+/* { dg-command { dump :from 0#B :group_by 2#B } } */
+/* { dg-output "00000000: 3031 3233 3435 3637 3839 4142 4344 4546  0123456789ABCDEF\n" } */
+/* { dg-output "00000010: 4748                                     GH" } */

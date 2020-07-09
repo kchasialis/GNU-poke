@@ -1,0 +1,12 @@
+/* { dg-do run } */
+
+deftype Packet = struct { byte[64] data; };
+
+defvar x = 2UL#Packet;
+
+/* { dg-command {  x / 1UB#byte } } */
+/* { dg-output "128UL" } */
+
+/* For constant folding: */
+/* { dg-command {  2UL#Packet/1UB#byte } } */
+/* { dg-output "\n128UL" } */

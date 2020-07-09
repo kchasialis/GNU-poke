@@ -1,0 +1,138 @@
+# poke.exp - Infrastructure for testing poke in interactive mode.
+
+# Copyright (c) 2019, 2020 Jose E. Marchesi
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Generic poke subroutines.
+
+if {$tool == ""} {
+    send_error "`site.exp' not found, run `make site.exp'!\n"
+}
+
+# Load other libraries here:
+load_lib standard.exp
+load_lib dejagnu.exp
+
+# POKE is the tool to test.  This can be set by the user on the
+# command line:
+# $ make check RUNTESTFLAGS=POKE=poke
+
+global POKE
+if ![info exists POKE] {
+    set POKE ${objdir}/../poke/poke
+}
+
+# prompt is the poke prompt to expect from the program.  As this can
+# change we can put it in a variable that can be easily modified later.
+
+if ![info exists prompt] then {
+    set poke_prompt "\\(poke\\)"
+}
+
+set timeout 3
+
+# poke_killed determines whether a poke got killed by the test
+# infrastructure, for example after poke hangs and causes a timeout.
+# Any further poke_test_cmd is failed until poke_exit resets this to
+# 0.
+
+set poke_killed 0
+
+#
+# poke_exit -- exit poke and cleanup
+#
+proc poke_exit {} {
+    global poke_killed
+
+    if {$poke_killed} {
+        set poke_killed 0
+    } else {
+        send "\n" ;# Discard any previous input.
+        send "exit\n"
+    }
+}
+
+proc poke_version {} {}
+
+proc poke_start {} {
+    global POKE
+    global poke_prompt
+    global spawn_id
+
+    #send_user "Executing $POKE --quiet\n"
+
+    spawn $POKE -q --quiet --color=no
+    expect {
+        -re "$poke_prompt $" { }
+        timeout { perror "Failed to spawn $POKE (timeout)"; exit 1 }
+    }
+}
+
+proc poke_send {input pattern} {
+    global spawn_id
+    global test
+    global poke_killed
+    global poke_prompt
+
+    if {$poke_killed} {
+        fail "$test (killed)"
+        return
+    }
+
+    send "$input"
+    expect {
+        -re $pattern { pass "$test" }
+        timeout {
+            exec kill -9 [exp_pid]
+            set poke_killed 1
+            fail "$test (timeout)"
+        }
+    }
+}
+
+proc poke_send_signal {sig} {
+    exec kill -$sig [exp_pid]
+}
+
+proc poke_test_cmd {cmd pattern} {
+    global poke_prompt
+    global spawn_id
+    global test
+    global poke_killed
+
+    if {$poke_killed} {
+        fail "$test (killed)"
+        return
+    }
+
+    if [string equal $pattern {}] then {
+        set expected_pattern "\r\n$poke_prompt $"
+    } else {
+        set expected_pattern "\r\n$pattern\r\n$poke_prompt $"
+    }
+
+    send "$cmd\n"
+    expect {
+        -re $expected_pattern { pass "$test" }
+        -re "$poke_prompt $" {
+            fail "$test (bad match)"
+        }
+        timeout {
+            exec kill -9 [exp_pid]
+            set poke_killed 1
+            fail "$test (timeout)"
+        }
+    }
+}

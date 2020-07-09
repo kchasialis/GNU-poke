@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 2;
+defvar y = 1;
+
+/* { dg-command {  x as int<7> #B - y as int<2> #b } } */
+/* { dg-output "\\(int<7>\\) 15#b" } */
+
+/* For constant folding:  */
+/* { dg-command {  2 as int<7> #B - 1 as int<2> #b } } */
+/* { dg-output "\n\\(int<7>\\) 15#b" } */

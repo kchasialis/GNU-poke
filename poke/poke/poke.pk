@@ -1,0 +1,51 @@
+/* poke.pk - Application infrastructure.  */
+
+/* Copyright (C) 2020 Jose E. Marchesi */
+
+/* This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**** Set the default load path for maps ****/
+
+defvar map_load_path = "";
+
+/* First, add the system-wide locations.  */
+
+try map_load_path = getenv ("POKEMAPSDIR");
+catch if E_inval { map_load_path = "%DATADIR%/maps"; }
+
+/* Add the directories prescribed by the XDG Base Directory
+   Specification as described in
+   https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html */
+
+try map_load_path = getenv ("XDG_DATA_HOME") + map_load_path;
+catch if E_inval { map_load_path = getenv ("HOME") + "/.local/share/poke:" + map_load_path; }
+
+try map_load_path = getenv ("XDG_DATA_DIRS") + ":" + map_load_path;
+catch if E_inval { }
+
+/* Add the current working directory.  */
+map_load_path = ".:" + map_load_path;
+
+/**** auto_map ****/
+
+/* The auto_map is an array associating file names with maps.
+
+   Each entry in the array is an array whose first element is a
+   regular expression, and the second element is the name of a
+   map.  */
+
+defvar auto_map = [[".*\\.mp3$", "mp3"],
+                   [".*\\.o$", "elf"],
+                   ["a\\.out$", "elf"]];

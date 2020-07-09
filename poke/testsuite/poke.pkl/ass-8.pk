@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar bb = [1,2,3];
+defun fff = (any[] a) void: { a[0] = 666; }
+
+/* { dg-command { fff (bb) } } */
+/* { dg-command { bb } } */
+/* { dg-output "\\\[666,2,3\\\]" } */

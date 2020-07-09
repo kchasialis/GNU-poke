@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { 10'mapped } } */
+/* { dg-output "0" } */

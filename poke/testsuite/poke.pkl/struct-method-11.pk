@@ -1,0 +1,28 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    method foo = string:
+      {
+        return "foo";
+      }
+
+    method guard = int: { return 4; }
+
+    method bar = string:
+        {
+          defvar a = [1,2,3];
+          defvar ret = "";
+          for (i in a)
+            {
+              defvar b = [4,5];
+              for (j in b where j != guard)
+                ret = ret + foo;
+            }
+          return ret;
+        }
+  };
+
+/* { dg-command { (Foo{}).bar } } */
+/* { dg-output "foofoofoo" } */

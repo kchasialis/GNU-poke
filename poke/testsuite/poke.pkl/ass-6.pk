@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+defvar a = 10;
+defvar b = 20;
+
+/* { dg-command { a = b } } */
+/* { dg-command { a } } */
+/* { dg-output "20" } */

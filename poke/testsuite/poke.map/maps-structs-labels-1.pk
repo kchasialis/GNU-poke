@@ -1,0 +1,12 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x04 0x05 0x30 0x40  0x60 0x50 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+deftype Foo = struct { offset<byte,B> i; byte j @ i + 1#B; };
+
+/* { dg-command { .set obase 16 } } */
+
+/* { dg-command { Foo @ 0#B } } */
+/* { dg-output "Foo \\{i=0x4UB#B,j=0x50UB\\}" } */
+
+/* { dg-command { Foo @ 1#B } } */
+/* { dg-output "\nFoo \\{i=0x5UB#B,j=0x80UB\\}" } */

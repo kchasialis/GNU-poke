@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+deftype Struct = struct { int i; long l; };
+
+/* { dg-command { .set oindent 4 } } */
+/* { dg-command { printf ("%Tv\n", Struct { i = 10, l = 20L }); } } */
+
+/* { dg-output "Struct \{" } */
+/* { dg-output "\n    i=10," } */
+/* { dg-output "\n    l=20L" } */
+/* { dg-output "\n\}" } */

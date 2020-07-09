@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = "000";
+
+/* { dg-command { x >= "aaa" } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command { "000" >= "aaa" } } */
+/* { dg-output "\n0" } */

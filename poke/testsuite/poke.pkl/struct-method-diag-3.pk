@@ -1,0 +1,9 @@
+/* { dg-do compile } */
+
+deftype Foo =
+  struct
+  {
+    method foo = (int x) int: { return x + 10; }
+    int i : i !=
+      foo (i); /* { dg-error "method" } */
+  };

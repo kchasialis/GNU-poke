@@ -1,0 +1,3 @@
+/* { dg-do run } */
+
+printf "foo%i32dbar", 10;     /* { dg-output "foo10bar" } */

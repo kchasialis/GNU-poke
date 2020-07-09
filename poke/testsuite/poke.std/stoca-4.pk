@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defvar array = [1UB,2UB,3UB,4UB];
+
+/* { dg-command { try stoca ("foooo", array); catch if E_out_of_bounds { print "caught\n"; } } } */
+/* { dg-output "caught" } */

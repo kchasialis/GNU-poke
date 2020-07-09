@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar x = 23#B as offset<int,0>; /* { dg-error "bigger than zero" } */

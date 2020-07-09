@@ -1,0 +1,4 @@
+defun myprint = (string str1, string str2) void: { print (str1); print (str2); }
+
+/* { dg-command { myprint :str2 "bar\n" :str1 "foo" } } */
+/* { dg-output "foobar" } */

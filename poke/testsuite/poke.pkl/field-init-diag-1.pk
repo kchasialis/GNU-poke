@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+deftype Foo = struct { int a = "foo"; }; /* { dg-error "" } */

@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  'a' } } */
+/* { dg-output "97UB" } */

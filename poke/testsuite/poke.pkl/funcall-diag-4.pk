@@ -1,0 +1,5 @@
+/* { dg-do compile } */
+
+defun foo = (int[2] a) void: {}
+
+foo ([1,2,3]); /* { dg-error "" } */

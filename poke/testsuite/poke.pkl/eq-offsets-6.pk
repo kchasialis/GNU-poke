@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+deftype Packet = byte[3];
+deftype List = struct { byte[8] data; };
+
+defvar x = 1#Packet;
+defvar y = 2#List;
+
+/* { dg-command { x == y } } */
+/* { dg-output "0" } */
+
+/* For constant folding: */
+/* { dg-command {  1#Packet == 2#List } } */
+/* { dg-output "\n0" } */

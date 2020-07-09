@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command {  [1,2,3]'size } } */
+/* { dg-output "96UL#b" } */

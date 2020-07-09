@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+/* Test that memory buffers start with known contents (rather than
+   leaking heap contents).  */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar buffer = open ("*foo*") } } */
+/* { dg-command { byte[3] @ 5#B } } */
+/* { dg-output {[0,0,0]} } */
+/* { dg-command { close (buffer) } } */

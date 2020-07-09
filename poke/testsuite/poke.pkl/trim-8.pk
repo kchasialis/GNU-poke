@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { "foo"[:0] } } */
+/* { dg-output "\"f\"" } */

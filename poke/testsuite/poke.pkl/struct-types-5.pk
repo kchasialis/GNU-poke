@@ -1,0 +1,12 @@
+/* { dg-do compile } */
+
+defun f = (int i) int: { return i + 2; }
+
+deftype Packet =
+  struct
+  {
+    int b;
+    deftype SubPacket = struct { byte[b] data; };
+    defvar a = 10;
+    int c : c == f (a);
+  };

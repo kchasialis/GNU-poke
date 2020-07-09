@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+deftype Foo = struct { int = 3; } /* { dg-error ".*anonymous.*" } */

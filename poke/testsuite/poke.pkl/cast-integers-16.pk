@@ -1,0 +1,10 @@
+/* { dg-do run } */
+
+defvar x = 1;
+
+/* { dg-command {  x as uint64 } } */
+/* { dg-output "1UL" } */
+
+/* For constant folding: */
+/* { dg-command {  1 as uint64 } } */
+/* { dg-output "\n1UL" } */

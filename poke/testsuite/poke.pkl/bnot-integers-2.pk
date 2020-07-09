@@ -1,0 +1,11 @@
+/* { dg-do run } */
+
+defvar x = 1;
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command {  ~x } } */
+/* { dg-output "0xfffffffe" } */
+
+/* For constant folding:  */
+/* { dg-command {  ~1 } } */
+/* { dg-output "\n0xfffffffe" } */

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defun fff = (any[] a) void: { a[0] = 666; }
+defvar cc = ["foo","bar"];
+
+/* { dg-command { try fff (cc); catch if E_conv { print "caught\n"; } } } */
+/* { dg-output "caught" } */

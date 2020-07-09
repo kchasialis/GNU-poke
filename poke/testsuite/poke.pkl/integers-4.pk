@@ -1,0 +1,4 @@
+/* { dg-do run } */
+
+/* { dg-command { 6h } } */
+/* { dg-output "6H" } */

@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+defvar aa = [1,2,3];
+
+/* { dg-command { aa[0] = aa[1] } } */
+/* { dg-command { aa[0] } } */
+/* { dg-output "2" } */

@@ -1,0 +1,8 @@
+/* { dg-do compile } */
+
+defun bar = (int a, int b, int c = 1) int: { return a + b + c; }
+
+defun foo = void:
+  {
+  bar :a 10 :c 20;  /* { dg-error "" } */
+  }

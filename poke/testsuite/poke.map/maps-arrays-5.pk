@@ -1,0 +1,10 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x02 0x04 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command { .set endian big } } */
+/* { dg-command { .set obase 16 } } */
+
+deftype ja = struct {byte i;};
+
+/* { dg-command { byte[(ja @ 4#B).i + 1] @ 1#B } } */
+/* { dg-output "\\\[0x20UB,0x30UB,0x40UB\\\]" } */

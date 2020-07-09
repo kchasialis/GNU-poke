@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* Compare empty arrays.  */
+
+deftype Foo = struct { int[] a; };
+
+/* { dg-command { (Foo{}).a != (Foo{}).a } } */
+/* { dg-output "0" } */

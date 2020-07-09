@@ -1,0 +1,14 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08} foo.data } */
+/* { dg-data {c*} {0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18} bar.data } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar foo = open ("foo.data") } } */
+/* { dg-command { get_ios } } */
+/* { dg-output "0" } */
+/* { dg-command { defvar bar = open ("bar.data") } } */
+/* { dg-command { get_ios } } */
+/* { dg-output "\n0" } */
+/* { dg-command { defvar ja = set_ios (bar) } } */
+/* { dg-command { get_ios } } */
+/* { dg-output "\n1" } */

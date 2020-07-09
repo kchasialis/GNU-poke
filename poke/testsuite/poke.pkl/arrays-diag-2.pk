@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar a = [0,1,.[-1]=10]; /* { dg-error "negative" } */

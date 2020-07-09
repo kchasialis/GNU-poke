@@ -1,0 +1,3 @@
+/* { dg-do compile } */
+
+defvar i = "foo" ? 1 : 2; /* { dg-error "expected boolean" } */

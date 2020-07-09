@@ -1,0 +1,14 @@
+/* { dg-do run } */
+
+deftype Foo =
+  struct
+  {
+    int i;
+    struct
+    {
+      long[i] l;
+    } s;
+  };
+
+/* { dg-command { Foo { i = 2 } == Foo { i = 2 } } } */
+/* { dg-output "1" } */

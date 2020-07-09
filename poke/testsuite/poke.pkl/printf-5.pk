@@ -1,0 +1,3 @@
+/* { dg-do run } */
+
+printf ("%s", "bar");         /* { dg-output "bar" } */

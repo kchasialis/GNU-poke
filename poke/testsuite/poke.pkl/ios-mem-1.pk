@@ -1,0 +1,8 @@
+/* { dg-do run } */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar buffer = open ("*foo*") } } */
+/* { dg-command { byte @ buffer:10#B = 66 } } */
+/* { dg-command { byte @ buffer:10#B } } */
+/* { dg-output "66UB" } */
+/* { dg-command { close (buffer) } } */

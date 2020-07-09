@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+defun foo = (long l) long: { return l; }
+
+/* { dg-command {  foo (10L) } } */
+/* { dg-output "10L" } */

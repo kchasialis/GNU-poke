@@ -1,0 +1,4 @@
+/* { dg-do run } */
+/* { dg-data {a*} {// Empty} foo.pk } */
+
+/* { dg-command { load foo } } */

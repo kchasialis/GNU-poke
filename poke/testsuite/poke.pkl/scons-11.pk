@@ -1,0 +1,7 @@
+/* { dg-do run } */
+
+deftype Packet = struct { string[2] ss; };
+
+/* { dg-command { .set omode flat } } */
+/* { dg-command { Packet { ss=["foo","bar"] } } } */
+/* { dg-output "Packet \{ss=\\\[\"foo\",\"bar\"\\\]\}" } */

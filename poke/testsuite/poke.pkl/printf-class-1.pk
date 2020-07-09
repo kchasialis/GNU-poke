@@ -1,0 +1,6 @@
+/* { dg-do run } */
+/* { dg-options "--color=html" } */
+/* { dg-require libtextstyle } */
+
+/* { dg-command {printf "%<foo:%i32d%>", 10} } */
+/* { dg-output "<span class=\"foo\">10</span>" } */

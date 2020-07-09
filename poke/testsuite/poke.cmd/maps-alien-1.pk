@@ -1,0 +1,9 @@
+/* { dg-do run } */
+/* { dg-data {c*} {0x10 0x20 0x30 0x40  0x50 0x60 0x70 0x80   0x90 0xa0 0xb0 0xc0} } */
+
+/* { dg-command { .set obase 16 } } */
+/* { dg-command { defvar bytes = byte[2] @ 0#B } } */
+/* { dg-command { .map create foo } } */
+/* { dg-command { .map entry add foo, bytes } } */
+/* { dg-command { 3 + $foo::bytes[1] } } */
+/* { dg-output "0x23" } */

@@ -1,0 +1,6 @@
+/* { dg-do run } */
+
+/* BZ 26162 */
+
+/* { dg-command { while (1) { print "foo\n"; break; } } } */
+/* { dg-output "foo" } */

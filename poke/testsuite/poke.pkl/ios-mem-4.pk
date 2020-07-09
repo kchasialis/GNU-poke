@@ -1,0 +1,15 @@
+/* { dg-do run } */
+
+/* The purpose of this test is to track that iosize() reflects auto-growth
+   of a mem buffer.  Also, bytes in the growth area are initialized to 0.  */
+
+/* { dg-command { .set obase 10 } } */
+/* { dg-command { defvar buffer = open ("*foo*") } } */
+/* { dg-command { iosize (0) } } */
+/* { dg-output "32768UL#b" } */
+/* { dg-command { byte @ 4096#B = 1 } } */
+/* { dg-command { iosize (0) } } */
+/* { dg-output "\n65536UL#b" } */
+/* { dg-command { int @ 4096#B } } */
+/* { dg-output "\n16777216" } */
+/* { dg-command { close (buffer) } } */
