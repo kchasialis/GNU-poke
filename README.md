@@ -5,6 +5,6 @@ GNU poke is a new interactive editor for binary data. Not limited to editing bas
 I am actively contributing to GNU poke for the Google Summer of Code program.
 This is a mirror repository as GNU poke does not exist on github.
 
-[GsoC](https://summerofcode.withgoogle.com)
-[GNU poke](http://www.jemarch.net/poke)
-[GNU poke main repository](https://git.savannah.nongnu.org/cgit/poke.git/tree)
+[GsoC](https://summerofcode.withgoogle.com)  
+[GNU poke](http://www.jemarch.net/poke)  
+[GNU poke main repository](https://git.savannah.nongnu.org/cgit/poke.git/tree)  
