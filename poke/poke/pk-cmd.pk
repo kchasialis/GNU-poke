@@ -25,3 +25,4 @@ defvar pk_help_str = "";
 load "pk-dump.pk";
 load "pk-copy.pk";
 load "pk-save.pk";
+load "pk-extract.pk";

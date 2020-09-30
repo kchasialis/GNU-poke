@@ -30,12 +30,13 @@ typedef uint64_t ios_dev_off;
 
 /* The following macros are part of the device interface.  */
 
-#define IOD_EOF -1
+
 
 /* Error codes to be used in the interface below.  */
 
-#define IOD_ERROR  1 /* Generic error.     */
-#define IOD_EINVAL 2 /* Invalid argument.  */
+#define IOD_ERROR  -1 /* Generic error.     */
+#define IOD_EOF    -2
+#define IOD_EINVAL -3 /* Invalid argument.  */
 
 /* Each IO backend should implement a device interface, by filling an
    instance of the struct defined below.  */
@@ -46,7 +47,7 @@ struct ios_dev_if
      device spec by this backend, and if so, return its normalized
      form (caller will free).  If not, return NULL.  */
 
-  char *(*handler_normalize) (const char *handler);
+  char *(*handler_normalize) (const char *handler, uint64_t flags);
 
   /* Open a device using the provided HANDLER.  Return the opened
      device, or NULL if there was an error.  In case of invalid flags,
@@ -79,4 +80,30 @@ struct ios_dev_if
   /* Return the size of the device, in bytes.  */
 
   ios_dev_off (*size) (void *dev);
+
+  /* If called on a in-stream, free the buffer before OFFSET.  If called on
+     an out-stream, flush the data till OFFSET and free the buffer before
+     OFFSET.  Otherwise, do not do anything.  Return IOS_OK ın success and
+     an error code on failure.  */
+  int (*flush) (void *dev, ios_dev_off offset);
 };
+
+#define IOS_FILE_HANDLER_NORMALIZE(handler, newhandler)                 \
+  do                                                                    \
+    {                                                                   \
+      /* File devices are special, in the sense that they accept any */ \
+      /* handler. However, we want to ensure that the ios name is */    \
+      /* unambiguous from other ios devices, by prepending ./ to */     \
+      /* relative names that might otherwise be confusing.  */          \
+      static const char safe[] =                                        \
+        "abcdefghijklmnopqrstuvwxyz"                                    \
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"                                    \
+        "0123456789/+_-";                                               \
+                                                                        \
+      if (handler[0] == '/'                                             \
+          || strspn (handler, safe) == strlen (handler))                \
+        (newhandler) = strdup ((handler));                              \
+      else if (asprintf (&(newhandler), "./%s", (handler)) == -1)       \
+        (newhandler) = NULL;                                            \
+    }                                                                   \
+  while (0)

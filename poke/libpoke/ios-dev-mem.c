@@ -36,7 +36,7 @@ struct ios_dev_mem
 #define MEM_STEP (512 * 8)
 
 static char *
-ios_dev_mem_handler_normalize (const char *handler)
+ios_dev_mem_handler_normalize (const char *handler, uint64_t flags)
 {
   if (handler[0] == '*' && handler[strlen (handler) - 1] == '*')
     return strdup (handler);
@@ -105,20 +105,21 @@ ios_dev_mem_pwrite (void *iod, const void *buf, size_t count,
   if (offset + count > mio->size + MEM_STEP)
     return IOD_EOF;
 
-  if (offset + count > mio->size) {
-    void *pointer_bak = mio->pointer;
+  if (offset + count > mio->size)
+    {
+      void *pointer_bak = mio->pointer;
 
-    mio->pointer = realloc (mio->pointer, mio->size + MEM_STEP);
-    if (!mio->pointer)
-      {
-        /* Restore pointer after failed realloc and return error. */
-        mio->pointer = pointer_bak;
-        return IOD_ERROR;
-      }
+      mio->pointer = realloc (mio->pointer, mio->size + MEM_STEP);
+      if (!mio->pointer)
+        {
+          /* Restore pointer after failed realloc and return error. */
+          mio->pointer = pointer_bak;
+          return IOD_ERROR;
+        }
 
-    memset (&mio->pointer[mio->size], 0, MEM_STEP);
-    mio->size += MEM_STEP;
-  }
+      memset (&mio->pointer[mio->size], 0, MEM_STEP);
+      mio->size += MEM_STEP;
+    }
 
   memcpy (&mio->pointer[offset], buf, count);
   return 0;
@@ -131,6 +132,12 @@ ios_dev_mem_size (void *iod)
   return mio->size;
 }
 
+static int
+ios_dev_mem_flush (void *iod, ios_dev_off offset)
+{
+  return IOS_OK;
+}
+
 struct ios_dev_if ios_dev_mem
   __attribute__ ((visibility ("hidden"))) =
   {
@@ -141,4 +148,5 @@ struct ios_dev_if ios_dev_mem
    .pwrite = ios_dev_mem_pwrite,
    .get_flags = ios_dev_mem_get_flags,
    .size = ios_dev_mem_size,
+   .flush = ios_dev_mem_flush,
   };

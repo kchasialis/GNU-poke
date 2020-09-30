@@ -42,16 +42,6 @@
 
 #define PKL_FOLD_PAYLOAD ((pkl_fold_payload) PKL_PASS_PAYLOAD)
 
-/* The following handler is used in the folding phase to avoid
-   re-folding already processed AST type nodes.  */
-
-PKL_PHASE_BEGIN_HANDLER (pkl_fold_pr_type)
-{
-  if (PKL_AST_TYPE_COMPILED (PKL_PASS_NODE))
-    PKL_PASS_BREAK;
-}
-PKL_PHASE_END_HANDLER
-
 /* Emulation routines.
 
    The letter-codes after EMUL_ specify the number and kind of
@@ -218,7 +208,7 @@ EMUL_UU (bnoto) { return ~op; }
             /* We cannot fold this expression.  */                      \
             PKL_PASS_DONE;                                              \
                                                                         \
-          if (PKL_AST_TYPE_I_SIGNED (type))                             \
+          if (PKL_AST_TYPE_I_SIGNED_P (type))                           \
             result = emul_s_##OP (PKL_AST_INTEGER_VALUE (op));          \
           else                                                          \
             result = emul_u_##OP (PKL_AST_INTEGER_VALUE (op));          \
@@ -262,7 +252,7 @@ EMUL_UU (bnoto) { return ~op; }
             /* We cannot fold this expression.  */                      \
             PKL_PASS_DONE;                                              \
                                                                         \
-          if (PKL_AST_TYPE_I_SIGNED (type))                             \
+          if (PKL_AST_TYPE_I_SIGNED_P (type))                           \
             result = emul_s_##OP (PKL_AST_INTEGER_VALUE (op_magnitude));\
           else                                                          \
             result = emul_u_##OP (PKL_AST_INTEGER_VALUE (op_magnitude));\
@@ -325,7 +315,7 @@ EMUL_UU (bnoto) { return ~op; }
           op2_magnitude_bits = (PKL_AST_INTEGER_VALUE (op2_magnitude)   \
                                 * PKL_AST_INTEGER_VALUE (op2_unit));    \
                                                                         \
-          if (PKL_AST_TYPE_I_SIGNED (type))                             \
+          if (PKL_AST_TYPE_I_SIGNED_P (type))                           \
             result = emul_s_##OP (op1_magnitude_bits,                   \
                                   op2_magnitude_bits);                  \
           else                                                          \
@@ -389,7 +379,7 @@ EMUL_UU (bnoto) { return ~op; }
           op2_magnitude_bits = (PKL_AST_INTEGER_VALUE (op2_magnitude)   \
                                 * PKL_AST_INTEGER_VALUE (op2_unit));    \
                                                                         \
-          if (PKL_AST_TYPE_I_SIGNED (type_base_type))                   \
+          if (PKL_AST_TYPE_I_SIGNED_P (type_base_type))                 \
             result = emul_s_##OP (op1_magnitude_bits,                   \
                                   op2_magnitude_bits);                  \
           else                                                          \
@@ -501,7 +491,7 @@ EMUL_UU (bnoto) { return ~op; }
           op_magnitude_bits = (PKL_AST_INTEGER_VALUE (op_magnitude)     \
                                * PKL_AST_INTEGER_VALUE (op_unit));      \
                                                                         \
-          if (PKL_AST_TYPE_I_SIGNED (op_type))                          \
+          if (PKL_AST_TYPE_I_SIGNED_P (op_type))                        \
             result = emul_s_##OP (op_magnitude_bits,                    \
                                   PKL_AST_INTEGER_VALUE (int_op));      \
           else                                                          \
@@ -549,7 +539,7 @@ EMUL_UU (bnoto) { return ~op; }
             /* We cannot fold this expression.  */                      \
             PKL_PASS_DONE;                                              \
                                                                         \
-          if (PKL_AST_TYPE_I_SIGNED (type))                             \
+          if (PKL_AST_TYPE_I_SIGNED_P (type))                           \
             result = emul_s_##OP (PKL_AST_INTEGER_VALUE (op1),          \
                                   PKL_AST_INTEGER_VALUE (op2));         \
           else                                                          \
@@ -735,7 +725,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_fold_pow)
           /* We cannot fold this expression.  */
           PKL_PASS_DONE;
 
-        if (PKL_AST_TYPE_I_SIGNED (op_type))
+        if (PKL_AST_TYPE_I_SIGNED_P (op_type))
           result = emul_s_powo (PKL_AST_INTEGER_VALUE (op_magnitude),
                                 PKL_AST_INTEGER_VALUE (int_op));
         else
@@ -910,8 +900,12 @@ PKL_PHASE_BEGIN_HANDLER (pkl_fold_bconc)
   uint64_t result;
 
   assert (PKL_AST_TYPE_CODE (type) == PKL_TYPE_INTEGRAL
-          && PKL_AST_TYPE_CODE (op1_type) == PKL_TYPE_INTEGRAL
-          && PKL_AST_TYPE_CODE (op2_type) == PKL_TYPE_INTEGRAL);
+          && (PKL_AST_TYPE_CODE (op1_type) == PKL_TYPE_INTEGRAL
+              || (PKL_AST_TYPE_CODE (op1_type) == PKL_TYPE_STRUCT
+                  && PKL_AST_TYPE_S_ITYPE (op1_type)))
+          && (PKL_AST_TYPE_CODE (op2_type) == PKL_TYPE_INTEGRAL
+              || (PKL_AST_TYPE_CODE (op2_type) == PKL_TYPE_STRUCT
+                  && PKL_AST_TYPE_S_ITYPE (op2_type))));
 
   if (PKL_AST_CODE (op1) != PKL_AST_INTEGER
       || PKL_AST_CODE (op2) != PKL_AST_INTEGER)
@@ -995,19 +989,21 @@ PKL_PHASE_BEGIN_HANDLER (pkl_fold_ps_cast)
          is different.  */
       if (!pkl_ast_type_equal (from_base_type, to_base_type))
         {
-          int size = PKL_AST_TYPE_I_SIZE (to_base_type);
-          uint64_t mask = size < 64 ? (1LLU << size) -1 : 0LLU - 1;
-
           magnitude = pkl_ast_make_integer (PKL_PASS_AST,
-                                            PKL_AST_INTEGER_VALUE (magnitude) & mask);
+                                            PKL_AST_INTEGER_VALUE (magnitude));
           PKL_AST_TYPE (magnitude) = ASTREF (to_base_type);
           PKL_AST_LOC (magnitude) = PKL_AST_LOC (cast);
         }
 
       /* Transform magnitude to new unit.  */
-      PKL_AST_INTEGER_VALUE (magnitude)
-        = (PKL_AST_INTEGER_VALUE (magnitude)
-           /  PKL_AST_INTEGER_VALUE (unit));
+      {
+        int size = PKL_AST_TYPE_I_SIZE (to_base_type);
+        uint64_t mask = size < 64 ? (1LLU << size) -1 : 0LLU - 1;
+
+        PKL_AST_INTEGER_VALUE (magnitude)
+          = (PKL_AST_INTEGER_VALUE (magnitude)
+             /  PKL_AST_INTEGER_VALUE (unit)) & mask;
+      }
 
       new = pkl_ast_make_offset (PKL_PASS_AST,
                                  magnitude, unit);
@@ -1142,7 +1138,6 @@ PKL_PHASE_END_HANDLER
 struct pkl_phase pkl_phase_fold
   __attribute__ ((visibility ("hidden"))) =
   {
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_fold_pr_type),
    PKL_PHASE_PS_HANDLER (PKL_AST_CAST, pkl_fold_ps_cast),
    PKL_PHASE_PS_HANDLER (PKL_AST_INDEXER, pkl_fold_ps_indexer),
    PKL_PHASE_PS_HANDLER (PKL_AST_COND_EXP, pkl_fold_ps_cond_exp),

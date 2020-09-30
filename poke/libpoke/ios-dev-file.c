@@ -41,25 +41,13 @@ struct ios_dev_file
 };
 
 static char *
-ios_dev_file_handler_normalize (const char *handler)
+ios_dev_file_handler_normalize (const char *handler, uint64_t flags)
 {
-  /* This backend is special, in the sense it accepts any handler.
-     However, we want to ensure that the ios name is unambiguous from
-     other ios devices, by prepending ./ to relative names that might
-     otherwise be confusing.  */
-  static const char safe[] =
-    "abcdefghijklmnopqrstuvwxyz"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "0123456789/+_-";
-  char *ret;
+  char *newhandler;
+  IOS_FILE_HANDLER_NORMALIZE (handler, newhandler);
 
-  if (handler[0] == '/' || strspn (handler, safe) == strlen (handler))
-    return strdup (handler);
-
-  if (asprintf (&ret, "./%s", handler) == -1)
-    return NULL;
-
-  return ret;
+  /* TODO handle the case where newhandler is NULL.  */
+  return newhandler;
 }
 
 static void *
@@ -203,6 +191,12 @@ ios_dev_file_size (void *iod)
   return st.st_size;
 }
 
+static int
+ios_dev_file_flush (void *iod, ios_dev_off offset)
+{
+  return IOS_OK;
+}
+
 struct ios_dev_if ios_dev_file
   __attribute__ ((visibility ("hidden"))) =
   {
@@ -213,4 +207,5 @@ struct ios_dev_if ios_dev_file
    .pwrite = ios_dev_file_pwrite,
    .get_flags = ios_dev_file_get_flags,
    .size = ios_dev_file_size,
+   .flush = ios_dev_file_flush
   };

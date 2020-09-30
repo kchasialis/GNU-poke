@@ -1,6 +1,8 @@
-;;; poke-mode.el --- Major mode for editing Poke programs
+;;; poke-mode.el --- Major mode for editing Poke programs  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020 Aurelien Aptel <aaptel@suse.com>
+;; SMIE grammar and help from Stefan Monnier <monnier@iro.umontreal.ca>
+;; Version: 0
 
 ;; Maintainer: Aurelien Aptel <aaptel@suse.com>
 
@@ -33,39 +35,35 @@
 
 ;;; Code:
 
+(require 'smie)
+
 (defgroup poke nil
   "Poke PK (pickle) editiong mode."
   :group 'languages)
 
 (defface poke-unit
   '((t (:inherit font-lock-constant-face)))
-  "Face used to highlight units (#unit)."
-  :group 'poke)
+  "Face used to highlight units (#unit).")
 
 (defface poke-attribute
   '((t (:inherit font-lock-builtin-face)))
-  "Face used to highlight attributes (var'attribute)."
-  :group 'poke)
+  "Face used to highlight attributes (var'attribute).")
 
 (defface poke-type
   '((t (:inherit font-lock-type-face)))
-  "Face used to highlight builtin types."
-  :group 'poke)
+  "Face used to highlight builtin types.")
 
 (defface poke-function
   '((t (:inherit font-lock-function-name-face)))
-  "Face used to highlight builtin functions."
-  :group 'poke)
+  "Face used to highlight builtin functions.")
 
 (defface poke-constant
   '((t (:inherit font-lock-constant-face)))
-  "Face used to highlight builtin constants."
-  :group 'poke)
+  "Face used to highlight builtin constants.")
 
 (defface poke-exception
   '((t (:inherit error)))
-  "Face used to highlight builtin exceptions."
-  :group 'poke)
+  "Face used to highlight builtin exceptions.")
 
 ;; from libpoke/pkl-lex.l
 (defconst poke-keywords
@@ -122,6 +120,7 @@
   "Keymap used in `poke-mode'.")
 
 (defvar poke-mode-syntax-table
+  ;; FIXME: Try and recognize <...> as parens, via `syntax-propertize'.
   (let ((st (make-syntax-table)))
     ;; symbol
     (modify-syntax-entry ?_  "_" st)
@@ -188,12 +187,58 @@
    `(,(rx symbol-start (regexp (regexp-opt poke-builtin-exceptions)) symbol-end)
      0 'poke-exception)))
 
+;;;; SMIE (indentation and navigation)
+
+(defcustom poke-indent-basic 2
+  "Basic indentation step."
+  :type 'integer)
+
+(defvar poke-smie-grammar
+  (smie-prec2->grammar
+   (smie-bnf->prec2
+    '((id)
+      (exp ("[" exps "]"))
+      (exps (exps "," exps) (exp))
+      (definition
+        (id "=" inst)
+        (id "=" id ":" inst))
+      (decl
+       ("defvar" definition)
+       ("method" definition)
+       ("deftype" definition)
+       (decl ";" decl))
+      (inst
+       (id)
+       ("struct" id)
+       ("union" id)
+       ))
+    '((assoc ";") (assoc ",")))))
+
+(defun poke--smie-forward-token ()
+  ;; FIXME:
+  ;; Don't merge ":" or ";" with some preceding punctuation such as ">".
+  (smie-default-forward-token))
+
+(defun poke--smie-backward-token ()
+  (forward-comment (- (point)))
+  (cond
+   ;; Don't merge ":" or ";" with some preceding punctuation such as ">".
+   ((memq (char-before) '(?: ?\;))
+    (forward-char -1)
+    (string (char-after)))
+   (t (smie-default-backward-token))))
+
+(defun poke-smie-rules (token kind)
+  (pcase (cons token kind)
+    (`(:elem . basic) poke-indent-basic)
+    ;; (`(:list-intro . "=") t)
+    ((and `(:before . "{") (guard (smie-rule-parent-p "struct")))
+     (smie-rule-parent 0))))
+
 ;;;###autoload (add-to-list 'auto-mode-alist '("\\.pk\\'" . poke-mode))
 ;;;###autoload
 (define-derived-mode poke-mode prog-mode "Poke"
-  "Major mode for editing Poke programs.
-
-\\{poke-mode-map}"
+  "Major mode for editing Poke programs."
 
   ;; for comment-region
   (setq-local comment-start "/*")
@@ -201,12 +246,16 @@
   (setq-local comment-end "*/")
   (setq-local comment-end-skip "[ \t]*\\*+/")
 
+  (smie-setup poke-smie-grammar #'poke-smie-rules
+              :forward-token #'poke--smie-forward-token
+              :backward-token #'poke--smie-backward-token)
+
   ;; font-lock
-  (setq font-lock-defaults
-        '(poke-font-lock-keywords
-	  nil ;; do string and comment font-lock from syntax table
-	  nil ;; case-sensitive
-	  nil)))
+  (setq-local font-lock-defaults
+              '(poke-font-lock-keywords
+	        nil ;; do string and comment font-lock from syntax table
+	        nil ;; case-sensitive
+	        nil)))
 
 (provide 'poke-mode)
 ;;; poke-mode.el ends here

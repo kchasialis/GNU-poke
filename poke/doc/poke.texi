@@ -2,7 +2,7 @@
 @comment %**start of header
 @setfilename poke.info
 @include version.texi
-@settitle The Poke Book
+@settitle GNU poke Manual
 @afourpaper
 @comment %**end of header
 
@@ -10,7 +10,7 @@
 This manual describes GNU poke (version @value{VERSION},
 @value{UPDATED}).
 
-Copyright @copyright{} 2019, 2020 Jose E. Marchesi
+Copyright @copyright{} 2019, 2020 The poke authors.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -28,7 +28,7 @@ Documentation License''.
 @end direntry
 
 @titlepage
-@title The Poke Book
+@title GNU poke Manual
 @subtitle for version @value{VERSION}, @value{UPDATED}
 @author by Jose E. Marchesi
 @page
@@ -40,7 +40,7 @@ Documentation License''.
 
 @ifnottex
 @node Top
-@top The Poke Book
+@top GNU poke Manual
 
 @insertcopying
 @end ifnottex
@@ -54,6 +54,7 @@ Using poke
 * Debugging Poke Programs::	When something goes wrong.
 
 Pickles
+* Time::			Handling time.
 * Colors::			Editing colors.
 * Audio::			Poking audio files.
 
@@ -125,6 +126,9 @@ Structuring Data
 Debugging Poke Programs
 * __LINE__ and __FILE__::	Error locations in traces.
 
+Time
+* POSIX Time::			Encoding POSIX dates.
+
 Colors
 * The Color Registry::		The @file{color} pickle.
 * RGB24 Encoding::		Encoding colors with three bytes.
@@ -153,6 +157,7 @@ Commands
 * dump::			Binary dumps.
 * copy::			Copying data around.
 * save::			Save data into a file.
+* extract::			Extract contents of values to buffers.
 
 Configuration
 * pokerc::			User's initialization file.
@@ -275,7 +280,7 @@ options can be specified, and they are loaded in the given order.
 Load the given file as a Poke program and exit.  The rest of the
 command-line is not processed by poke, and is available to the Poke
 script in the @code{argv} variable.  This is commonly used along with
-a shebang (@pxref{Shebang}) to implement Poke scripts.
+a shebang (@pxref{Scripts}) to implement Poke scripts.
 @item -c
 @itemx --command=@var{cmd}
 Execute the given command.  Any number of @samp{-c} options can be
@@ -314,8 +319,8 @@ way.  This chapter documents both possibilities.
 * The REPL::                  Using poke interactively.
 * Evaluation::		      Evaluating Poke.
 * Commands and Dot-Commands:: Two kinds of commands.
-* Scripts::		      Loading commands from files.
-* Shebang::		      Executing Poke programs in the command line.
+* Command Files::	      Loading commands from files.
+* Scripts::		      Executing Poke programs in the command line.
 @end menu
 
 @node The REPL
@@ -501,10 +506,10 @@ Note that the idea is to restrict the number of dot-commands to the
 absolutely minimum.  Most of the command-like functionality provided
 in poke shall be implemented as regular commands.
 
-@node Scripts
-@subsection Scripts
-@cindex scripts
-Script files contain poke commands.
+@node Command Files
+@subsection Command Files
+@cindex command files
+Command files contain poke commands.
 A poke command may be a dot command, a Poke statement or a Poke
 expression.
 Lines starting with @code{#} are comments will be ignored.   However a
@@ -524,17 +529,17 @@ dump :size 0x100#B :from 0x10#B
 4 == 4
 @end example
 
-A script file contains commands, not Poke code.  This means
-it gets read line by line and commands cannot occupy
-more than one line.  Hence the following is a valid script:
+A command file contains commands, not Poke code.  This means it gets
+read line by line and commands cannot occupy more than one line.
+Hence the following is a valid command file:
 
 @example
 deftype foo = struct @{int this; int that;@}
 @end example
 
 @noindent
-but this is not valid as a script file (although it is a valid Poke command)
-and will provoke an error:
+but this is not valid as a command file (although it is a valid Poke
+statement) and will provoke an error:
 
 @example
 deftype foo = struct
@@ -544,14 +549,15 @@ deftype foo = struct
 @}
 @end example
 
-Script files can be loaded at startup using the @code{-s} command
+Command files can be loaded at startup using the @code{-s} command
 line option (@pxref{Invoking poke}).
 The @file{~/.pokerc} startup file is also an example of a poke
-script (@pxref{pokerc}).
+command file (@pxref{pokerc}).
 
-@node Shebang
-@subsection Shebang
+@node Scripts
+@subsection Scripts
 @cindex shebang, @code{#!}
+@cindex scripts
 Following the example of Guile Scheme, the Poke syntax includes
 support for multi-line comments using the @code{#!} and @code{!#}
 delimiters.  This, along with the @code{-L} command line option,
@@ -1280,7 +1286,7 @@ beginning of @file{foo.o}?
 
 @example
 (poke) .set obase 16
-(poke) (byte @@ 0#B)::(byte @@ 1#B)
+(poke) (byte @@ 0#B):::(byte @@ 1#B)
 0x7f45UH
 @end example
 
@@ -1319,7 +1325,7 @@ in a x86 machine or other systems using little-endian.  Otherwise,
 just continue reading the next section :)}
 
 @example
-(poke) (byte @@ 0#B)::(byte @@ 1#B)
+(poke) (byte @@ 0#B):::(byte @@ 1#B)
 0x7f45UH
 (poke) uint<16> @@ 0#B
 0x457fUH
@@ -1445,7 +1451,7 @@ bit-concatenation operator implements:
 (poke) defvar b1 = byte @@ 0#B
 (poke) defvar b2 = byte @@ 1#B
 (poke) defvar b3 = byte @@ 2#B
-(poke) b1::b2::b3
+(poke) b1:::b2:::b3
 (uint<24>) 0x7f454c
 @end example
 
@@ -1471,9 +1477,9 @@ value of the integer composed of these three bytes in both
 interpretations:
 
 @example
-(poke) b1::b2::b3
+(poke) b1:::b2:::b3
 (uint<24>) 0x7f454c
-(poke) b3::b2::b1
+(poke) b3:::b2:::b1
 (uint<24>) 0x4c457f
 @end example
 
@@ -2837,7 +2843,7 @@ This encodes each color with a 24-bit unsigned integer. When looking
 at the hexadecimal values of @code{bg} and @code{fg} above, note that
 0xff = 255, 0x63 = 99 and 0x47 = 71.  Each byte seems to be in the
 right position in the 24-bit containing number.  Now, poking a pixel
-at some given offset should be as easy as issugin would involve just
+at some given offset should be as easy as issuing just
 one map operation, right?  Let's see, using some arbitrary offset 10#B:
 
 @example
@@ -3245,7 +3251,7 @@ It follows that if we wanted to change the color of some SBM pixel
 stored at offset @var{offset}, we would do this:
 
 @example
-(poke) defvar pixel = byte[3] @@ @var{offset}
+(poke) defvar a = byte[3] @@ @var{offset}
 (poke) a[1] = 10
 @end example
 
@@ -3280,8 +3286,8 @@ application of a map operator, so:
 
 @noindent
 When a value is mapped, you can ask for the offset where it is mapped,
-and the IO space where it is mapped, using the attributes @code{'ios}
-and @code{'offset} attributes.  Therefore:
+and the IO space where it is mapped, using the attributes
+@code{'offset} and @code{'ios} respectively.  Therefore:
 
 @example
 (poke) image_data'ios
@@ -3515,7 +3521,7 @@ Once a type is defined, the name can be used anywhere where a type
 specifier is expected.
 
 By the way, we mentioned many times how @code{byte} is a synonym for
-@code{uint<8}, @code{int} is a synonym for @code{int<32>} and so on.
+@code{uint<8>}, @code{int} is a synonym for @code{int<32>} and so on.
 These synonyms are actually result of type definitions that are in the
 poke @dfn{standard library}.  This library is loaded by poke at
 startup time.
@@ -3595,8 +3601,8 @@ providing a Poke statement to be executed.
 
 So the REPL accepts @dfn{poke commands}, some of which happen to be
 Poke expressions, definitions or statements.  But we also have used
-dot-commands like @code{.file} or @code{.info}, that are not part of
-the Poke programming language.
+dot-commands like @code{.file} or @code{.info}.  These dot-commands
+are not part of the Poke programming language.
 
 Every time we insert a line in the REPL and hit @key{enter}, poke
 recognizes the nature of the line, and then does the right thing.  If
@@ -3749,7 +3755,7 @@ can be very simple, like the @file{rgb24.pk} sketched above, or fairly
 complicated like @file{dwarf.pk}.
 
 It is common for pickles to @code{load} other pickles.  For example,
-if we were to write a SBM pickle, we would load the RGB24 pikle from
+if we were to write a SBM pickle, we would load the RGB24 pickle from
 it:
 
 @example
@@ -3814,7 +3820,7 @@ deftype SBM_Header = byte[5];
 @end example
 
 However, this would not capture the properties of the fields
-themselves, which would need to be remember by the user: which of
+themselves, which would need to be remembered by the user: which of
 these five bytes correspond to the magic number?  Is the pixels per
 line number signed or unsigned? @i{etc}.
 
@@ -3939,6 +3945,32 @@ program is read from the standard input (like in the REPL) then this
 is @code{"<stdin>"}.
 @end table
 
+@node Time
+@chapter Time
+
+Systems encode time-stamps or dates in several ways.  GNU poke
+provides support for some of them.
+
+@menu
+* POSIX Time::			The @file{time} pickle.
+@end menu
+
+@node POSIX Time
+@section POSIX Time
+
+In POSIX systems time is encoded as a certain number of seconds
+elapsed since some origin date, namely the first of January 1970.  The
+@file{time} pickle provides two types for 32-bit and 64-bit POSIX time
+encodings:
+
+@example
+POSIX_Time32
+POSIX_Time64
+@end example
+
+A function @code{ptime} is also provided, that prints a human-readable
+representation of a POSIX date, given a number of seconds.
+
 @node Colors
 @chapter Colors
 
@@ -3955,7 +3987,7 @@ with these colors.
 @section The Color Registry
 
 The @file{color} pickle provides a registry of @dfn{standard colors},
-organized as an space of integers.  Each integer identifies a standard
+organized as a space of integers.  Each integer identifies a standard
 color, which are accessible as variables named @code{color_*} after
 the pickle is loaded.  Example:
 
@@ -4029,7 +4061,7 @@ deftype RGB24_Color = RGB24_Color_Beam[3];
 
 @noindent
 The indexes @code{RGB24_RED}, @code{RGB24_GREEN} and @code{RGB24_BLUE}
-can be used to access to an specific beam of a given color:
+can be used to access to a specific beam of a given color:
 
 @example
 (poke) rgb24_color[color_tomato][RGB24_GREEN]
@@ -4860,6 +4892,7 @@ If @var{status} is omitted, then the exit status zero will be returned.
 * dump::			Binary dumps.
 * copy::			Copying data around.
 * save::			Save data into a file.
+* extract::			Extract contents of values to memory IOS.
 @end menu
 
 @node dump
@@ -4876,7 +4909,7 @@ defun dump = (off64 from = pk_dump_offset,
               off64 group_by = pk_dump_group_by,
               int cluster_by = pk_dump_cluster_by,
               int ruler = pk_dump_ruler,
-              int ascii = pk_dump_ascii) void:
+              int ascii = pk_dump_ascii) void
 @end example
 
 @noindent
@@ -5011,8 +5044,8 @@ This command has the following prototype:
 defun copy = (int from_ios = get_ios,
               int to_ios = get_ios,
               off64 from = 0#B,
-              off64 to = 0#B,
-              off64 size = 0#B) void:
+              off64 to = from,
+              off64 size = 0#B) void
 @end example
 
 @noindent
@@ -5024,8 +5057,9 @@ copy.  By default, this region is taken from the current IO space, but
 this can be overwritten using the optional @code{from_ios} argument.
 
 The argument @code{to} tells @command{copy} where to copy the stuff.
-Again, this offset is applied to the current IO space by default, but
-this can be overwritten using the @code{to_ios} argument.
+It defaults to @code{from}.  Again, this offset is applied to the
+current IO space by default, but this can be overwritten using the
+@code{to_ios} argument.
 
 Note that it is allowed for the source and destination ranges to
 overlap.
@@ -5044,7 +5078,7 @@ defun save = (int ios = get_ios,
               string file = "",
               off64 from = 0#B,
               off64 size = 0#B,
-              int append = 0) void:
+              int append = 0) void
 @end example
 
 @noindent
@@ -5073,6 +5107,24 @@ By default @command{save} will truncate the output file, if it exists,
 before starting writing.  If the argument @command{append} is
 set as true, however, it will append to the existing contents of the
 file.  In this case, the file should exist.
+
+@node extract
+@section @command{extract}
+@cindex @command{extract}
+
+Use the @command{extract} command in order to create a temporary
+memory IO space with the contents of a mapped value.
+
+This command the has the following prototype:
+
+@example
+defun extract = (any val, string to) void
+@end example
+
+@noindent
+Where @var{val} is a mapped value, and @var{to} is the name of the
+memory IOS to create (or use).  The contents of @var{val} are copied
+to the beginning of the memory IOS @code{*@var{to}*}.
 
 @node Configuration
 @chapter Configuration
@@ -5681,7 +5733,7 @@ since a block does not necessarily occupy an integral number of bytes.
 @end quotation
 
 At this point I understood that my little language on the works would
-be never capable to describe the DEFLATE structures naturally: C-like
+never be capable to describe the DEFLATE structures naturally: C-like
 bit-fields, masking and shifting, all based on byte-oriented
 containers and boundaries, would never provide the slickness I wanted
 for my editor.  I mean, just use C and get done with it.
@@ -6615,6 +6667,7 @@ They contain heterogeneous collections of values.
 * Field Initializers::		Initial values for fields.
 * Field Labels::		Explicit offsets for fields.
 * Pinned Structs::		Fix the offset of fields.
+* Integral Structs::		Composite data stored in integers.
 * Unions::			Dealing with conditional data.
 * Optional Fields::		Fields that may or may not exist.
 * Casting Structs::		Converting structs from one type to another.
@@ -7036,10 +7089,175 @@ deftype Ctf_Stype_V1 =
   @};
 @end example
 
+Note that integral structs cannot be pinned.  @xref{Integral Structs}.
+
+@node Integral Structs
+@subsection Integral Structs
+@cindex integral structs
+
+When we structure data using Poke structs, arrays and the like, we
+often use the same structure than a C programmer would use.  For
+example, to model ELF RELA structures, which are defined in C like:
+
+@example
+typedef struct
+@{
+  Elf64_Addr   r_offset;  /* Address */
+  Elf64_Xword  r_info;    /* Relocation type and symbol index */
+  Elf64_Sxword r_addend;  /* Addend */
+@} Elf64_Rela;
+@end example
+
+@noindent
+we could use something like this in Poke:
+
+@example
+deftype Elf64_Rela =
+  struct
+  @{
+    Elf64_Addr r_offset;
+    Elf64_Xword r_info;
+    Elf64_Sxword r_addend;
+  @};
+@end example
+
+Here the Poke struct type is pretty equivalent to the C incarnation.
+In both cases the fields are always stored in the given order,
+regardless of endianness or any other consideration.
+
+However, there are situations where stored integral values are to be
+interpreted as composite data.  This is the case of the @code{r_info}
+field above, which is a 64-bit unsigned integer (@code{Elf64_Xword})
+which is itself composed by several fields, depicted here:
+
+@example
+ 63                                          0
++----------------------+----------------------+
+|       r_sym          |      r_type          |
++----------------------+----------------------+
+MSB                                         LSB
+@end example
+
+In order to support this kind of composition of integers, C
+programmers usually resort to either bit masking (most often) or to
+the often obscure and undefined behaviour-prone C bit fields.  In the
+case of ELF, the GNU implementations define a few macros to access
+these ``sub-fields'':
+
+@example
+#define ELF64_R_SYM(i)         ((i) >> 32)
+#define ELF64_R_TYPE(i)        ((i) & 0xffffffff)
+#define ELF64_R_INFO(sym,type) ((((Elf64_Xword) (sym)) << 32) + (type))
+@end example
+
+Where @code{ELF64_R_SYM} and @code{ELF64_R_TYPE} are used to extract
+the fields from an @code{r_info}, and @code{ELF64_R_INFO} is used to
+compose it.  This is typical of C data structures.
+
+We could of course mimic the C implementation in Poke:
+
+@example
+defun Elf64_R_Sym = (Elf64_Xword i) uint<32>:
+   @{ return i .>> 32; @}
+defun Elf64_R_Type = (Elf64_Xword i) uint<32>:
+   @{ return i & 0xffff_ffff; @}
+defun Elf64_R_Info = (uint<32> sym, uint<32> type) Elf64_Xword:
+   @{ return sym as Elf64_Xword <<. 32 + type; @}
+@end example
+
+However, this approach has a huge disadvantage: since we are not able
+to encode the logic of these ``sub-fields'' in proper Poke fields,
+they become second class citizens, with all that implies: no
+constraints on their own, can't be auto-completed, can't be assigned
+individually, @i{etc}.
+
+But we can use the so-called @dfn{integral structs}!  These are
+structs that are defined exactly like your garden variety Poke
+structs, with a small addition:
+
+@example
+deftype Elf64_RelInfo =
+  struct uint<64>
+  @{
+    uint<32> r_sym;
+    uint<32> r_type;
+  @};
+@end example
+
+Note the @code{uint<64>} addition after @code{struct}.  This can be
+any integer type (signed or unsigned).  The fields of an integral
+struct should be integral themselves (this includes both integers and
+offsets) and the total size occupied by the fields should be the same
+size than the one declared in the struct's integer type.  This is
+checked and enforced by the compiler.
+
+The Elf64 RELA in Poke can then be encoded like:
+
+@example
+deftype Elf64_Rela =
+  struct
+  @{
+    Elf64_Addr r_offset;
+    struct Elf64_Xword
+    @{
+      uint<32> r_sym;
+      uint<32> r_type;
+    @} r_info;
+    Elf64_Sxword r_addend;
+  @};
+@end example
+
+When an integral struct is mapped from some IO space, the total number
+of bytes occupied by the struct is read as a single integer value, and
+then the values of the fields are extracted from it.  A similar
+process is using when writing.  That is what makes it different with
+respect a normal Poke struct.
+
+It is possible to obtain the integral value corresponding to an
+integral struct using a cast to an integral type:
+
+@example
+(poke) deftype Foo = struct int<32> @{ int<16> hi; uint<16> lo; @};
+(poke) Foo @{ hi = 1 @} as int<32>
+0x10000
+@end example
+
+An useful idiom, that doesn't require to specify an explicit integral
+type, is this:
+
+@example
+(poke) deftype Foo = struct int<32> @{ int<16> hi; uint<16> lo; @};
+(poke) defvar x = Foo @ 0#B;
+(poke) +x
+0xfe00aa
+@end example
+
+These casts allow to ``integrate'' struct values explicitly, but the
+compiler also implicitly promotes integral struct values to integers
+in all contexts where an integer is expected:
+
+@itemize
+@item Operator to an addition, subtraction, multiplication, division,
+ceil division, bit left shift, bit right shift, bit-wise not, bit-wise
+and, bit-wise or, bit-wise xor, logical and, logical or, logical not,
+positive, negative, bit-concatenation, condition in conditional expression.
+@item Argument to a function whose formal expects an integer.
+@item Value returned from a function that returns an integer.
+@item Condition in loop statement.
+@item Constraint expression in a struct field.
+@item Expression in a conditional struct field.
+@end itemize
+
+Note that the above list doesn't include relational operators, since
+these operators work with struct values.
+
 @node Unions
 @subsection Unions
 @cindex unions
 XXX
+
+For performance purposes, it is good to always place the most common
+alternatives first in unions.
 
 @node Optional Fields
 @subsection Optional Fields
@@ -7107,6 +7325,56 @@ Foo @{i=0,j=2@}
 The semantics of the cast are exactly the same than constructing a
 struct of the target type using the struct provided as an expression
 to the cast.
+
+This means that some fields in the original struct may be ``lost''
+when the struct is converted to the new type.  Consider the following
+two definitions:
+
+@example
+deftype Foo = struct @{ int i; long j; @};
+deftype Bar = struct @{ int i; @}
+@end example
+
+Let's cast some values and see what we obtain:
+
+@example
+(poke) Bar @{@}
+Bar @{
+  i=0x0
+@}
+(poke) Bar @{@} as Foo
+Foo @{
+  i=0x0,
+  j=0x0L
+@}
+(poke) Foo @{@} as Bar
+Bar @{
+  i=0x0
+@}
+@end example
+
+It is possible to cast an integral struct into an integral type.  The
+value to cast is extracted from the struct fields, and then it is
+converted to the target type.
+
+Given the following integral struct type:
+
+@example
+deftype Foo =
+  struct int<64>
+  @{
+    int<32> f1;
+    uint<32> f2;
+  @};
+@end example
+
+@noindent
+We can operate:
+
+@example
+(poke) Foo @{ f1 = 1, f2 = 1 @} as uint<64> + 2
+0x100000003UL
+@end example
 
 @node Declarations in Structs
 @subsection Declarations in Structs
@@ -7537,8 +7805,8 @@ bar ()
 bar
 @end example
 
-There is an alternate syntax that can only be used in an
-expression-as-statement context.  This alternate syntax is:
+There is an alternate syntax that can be used in both expressions and
+expression-statements.  This alternate syntax is:
 
 @example
 @var{function_name} :@var{arg1} @var{val1}@dots{}
@@ -7560,6 +7828,13 @@ two calls are equivalent:
 @example
 dump :from 12#B :size 16#B
 dump :size 16#B :from 12#B
+@end example
+
+If this alternate syntax for function calls is to be used in an
+expression, it is necessary to surround it with parenthesis:
+
+@example
+2 + (gcd :a 1024 :b 8)
 @end example
 
 @node Function Types
@@ -7845,6 +8120,7 @@ memory of some process.
 @menu
 * open::			Creating IO spaces.
 * close::			Destroying IO spaces.
+* flush::			Flushing IO spaces.
 * get_ios::			Getting the current IO space.
 * set_ios::			Setting the current IO space.
 * iosize::			Getting the size of an IO space.
@@ -7858,7 +8134,7 @@ The @code{open} builtin allows you to create new IO spaces, by opening an
 IO device.  It has the following prototype:
 
 @example
-defun open = (string @var{handler}, uint<64> flags = 0) int<32>: @{ @dots{} @}
+defun open = (string @var{handler}, uint<64> flags = 0) int<32>
 @end example
 
 @noindent
@@ -7925,7 +8201,7 @@ The @code{close} builtin allows you to destroy IO spaces, closing the
 underlying IO device.  The prototype is:
 
 @example
-defun close = (int<32> @var{ios}) void: @{ @dots{} @}
+defun close = (int<32> @var{ios}) void
 @end example
 
 @noindent
@@ -7934,6 +8210,28 @@ is written to the underlying IO device.
 
 If the IO space specified to @code{close} doesn't exist then an
 @code{E_no_ios} exception is raised.
+
+@node flush
+@subsubsection @code{flush}
+@cindex @code{flush}
+
+The builtin @code{flush} performs a ``flushing'' operation on a given
+IO space.  The prototype is:
+
+@example
+defun flush = (int<32> @var{ios}, offset<uint<64>,1> @var{offset}) void
+@end example
+
+Where @var{ios} is the IOS identifier where to perform the flush.  The
+semantics associated with the ``flushing'' operation depends on the
+kind of IO space:
+
+@itemize @bullet
+@item Read-only stream IOS will discard already mapped input up to
+@var{offset}.  Any further attempt of mapping data at that area will
+cause an @var{E_eof} exception (for Early Of File ;)).
+@item Flushing is a no-operation for other kind of IO spaces.
+@end itemize
 
 @node get_ios
 @subsubsection @code{get_ios}
@@ -7945,7 +8243,7 @@ dot-command).  The builtin @code{get_ios} returns this space.  It has
 the following prototype:
 
 @example
-defun get_ios = int<32>: @{ @dots{} @}
+defun get_ios = int<32>
 @end example
 
 If there is no IO space, @code{get_ios} will raise the @code{E_no_ios}
@@ -7959,7 +8257,7 @@ The @code{set_ios} builtin allows you to set a specific IO space as the
 new current IO space.  It has the following prototype:
 
 @example
-defun set_ios = (int<32> @var{ios}) int<32>: @{ @dots{} @}
+defun set_ios = (int<32> @var{ios}) int<32>
 @end example
 
 @noindent
@@ -7978,7 +8276,7 @@ The @code{iosize} builtin returns the size of a given IO space, as an
 offset.  It has the following prototype:
 
 @example
-defun iosize = (int<32> ios) offset<uint<64>,1>: @{ @dots{} @}
+defun iosize = (int<32> ios) offset<uint<64>,1>
 @end example
 
 If the IO space specified to @code{iosize} doesn't exist,
@@ -8065,7 +8363,7 @@ library.  The prototype is:
 
 @example
 defun qsort = (any[] array, Comparator cmp_f,
-               long left = 0, long right = array'length - 1) void:
+               long left = 0, long right = array'length - 1) void
 @end example
 
 @noindent
@@ -8812,6 +9110,7 @@ system.  These are described in the subsections below.
 
 @menu
 * getenv::		Environment variables.
+* rand::		Pseudo-random numbers.
 @end menu
 
 @node getenv
@@ -8827,6 +9126,21 @@ defun getenv (string name) string:
 Given the name of an environment variable, it returns a string with
 its value.  If the variable is not defined in the environment, then
 the @code{E_inval} exception is raised.
+
+@node rand
+@subsection rand
+
+The @code{rand} built-in function has the form:
+
+@example
+defun rand = (uint<32> seed = 0) int<32>:
+@end example
+
+@noindent
+It returns a pseudo-random number in the range of the unsigned 32-bit
+integers.  If a @var{seed} different to zero is provided, it is used
+to initialize a new sequence of pseudo-random numbers (which includes
+the one returned.)
 
 @node The Standard Library
 @chapter The Standard Library
@@ -9076,7 +9390,7 @@ The standard function @code{qsort} has the following prototype:
 @example
 defun qsort = (any[] @var{array}, Comparator @var{cmp_f},
                long @var{left} = 0,
-               long @var{right} = array'length - 1) void: @{ @dots{} @}
+               long @var{right} = array'length - 1) void
 @end example
 
 @noindent
@@ -9090,7 +9404,7 @@ The comparator function @var{cmp_f} should have the following
 prototype:
 
 @example
-deftype Comparator = (any,any):int;
+deftype Comparator = (any,any):int
 @end example
 
 @node CRC Functions

@@ -338,28 +338,26 @@
         over                    ; ARR1 ARR2 ARR1
         over                    ; ARR1 ARR2 ARR1 ARR2
         typof                   ; ... ARR1 ARR2 ATYPE
-        tyagett                 ; ... ARR1 ARR2 ATYPE ETYPE
-        nip                     ; ... ARR1 ARR2 ETYPE
-        rot                     ; ... ARR2 ETYPE ARR1
-        regvar $arr1            ; ... ARR2 ETYPE
-        swap                    ; ... ETYPE ARR2
-        regvar $arr2            ; ... ETYPE
-        push null               ; ... ETYPE null
-        swap                    ; ... null ETYPE
+        rot                     ; ... ARR2 ATYPE ARR1
+        regvar $arr1            ; ... ARR2 ATYPE
+        swap                    ; ... ATYPE ARR2
+        regvar $arr2            ; ... ATYPE
+        push null               ; ... ATYPE null
+        swap                    ; ... null ATYPE
         ;; Get the elements of the first array.
-        push ulong<64>0         ; ... null ETYPE 0UL
-        dup                     ; ... null ETYPE 0UL 0UL
-        pushvar $arr1           ; ... null ETYPE 0UL 0UL ARR1
-        .e aelems               ; ... null ETYPE ARR1ELEMS...
+        push ulong<64>0         ; ... null ATYPE 0UL
+        dup                     ; ... null ATYPE 0UL 0UL
+        pushvar $arr1           ; ... null ATYPE 0UL 0UL ARR1
+        .e aelems               ; ... null ATYPE ARR1ELEMS...
         ;; Get the elements of the second array.
-        pushvar $arr1           ; ... null ETYPE ARR1ELEMS ARR1
-        siz                     ; ... null ETYPE ARR1ELEMS ARR1 SIZ1
-        swap                    ; ... null ETYPE ARR1ELEMS SIZ1 ARR1
+        pushvar $arr1           ; ... null ATYPE ARR1ELEMS ARR1
+        siz                     ; ... null ATYPE ARR1ELEMS ARR1 SIZ1
+        swap                    ; ... null ATYPE ARR1ELEMS SIZ1 ARR1
         sel
-        nip                     ; ... null ETYPE ARR1ELEMS SIZ1 SEL1
-        swap                    ; ... null ETYPE ARR1ELEMS SEL1 SIZ1
-        pushvar $arr2           ; ... null ETYPE ARR1ELEMS SIZ1 ARR2
-        .e aelems               ; ... null ETYPE ARR1ELEMS ARR2ELEMS
+        nip                     ; ... null ATYPE ARR1ELEMS SIZ1 SEL1
+        swap                    ; ... null ATYPE ARR1ELEMS SEL1 SIZ1
+        pushvar $arr2           ; ... null ATYPE ARR1ELEMS SIZ1 ARR2
+        .e aelems               ; ... null ATYPE ARR1ELEMS ARR2ELEMS
         ;; Set nelem and ninitializer.
         pushvar $arr1           ; ... ARR1
         pushvar $arr2           ; ... ARR1 ARR2
@@ -369,8 +367,8 @@
         sel
         nip                     ; ... SEL2 SEL1
         addlu
-        nip2                    ; ... null ETYPE ARR1ELEMS ARR2ELEMS (SEL1 + SEL2)
-        dup                     ; ... null ETYPE ARR1ELEMS ARR2ELEMS NELEMS NINIT
+        nip2                    ; ... null ATYPE ARR1ELEMS ARR2ELEMS (SEL1 + SEL2)
+        dup                     ; ... null ATYPE ARR1ELEMS ARR2ELEMS NELEMS NINIT
         ;; Create the resulting array.
         mka                     ; ARR1 ARR2 ARR
         popf 1

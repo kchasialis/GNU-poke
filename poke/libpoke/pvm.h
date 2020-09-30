@@ -274,6 +274,13 @@ pvm_val pvm_make_struct (pvm_val nfields, pvm_val nmethods, pvm_val type)
 pvm_val pvm_make_cls (pvm_program program)
   __attribute__ ((visibility ("hidden")));
 
+/* Compare two PVM values.
+
+   Returns 1 if they match, 0 otherwise.  */
+
+int pvm_val_equal_p (pvm_val val1, pvm_val val2)
+  __attribute__ ((visibility ("hidden")));
+
 /*** PVM values.  ***/
 
 void pvm_print_string (pvm_val string)
@@ -293,6 +300,7 @@ pvm_val pvm_make_integral_type (pvm_val size, pvm_val signed_p)
 
 pvm_val pvm_make_string_type (void)
   __attribute__ ((visibility ("hidden")));
+
 pvm_val pvm_make_any_type (void)
   __attribute__ ((visibility ("hidden")));
 

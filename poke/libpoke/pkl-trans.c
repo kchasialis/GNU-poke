@@ -135,16 +135,6 @@ PKL_PHASE_BEGIN_HANDLER (pkl_trans_pr_program)
 }
 PKL_PHASE_END_HANDLER
 
-/* The following handler is used to set the compiled flag in type AST
-   nodes.  This is to avoid re-processing them.  */
-
-PKL_PHASE_BEGIN_HANDLER (pkl_trans_pr_type)
-{
-  if (PKL_AST_TYPE_COMPILED (PKL_PASS_NODE))
-    PKL_PASS_BREAK;
-}
-PKL_PHASE_END_HANDLER
-
 
 
 /* Compute and set the number of elements in a STRUCT node.  */
@@ -1032,7 +1022,6 @@ struct pkl_phase pkl_phase_trans1
    PKL_PHASE_PS_HANDLER (PKL_AST_COMP_STMT, pkl_trans1_ps_comp_stmt),
    PKL_PHASE_PS_HANDLER (PKL_AST_LOOP_STMT_ITERATOR, pkl_trans1_ps_loop_stmt_iterator),
    PKL_PHASE_PS_HANDLER (PKL_AST_LOOP_STMT, pkl_trans1_ps_loop_stmt),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_trans_pr_type),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_ATTR, pkl_trans1_ps_op_attr),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_STRUCT, pkl_trans1_ps_type_struct),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_FUNCTION, pkl_trans1_ps_type_function),
@@ -1193,7 +1182,7 @@ PKL_PHASE_END_HANDLER
    its size in bits.  Emit a diagnostic if the type is not
    complete.  */
 
-PKL_PHASE_BEGIN_HANDLER (pkl_trans2_ps_offset_type)
+PKL_PHASE_BEGIN_HANDLER (pkl_trans2_ps_type_offset)
 {
   pkl_ast_node type = PKL_PASS_NODE;
   pkl_ast_node unit_type = PKL_AST_TYPE_O_UNIT (type);
@@ -1238,8 +1227,7 @@ struct pkl_phase pkl_phase_trans2
    PKL_PHASE_PS_HANDLER (PKL_AST_STRUCT, pkl_trans2_ps_struct),
    PKL_PHASE_PS_HANDLER (PKL_AST_STRUCT_REF, pkl_trans2_ps_struct_ref),
    PKL_PHASE_PS_HANDLER (PKL_AST_CAST, pkl_trans2_ps_cast),
-   PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_OFFSET, pkl_trans2_ps_offset_type),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_trans_pr_type),
+   PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_OFFSET, pkl_trans2_ps_type_offset),
   };
 
 
@@ -1298,7 +1286,6 @@ struct pkl_phase pkl_phase_trans3
   __attribute__ ((visibility ("hidden"))) =
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_trans_pr_program),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_trans_pr_type),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_SIZEOF, pkl_trans3_ps_op_sizeof),
   };
 
@@ -1329,5 +1316,4 @@ struct pkl_phase pkl_phase_trans4
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_trans_pr_program),
    PKL_PHASE_PS_HANDLER (PKL_AST_ARRAY, pkl_trans4_ps_array),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_trans_pr_type),
   };

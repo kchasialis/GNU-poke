@@ -37,6 +37,8 @@ AC_DEFINE([PACKAGE_BUGZILLA],["https://sourceware.org/bugzilla/describecomponent
 
 AC_PROG_CC
 gl_EARLY
+libpoke_EARLY
+gui_EARLY
 
 LT_INIT
 AC_PROG_CC_C99
@@ -56,6 +58,11 @@ AC_CANONICAL_HOST
 canonical=$host
 
 gl_INIT
+libpoke_INIT
+gui_INIT
+
+# Try to find a libtextstyle with hyperlinks support.
+gl_LIBTEXTSTYLE_OPTIONAL([0.20.5])
 
 # GNU help2man creates man pages from --help output; in many cases, this
 # is sufficient, and obviates the need to maintain man pages separately.
@@ -78,7 +85,7 @@ AX_CHECK_AWK_GENSUB([], AC_MSG_ERROR([$AWK does not support gensub.]))
 dnl The Boehm-Weiser garbage collector
 
 PKG_PROG_PKG_CONFIG
-PKG_CHECK_MODULES(BDW_GC,[bdw-gc])
+PKG_CHECK_MODULES(BDW_GC,[bdw-gc],[have_gc=yes],[have_gc=no])
 
 dnl The JSON-C library for the machine-interface
 
@@ -166,7 +173,9 @@ AC_CONFIG_FILES(Makefile
                 man/Makefile
                 po/Makefile.in
                 etc/Makefile
-                testsuite/Makefile)
+                testsuite/Makefile
+                testsuite/poke.libpoke/Makefile
+                testsuite/poke.mi-json/Makefile)
 AC_CONFIG_FILES([run],
                 [chmod +x,-w run])
 AC_OUTPUT
@@ -199,12 +208,12 @@ fi
 
 dnl Report errors
 
-if test "x$gl_cv_lib_readline" = "xno"; then
-   AC_MSG_ERROR([can't find an usable libreadline.  Please install one.])
+if test "x$have_gc" = "xno"; then
+   AC_MSG_ERROR([can't find the Boehm GC library.  Please install it.])
 fi
 
-if test "x$jsonc_enabled" = "xno"; then
-  AC_MSG_WARN([Could not find json-c library. Install libjson-c to use it.])
+if test "x$gl_cv_lib_readline" = "xno"; then
+   AC_MSG_ERROR([can't find an usable libreadline.  Please install one.])
 fi
 
 dnl End of configure.ac

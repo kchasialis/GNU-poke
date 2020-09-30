@@ -168,7 +168,7 @@ pk_cmd_map_show (int argc, struct pk_cmd_arg argv[], uint64_t uflags)
       {
         pk_print_val (poke_compiler,
                       PK_MAP_ENTRY_OFFSET (entry));
-        pk_printf ("\t\t%s::%s\n",
+        pk_printf ("\t\t$%s::%s\n",
                    mapname,
                    PK_MAP_ENTRY_NAME (entry));
       }

@@ -43,11 +43,17 @@ promote_integral (pkl_ast ast,
 {
   pkl_ast_node type = PKL_AST_TYPE (*a);
 
+  /* Support promoting integral structs.  */
+  if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (type))
+    type = PKL_AST_TYPE_S_ITYPE (type);
+
   *restart = 0;
   if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_INTEGRAL)
     {
       if (PKL_AST_TYPE_I_SIZE (type) != size
-          || PKL_AST_TYPE_I_SIGNED (type) != sign)
+          || PKL_AST_TYPE_I_SIGNED_P (type) != sign
+          || PKL_AST_TYPE_CODE (PKL_AST_TYPE (*a)) == PKL_TYPE_STRUCT)
         {
           pkl_ast_node desired_type
             = pkl_ast_make_integral_type (ast, size, sign);
@@ -87,7 +93,7 @@ promote_offset (pkl_ast ast,
       pkl_ast_node a_type_unit = PKL_AST_TYPE_O_UNIT (a_type);
 
       size_t a_type_base_type_size = PKL_AST_TYPE_I_SIZE (a_type_base_type);
-      int a_type_base_type_sign = PKL_AST_TYPE_I_SIGNED (a_type_base_type);
+      int a_type_base_type_sign = PKL_AST_TYPE_I_SIGNED_P (a_type_base_type);
 
       int different_units = 1;
 
@@ -185,16 +191,6 @@ promote_array (pkl_ast ast,
   return 0;
 }
 
-/* The following handler is used in the promo phase to avoid
-   re-promoting already processed AST type nodes.  */
-
-PKL_PHASE_BEGIN_HANDLER (pkl_promo_pr_type)
-{
-  if (PKL_AST_TYPE_COMPILED (PKL_PASS_NODE))
-    PKL_PASS_BREAK;
-}
-PKL_PHASE_END_HANDLER
-
 /* Division is defined on the following configurations of operands and
    result types:
 
@@ -213,11 +209,20 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_div)
   pkl_ast_node exp = PKL_PASS_NODE;
   pkl_ast_node exp_type = PKL_AST_TYPE (exp);
   size_t size = PKL_AST_TYPE_I_SIZE (exp_type);
-  int sign = PKL_AST_TYPE_I_SIGNED (exp_type);
+  int signed_p = PKL_AST_TYPE_I_SIGNED_P (exp_type);
   pkl_ast_node op1 = PKL_AST_EXP_OPERAND (exp, 0);
   pkl_ast_node op1_type = PKL_AST_TYPE (op1);
   pkl_ast_node op2 = PKL_AST_EXP_OPERAND (exp, 1);
   pkl_ast_node op2_type = PKL_AST_TYPE (op2);
+
+  /* Support promoting integral structs.  */
+  if (PKL_AST_TYPE_CODE (op1_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op1_type))
+    op1_type = PKL_AST_TYPE_S_ITYPE (op1_type);
+
+  if (PKL_AST_TYPE_CODE (op2_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op2_type))
+    op2_type = PKL_AST_TYPE_S_ITYPE (op2_type);
 
   /* Note we discriminate on the first operand type in order to
      distinguish between configurations.  */
@@ -227,11 +232,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_div)
       {
         int restart1, restart2;
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 0), &restart1))
           goto error;
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
           goto error;
 
@@ -247,8 +252,8 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_div)
 
         size_t size = MAX (PKL_AST_TYPE_I_SIZE (op1_base_type),
                            PKL_AST_TYPE_I_SIZE (op2_base_type));
-        int sign = (PKL_AST_TYPE_I_SIGNED (op1_base_type)
-                    && PKL_AST_TYPE_I_SIGNED (op2_base_type));
+        int signed_p = (PKL_AST_TYPE_I_SIGNED_P (op1_base_type)
+                        && PKL_AST_TYPE_I_SIGNED_P (op2_base_type));
 
         pkl_ast_node unit_bit = pkl_ast_make_integer (PKL_PASS_AST, 1);
 
@@ -256,12 +261,12 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_div)
         PKL_AST_LOC (unit_bit) = PKL_AST_LOC (exp);
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit_bit,
+                             size, signed_p, unit_bit,
                              &PKL_AST_EXP_OPERAND (exp, 0), &restart1))
           goto error;
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit_bit,
+                             size, signed_p, unit_bit,
                              &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
           goto error;
 
@@ -317,13 +322,13 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_binary_intoffstrarr)
         int restart1, restart2;
 
         size_t size = PKL_AST_TYPE_I_SIZE (type);
-        int sign = PKL_AST_TYPE_I_SIGNED (type);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 0), &restart1))
           goto error;
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
           goto error;
 
@@ -338,15 +343,15 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_binary_intoffstrarr)
         pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (type);
 
         size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-        int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit,
+                             size, signed_p, unit,
                              &PKL_AST_EXP_OPERAND (exp, 0), &restart1))
           goto error;
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit,
+                             size, signed_p, unit,
                              &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
           goto error;
 
@@ -370,6 +375,52 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_binary_intoffstrarr)
            "couldn't promote operands of expression #%" PRIu64,
            PKL_AST_UID (exp));
   PKL_PASS_ERROR;
+}
+PKL_PHASE_END_HANDLER
+
+/* Bit-concatenation is defined on the following configurations of
+   operand and result types:
+
+   INTEGRAL x INTEGRAL -> INTEGRAL
+
+   Since the operands can be of any integral type, this handler
+   focuses on promoting integral struct operands to their itype.  */
+
+PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_bconc)
+{
+  pkl_ast_node exp = PKL_PASS_NODE;
+  int restart = 0;
+  int i;
+
+  for (i = 0; i < 2; ++i)
+    {
+      pkl_ast_node op = PKL_AST_EXP_OPERAND (exp, i);
+      pkl_ast_node op_type = PKL_AST_TYPE (op);
+
+      if (PKL_AST_TYPE_CODE (op_type) == PKL_TYPE_STRUCT)
+        {
+          pkl_ast_node itype = PKL_AST_TYPE_S_ITYPE (op_type);
+
+          /* Guaranteed as per typify.  */
+          assert (itype);
+
+          size_t size = PKL_AST_TYPE_I_SIZE (itype);
+          int signed_p = PKL_AST_TYPE_I_SIGNED_P (itype);
+
+          if (!promote_integral (PKL_PASS_AST,
+                                 size, signed_p,
+                                 &PKL_AST_EXP_OPERAND (exp, i),
+                                 &restart))
+            {
+              PKL_ICE (PKL_AST_LOC (exp),
+                       "couldn't promote operands of expression #%" PRIu64,
+                       PKL_AST_UID (exp));
+              PKL_PASS_ERROR;
+            }
+
+          PKL_PASS_RESTART = PKL_PASS_RESTART || restart;
+        }
+    }
 }
 PKL_PHASE_END_HANDLER
 
@@ -406,20 +457,25 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_mul)
       pkl_ast_node op = PKL_AST_EXP_OPERAND (exp, i);
       pkl_ast_node op_type = PKL_AST_TYPE (op);
 
+      /* Handle integral struct operand.  */
+      if (PKL_AST_TYPE_CODE (op_type) == PKL_TYPE_STRUCT
+          && PKL_AST_TYPE_S_ITYPE (op_type))
+        op_type = PKL_AST_TYPE_S_ITYPE (op_type);
+
       if (PKL_AST_TYPE_CODE (op_type) == PKL_TYPE_INTEGRAL)
         {
           size_t size;
-          int sign;
+          int signed_p;
 
           if (exp_type_code == PKL_TYPE_INTEGRAL)
             {
               size = PKL_AST_TYPE_I_SIZE (exp_type);
-              sign = PKL_AST_TYPE_I_SIGNED  (exp_type);
+              signed_p = PKL_AST_TYPE_I_SIGNED_P  (exp_type);
             }
           else if (exp_type_code == PKL_TYPE_STRING)
             {
               size = 64;
-              sign = 0;
+              signed_p = 0;
             }
           else
             {
@@ -427,10 +483,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_mul)
                 = PKL_AST_TYPE_O_BASE_TYPE (exp_type);
 
               size = PKL_AST_TYPE_I_SIZE (exp_base_type);
-              sign = PKL_AST_TYPE_I_SIGNED (exp_base_type);
+              signed_p = PKL_AST_TYPE_I_SIGNED_P (exp_base_type);
             }
 
-          if (!promote_integral (PKL_PASS_AST, size, sign,
+          if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                  &PKL_AST_EXP_OPERAND (exp, i), &restart))
             goto error;
 
@@ -442,10 +498,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_mul)
           pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (exp_type);
 
           size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-          int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+          int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
           if (!promote_offset (PKL_PASS_AST,
-                               size, sign, unit,
+                               size, signed_p, unit,
                                &PKL_AST_EXP_OPERAND (exp, i), &restart))
             goto error;
 
@@ -497,6 +553,14 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_rela)
   if (PKL_AST_TYPE_CODE (op1_type) != PKL_AST_TYPE_CODE (op2_type))
     goto error;
 
+  /* Handle integral struct operands.  */
+  if (PKL_AST_TYPE_CODE (op1_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op1_type))
+    op1_type = PKL_AST_TYPE_S_ITYPE (op1_type);
+  if (PKL_AST_TYPE_CODE (op2_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op1_type))
+    op2_type = PKL_AST_TYPE_S_ITYPE (op2_type);
+
   switch (PKL_AST_TYPE_CODE (op1_type))
     {
     case PKL_TYPE_INTEGRAL:
@@ -505,15 +569,15 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_rela)
 
         size_t size = MAX (PKL_AST_TYPE_I_SIZE (op1_type),
                            PKL_AST_TYPE_I_SIZE (op2_type));
-        int sign = (PKL_AST_TYPE_I_SIGNED (op1_type)
-                    && PKL_AST_TYPE_I_SIGNED (op2_type));
+        int signed_p = (PKL_AST_TYPE_I_SIGNED_P (op1_type)
+                        && PKL_AST_TYPE_I_SIGNED_P (op2_type));
 
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 0), &restart1))
           goto error;
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
           goto error;
 
@@ -529,20 +593,20 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_rela)
 
         size_t size = MAX (PKL_AST_TYPE_I_SIZE (op1_base_type),
                            PKL_AST_TYPE_I_SIZE (op2_base_type));
-        int sign = (PKL_AST_TYPE_I_SIGNED (op1_base_type)
-                    && PKL_AST_TYPE_I_SIGNED (op2_base_type));
+        int signed_p = (PKL_AST_TYPE_I_SIGNED_P (op1_base_type)
+                        && PKL_AST_TYPE_I_SIGNED_P (op2_base_type));
 
         pkl_ast_node unit_bit = pkl_ast_make_integer (PKL_PASS_AST, 1);
         ASTREF (unit_bit);
         PKL_AST_LOC (unit_bit) = PKL_AST_LOC (exp);
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit_bit,
+                             size, signed_p, unit_bit,
                              &PKL_AST_EXP_OPERAND (exp, 0), &restart1))
           goto error;
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit_bit,
+                             size, signed_p, unit_bit,
                              &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
           goto error;
 
@@ -594,9 +658,9 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_bshiftpow)
     case PKL_TYPE_INTEGRAL:
       {
         size_t size = PKL_AST_TYPE_I_SIZE (type);
-        int sign = PKL_AST_TYPE_I_SIGNED (type);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
-        if (!promote_integral (PKL_PASS_AST, size, sign,
+        if (!promote_integral (PKL_PASS_AST, size, signed_p,
                                &PKL_AST_EXP_OPERAND (exp, 0), &restart1)
             || !promote_integral (PKL_PASS_AST, 32, 0,
                                   &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
@@ -611,10 +675,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_bshiftpow)
         pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (type);
 
         size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-        int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit,
+                             size, signed_p, unit,
                              &PKL_AST_EXP_OPERAND (exp, 0), &restart1)
             || !promote_integral (PKL_PASS_AST, 32, 0,
                                   &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
@@ -655,11 +719,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_binary)
   if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
-      if (!promote_integral (PKL_PASS_AST, size, sign,
+      if (!promote_integral (PKL_PASS_AST, size, signed_p,
                              &PKL_AST_EXP_OPERAND (exp, 0), &restart1)
-          || !promote_integral (PKL_PASS_AST, size, sign,
+          || !promote_integral (PKL_PASS_AST, size, signed_p,
                                 &PKL_AST_EXP_OPERAND (exp, 1), &restart2))
         {
           PKL_ICE (PKL_AST_LOC (exp),
@@ -691,9 +755,9 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_unary)
   if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
-      if (!promote_integral (PKL_PASS_AST, size, sign,
+      if (!promote_integral (PKL_PASS_AST, size, signed_p,
                              &PKL_AST_EXP_OPERAND (node, 0), &restart))
         {
           PKL_ICE (PKL_AST_LOC (node),
@@ -750,6 +814,31 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_trimmer)
     {
       PKL_ICE (PKL_AST_LOC (to),
                "couldn't promote trimmer index");
+      PKL_PASS_ERROR;
+    }
+
+  PKL_PASS_RESTART = restart;
+}
+PKL_PHASE_END_HANDLER
+
+/* Handler for promoting the unit in offset type specifiers to 64
+   unsigned bit values.  */
+
+PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_type_offset)
+{
+  int restart;
+  pkl_ast_node offset_type = PKL_PASS_NODE;
+  pkl_ast_node offset_type_unit = PKL_AST_TYPE_O_UNIT (offset_type);
+
+  if (PKL_AST_CODE (offset_type_unit) != PKL_AST_INTEGER)
+    PKL_PASS_DONE;
+
+  if (!promote_integral (PKL_PASS_AST, 64, 0,
+                         &PKL_AST_TYPE_O_UNIT (offset_type),
+                         &restart))
+    {
+      PKL_ICE (PKL_AST_LOC (offset_type_unit),
+               "couldn't promote offset type unit to uint<64>");
       PKL_PASS_ERROR;
     }
 
@@ -830,7 +919,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_array_initializer)
 
       if (PKL_AST_TYPE_CODE (index_type) != PKL_TYPE_INTEGRAL
           || PKL_AST_TYPE_I_SIZE (index_type) != 64
-          || PKL_AST_TYPE_I_SIGNED (index_type) != 0)
+          || PKL_AST_TYPE_I_SIGNED_P (index_type) != 0)
         {
           pkl_ast_node_free (index_type);
 
@@ -882,7 +971,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_ass_stmt)
     case PKL_TYPE_INTEGRAL:
       if (!promote_integral (PKL_PASS_AST,
                              PKL_AST_TYPE_I_SIZE (lvalue_type),
-                             PKL_AST_TYPE_I_SIGNED (lvalue_type),
+                             PKL_AST_TYPE_I_SIGNED_P (lvalue_type),
                              &PKL_AST_ASS_STMT_EXP (ass_stmt),
                              &restart))
         goto error;
@@ -893,10 +982,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_ass_stmt)
         pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (lvalue_type);
 
         size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-        int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit,
+                             size, signed_p, unit,
                              &PKL_AST_ASS_STMT_EXP (ass_stmt),
                              &restart))
           goto error;
@@ -966,7 +1055,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_funcall)
                   case PKL_TYPE_INTEGRAL:
                     if (!promote_integral (PKL_PASS_AST,
                                            PKL_AST_TYPE_I_SIZE (fa_type),
-                                           PKL_AST_TYPE_I_SIGNED (fa_type),
+                                           PKL_AST_TYPE_I_SIGNED_P (fa_type),
                                            &PKL_AST_FUNCALL_ARG_EXP (aa),
                                            &restart))
                       goto error;
@@ -977,10 +1066,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_funcall)
                       pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (fa_type);
 
                       size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-                      int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+                      int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
                       if (!promote_offset (PKL_PASS_AST,
-                                           size, sign, unit,
+                                           size, signed_p, unit,
                                            &PKL_AST_FUNCALL_ARG_EXP (aa),
                                            &restart))
                         goto error;
@@ -1004,6 +1093,72 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_funcall)
   PKL_ICE (PKL_AST_LOC (aa),
            "couldn't promote funcall argument");
   PKL_PASS_ERROR;
+}
+PKL_PHASE_END_HANDLER
+
+/* Promoting the condition of an IF statement to int<32> is not
+   strictly necessary (nor desirable) since the code generator will
+   generate the right compare-and-branch instruction.  However, we
+   still need to promote integral structs to their itype.  */
+
+PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_if_stmt)
+{
+  pkl_ast_node if_stmt = PKL_PASS_NODE;
+  pkl_ast_node exp = PKL_AST_IF_STMT_EXP (if_stmt);
+  pkl_ast_node exp_type = PKL_AST_TYPE (exp);
+
+  if (PKL_AST_TYPE_CODE (exp_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (exp_type))
+    {
+      pkl_ast_node itype = PKL_AST_TYPE_S_ITYPE (exp_type);
+      size_t size = PKL_AST_TYPE_I_SIZE (itype);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (itype);
+      int restart;
+
+      if (!promote_integral (PKL_PASS_AST,
+                             size, signed_p,
+                             &PKL_AST_IF_STMT_EXP (if_stmt),
+                             &restart))
+        {
+          PKL_ICE (PKL_AST_LOC (if_stmt),
+                   "couldn't promote condition of if-stmt #%" PRIu64,
+                   PKL_AST_UID (if_stmt));
+          PKL_PASS_ERROR;
+        }
+
+      PKL_PASS_RESTART = restart;
+    }
+}
+PKL_PHASE_END_HANDLER
+
+/* The condition in loop statements, if present, shall be promoted to
+   int<32>.  */
+
+PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_loop_stmt)
+{
+  pkl_ast_node loop_stmt = PKL_PASS_NODE;
+  pkl_ast_node condition = PKL_AST_LOOP_STMT_CONDITION (loop_stmt);
+
+  if (condition)
+    {
+      int restart;
+
+      /* Note that the condition node is promoteable as per
+         typify.  */
+
+      if (!promote_integral (PKL_PASS_AST,
+                             32, 1,
+                             &PKL_AST_LOOP_STMT_CONDITION (loop_stmt),
+                             &restart))
+        {
+          PKL_ICE (PKL_AST_LOC (loop_stmt),
+                   "couldn't promote condition of lop-stmt #%" PRIu64,
+                   PKL_AST_UID (loop_stmt));
+          PKL_PASS_ERROR;
+        }
+
+      PKL_PASS_RESTART = restart;
+    }
 }
 PKL_PHASE_END_HANDLER
 
@@ -1054,7 +1209,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_return_stmt)
         case PKL_TYPE_INTEGRAL:
           if (!promote_integral (PKL_PASS_AST,
                                  PKL_AST_TYPE_I_SIZE (expected_type),
-                                 PKL_AST_TYPE_I_SIGNED (expected_type),
+                                 PKL_AST_TYPE_I_SIGNED_P (expected_type),
                                  &PKL_AST_RETURN_STMT_EXP (return_stmt),
                                  &restart))
             goto error;
@@ -1065,10 +1220,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_return_stmt)
             pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (expected_type);
 
             size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-            int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+            int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
             if (!promote_offset (PKL_PASS_AST,
-                                 size, sign, unit,
+                                 size, signed_p, unit,
                                  &PKL_AST_RETURN_STMT_EXP (return_stmt),
                                  &restart))
               goto error;
@@ -1122,7 +1277,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_print_stmt)
 
               if (!promote_integral (PKL_PASS_AST,
                                      PKL_AST_TYPE_I_SIZE (type),
-                                     PKL_AST_TYPE_I_SIGNED (type),
+                                     PKL_AST_TYPE_I_SIGNED_P (type),
                                      &PKL_AST_PRINT_STMT_ARG_EXP (arg),
                                      &restart))
                 {
@@ -1176,7 +1331,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_func_arg)
             case PKL_TYPE_INTEGRAL:
               if (!promote_integral (PKL_PASS_AST,
                                      PKL_AST_TYPE_I_SIZE (arg_type),
-                                     PKL_AST_TYPE_I_SIGNED (arg_type),
+                                     PKL_AST_TYPE_I_SIGNED_P (arg_type),
                                      &PKL_AST_FUNC_ARG_INITIAL (func_arg),
                                      &restart))
                 goto error;
@@ -1187,10 +1342,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_func_arg)
                 pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (arg_type);
 
                 size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-                int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+                int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
                 if (!promote_offset (PKL_PASS_AST,
-                                     size, sign, unit,
+                                     size, signed_p, unit,
                                      &PKL_AST_FUNC_ARG_INITIAL (func_arg),
                                      &restart))
                   goto error;
@@ -1278,7 +1433,9 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_cond_exp)
     pkl_ast_node cond_type = PKL_AST_TYPE (cond);
     int restart;
 
-    assert (PKL_AST_TYPE_CODE (cond_type) == PKL_TYPE_INTEGRAL);
+    assert (PKL_AST_TYPE_CODE (cond_type) == PKL_TYPE_INTEGRAL
+            || (PKL_AST_TYPE_CODE (cond_type) == PKL_TYPE_STRUCT
+                && PKL_AST_TYPE_S_ITYPE (cond_type)));
 
     if (!promote_integral (PKL_PASS_AST, 32, 1,
                            &PKL_AST_COND_EXP_COND (cond_exp),
@@ -1298,7 +1455,10 @@ PKL_PHASE_END_HANDLER
    booleans.  Ditto for optconds.
 
    Also, the initializer in a struct type field should be promoted to
-   the field type.  */
+   the field type.
+
+   Struct field labels are promoted to offset<uint<64>,b>, in order to
+   make the mapper code more efficient.  */
 
 PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
 {
@@ -1312,6 +1472,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
     {
       pkl_ast_node constraint_type = PKL_AST_TYPE (elem_constraint);
       int restart = 0;
+
+      if (PKL_AST_TYPE_CODE (constraint_type) == PKL_TYPE_STRUCT
+          && PKL_AST_TYPE_S_ITYPE (constraint_type))
+        constraint_type = PKL_AST_TYPE_S_ITYPE (constraint_type);
 
       switch (PKL_AST_TYPE_CODE (constraint_type))
         {
@@ -1346,7 +1510,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
           {
             if (!promote_integral (PKL_PASS_AST,
                                    PKL_AST_TYPE_I_SIZE (elem_type),
-                                   PKL_AST_TYPE_I_SIGNED (elem_type),
+                                   PKL_AST_TYPE_I_SIGNED_P (elem_type),
                                    &PKL_AST_STRUCT_TYPE_FIELD_INITIALIZER (elem),
                                    &restart))
               {
@@ -1363,7 +1527,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
 
             if (!promote_offset (PKL_PASS_AST,
                                  PKL_AST_TYPE_I_SIZE (base_type),
-                                 PKL_AST_TYPE_I_SIGNED (base_type),
+                                 PKL_AST_TYPE_I_SIGNED_P (base_type),
                                  PKL_AST_TYPE_O_UNIT (elem_type),
                                  &PKL_AST_STRUCT_TYPE_FIELD_INITIALIZER (elem),
                                  &restart))
@@ -1402,6 +1566,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
       pkl_ast_node optcond_type = PKL_AST_TYPE (elem_optcond);
       int restart = 0;
 
+      /* Handle integral structure.  */
+      if (PKL_AST_TYPE_CODE (optcond_type) == PKL_TYPE_STRUCT
+          && PKL_AST_TYPE_S_ITYPE (optcond_type))
+        optcond_type = PKL_AST_TYPE_S_ITYPE (optcond_type);
+
       switch (PKL_AST_TYPE_CODE (optcond_type))
         {
         case PKL_TYPE_INTEGRAL:
@@ -1433,10 +1602,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
         {
         case PKL_TYPE_OFFSET:
           {
-            pkl_ast_node label_type_unit = PKL_AST_TYPE_O_UNIT (label_type);
+            pkl_ast_node unit_bit = pkl_ast_make_integer (PKL_PASS_AST, 1);
 
             if (!promote_offset (PKL_PASS_AST,
-                                 64, 0, label_type_unit,
+                                 64, 0, unit_bit,
                                  &PKL_AST_STRUCT_TYPE_FIELD_LABEL (elem),
                                  &restart))
               {
@@ -1445,6 +1614,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_struct_type_field)
                 PKL_PASS_ERROR;
               }
 
+            ASTREF (unit_bit); pkl_ast_node_free (unit_bit);
             break;
           }
         default:
@@ -1480,7 +1650,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_in)
     case PKL_TYPE_INTEGRAL:
       if (!promote_integral (PKL_PASS_AST,
                              PKL_AST_TYPE_I_SIZE (t2),
-                             PKL_AST_TYPE_I_SIGNED (t2),
+                             PKL_AST_TYPE_I_SIGNED_P (t2),
                              &PKL_AST_EXP_OPERAND (exp, 0),
                              &restart))
         goto error;
@@ -1493,10 +1663,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_op_in)
         pkl_ast_node unit = PKL_AST_TYPE_O_UNIT (t2);
 
         size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-        int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
         if (!promote_offset (PKL_PASS_AST,
-                             size, sign, unit,
+                             size, signed_p, unit,
                              &PKL_AST_EXP_OPERAND (exp, 0),
                              &restart))
           goto error;
@@ -1569,7 +1739,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_scons)
                         case PKL_TYPE_INTEGRAL:
                           if (!promote_integral (PKL_PASS_AST,
                                                  PKL_AST_TYPE_I_SIZE (type_elem_type),
-                                                 PKL_AST_TYPE_I_SIGNED (type_elem_type),
+                                                 PKL_AST_TYPE_I_SIGNED_P (type_elem_type),
                                                  &PKL_AST_STRUCT_FIELD_EXP (elem),
                                                  &restart))
                             goto error;
@@ -1584,10 +1754,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_promo_ps_scons)
                               = PKL_AST_TYPE_O_UNIT (type_elem_type);
 
                             size_t size = PKL_AST_TYPE_I_SIZE (base_type);
-                            int sign = PKL_AST_TYPE_I_SIGNED (base_type);
+                            int signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type);
 
                             if (!promote_offset (PKL_PASS_AST,
-                                                 size, sign, unit,
+                                                 size, signed_p, unit,
                                                  &PKL_AST_STRUCT_FIELD_EXP (elem),
                                                  &restart))
                               goto error;
@@ -1624,8 +1794,6 @@ PKL_PHASE_END_HANDLER
 struct pkl_phase pkl_phase_promo
   __attribute__ ((visibility ("hidden"))) =
   {
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_promo_pr_type),
-
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_EQ, pkl_promo_ps_op_rela),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_NE, pkl_promo_ps_op_rela),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_LT, pkl_promo_ps_op_rela),
@@ -1640,10 +1808,14 @@ struct pkl_phase pkl_phase_promo
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_AND, pkl_promo_ps_op_binary),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_OR, pkl_promo_ps_op_binary),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_NOT, pkl_promo_ps_op_unary),
+   PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_NEG, pkl_promo_ps_op_unary),
+   PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_POS, pkl_promo_ps_op_unary),
+   PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_BNOT, pkl_promo_ps_op_unary),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_ADD, pkl_promo_ps_op_binary_intoffstrarr),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_SUB, pkl_promo_ps_op_binary_intoffstrarr),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_MOD, pkl_promo_ps_op_binary_intoffstrarr),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_MUL, pkl_promo_ps_op_mul),
+   PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_BCONC, pkl_promo_ps_op_bconc),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_POW, pkl_promo_ps_op_bshiftpow),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_DIV, pkl_promo_ps_op_div),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_CEILDIV, pkl_promo_ps_op_div),
@@ -1657,8 +1829,11 @@ struct pkl_phase pkl_phase_promo
    PKL_PHASE_PS_HANDLER (PKL_AST_ASS_STMT, pkl_promo_ps_ass_stmt),
    PKL_PHASE_PS_HANDLER (PKL_AST_RETURN_STMT, pkl_promo_ps_return_stmt),
    PKL_PHASE_PS_HANDLER (PKL_AST_PRINT_STMT, pkl_promo_ps_print_stmt),
+   PKL_PHASE_PS_HANDLER (PKL_AST_IF_STMT, pkl_promo_ps_if_stmt),
+   PKL_PHASE_PS_HANDLER (PKL_AST_LOOP_STMT, pkl_promo_ps_loop_stmt),
    PKL_PHASE_PS_HANDLER (PKL_AST_STRUCT_TYPE_FIELD, pkl_promo_ps_struct_type_field),
    PKL_PHASE_PS_HANDLER (PKL_AST_COND_EXP, pkl_promo_ps_cond_exp),
    PKL_PHASE_PS_HANDLER (PKL_AST_SCONS, pkl_promo_ps_scons),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_ARRAY, pkl_promo_ps_type_array),
+   PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_OFFSET, pkl_promo_ps_type_offset),
   };

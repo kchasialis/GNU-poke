@@ -45,10 +45,10 @@ deftype Elf64_Off = offset<uint<64>,B>;
    architecture-specific.  See the elf-ARCH pickles.  */
 
 deftype Elf64_RelInfo =
-  struct
+  struct Elf64_Xword
   {
-    uint<32> r_sym @ get_endian == ENDIAN_BIG ? 0#b : 32#b;
-    uint<32> r_type @ get_endian == ENDIAN_BIG ? 32#b : 0#b;
+    uint<32> r_sym;
+    uint<32> r_type;
   };
 
 /* r_offset holds a section offset in relocatable files, a virtual
@@ -73,6 +73,10 @@ deftype Elf64_Rela =
     Elf64_Sxword r_addend;
   };
 
+/****** Symbols.  ******/
+
+/* ELF symbol bindings.  */
+
 defvar STB_LOCAL = 0;
 defvar STB_GLOBAL = 1;
 defvar STB_WEAK = 2;
@@ -81,10 +85,39 @@ defvar STB_HIOS = 12;
 defvar STB_LOPROC = 13;
 defvar STB_HIPROC = 15;
 
+defvar elf_stb_names =
+  ["local","global","weak",.[9]="reserved",.[12]="os",.[15]="proc"];
+
+/* ELF symbol types.  */
+
+defvar STT_NOTYPE = 0;
+defvar STT_OBJECT = 1;
+defvar STT_FUNC = 2;
+defvar STT_SECTION = 3;
+defvar STT_FILE = 4;
+defvar STT_COMMON = 5;
+defvar STT_TLS = 6;
+defvar STT_NUM = 7;
+defvar STT_LOOS = 10;
+defvar STT_GNU_IFUNC = 10;
+defvar STT_HIOS = 12;
+defvar STT_LOPROC = 13;
+defvar STT_HIPROC = 15;
+
+defvar elf_stt_names =
+  ["notype", "object", "func", "section", "file", "common",
+   "tls", "num", "8", "9", "gnu_ifunc", "os11", "os12",
+   "loproc13", "loproc14", "loproc15"];
+
+/* ELF symbol visibility.  */
+
 defvar STV_DEFAULT = 0;
 defvar STV_INTERNAL = 1;
 defvar STV_HIDDEN = 2;
 defvar STV_PROTECTED = 3;
+
+defvar elf_stv_names =
+  ["default", "internal", "hidden", "protected"];
 
 deftype Elf64_Sym =
   struct
@@ -92,15 +125,26 @@ deftype Elf64_Sym =
     offset<Elf_Word,B> st_name;
     struct
     {
-      uint<4> st_bind @ get_endian == ENDIAN_BIG ? 0#b : 4#b;
-      uint<4> st_type @ get_endian == ENDIAN_BIG ? 4#b : 0#b;
+      uint<4> st_bind;
+      uint<4> st_type;
+
+      method _print = void:
+        {
+          printf ("#<stb:%s,stt:%s>",
+                  elf_stb_names[st_bind], elf_stt_names[st_type]);
+        }
     } st_info;
 
-    uint<8> st_other;
-    method st_visibility = uint<3>:
-      {
-       return st_other & 0x3;
-      }
+    struct
+    {
+      uint<5>;
+      uint<3> st_visibility;
+
+      method _print = void:
+        {
+          print "#<stv:" + elf_stv_names[st_visibility] + ">";
+        }
+    } st_other;
 
     Elf_Half st_shndx;
     Elf64_Addr st_value;
@@ -198,6 +242,70 @@ deftype Elf64_Shdr =
     offset<Elf64_Xword,b> sh_entsize;
   };
 
+/****** Segments.  ******/
+
+/* Segment types.  */
+
+defvar PT_NULL = 0;
+defvar PT_LOAD = 1;
+defvar PT_DYNAMIC = 2;
+defvar PT_INTERP = 3;
+defvar PT_NOTE = 4;
+defvar PT_SHLIB = 5;
+defvar PT_PHDR = 6;
+defvar PT_TLS = 7;
+defvar PT_LOOS = 0x6000_0000;
+defvar PT_HIOS = 0x6fff_ffff;
+defvar PT_LOPROC = 0x7000_0000;
+defvar PT_HIPROC = 0x7fff_ffff;
+
+/* Segment Flags.  */
+
+defvar PF_X = 0x1;
+defvar PF_W = 0x2;
+defvar PF_R = 0x4;
+defvar PF_MASKOS = 0x0ff0_0000;
+defvar PF_MASKPROC = 0xf000_0000;
+
+deftype Elf64_SegmentFlags =
+  struct
+  {
+    Elf_Word flags;
+
+    method _print = void:
+      {
+        defvar s = "";
+
+        if (flags & PF_R)
+          s = s + "R,";
+        if (flags & PF_W)
+          s = s + "W,";
+        if (flags & PF_X)
+          s = s + "X,";
+        if (flags & PF_MASKOS)
+          /* XXX call os-specific printer in elf-OS.pk */
+          ;
+        if (flags & PF_MASKPROC)
+          /* XXX call arch-specific printer in elf-ARCH.pk */
+          ;
+
+        print "#<" + rtrim (s, ",") + ">";
+      }
+  };
+
+deftype Elf64_Phdr =
+  struct
+  {
+    Elf_Word p_type;
+    Elf64_SegmentFlags p_flags;
+    Elf64_Off p_offset;
+    Elf64_Addr p_vaddr;
+    Elf64_Addr p_paddr;
+    Elf64_Xword p_filesz;
+    Elf64_Xword p_memsz;
+    Elf64_Xword p_align;
+  };
+
 defvar ELFDATANONE = 0;
 defvar ELFDATA2LSB = 1;
 defvar ELFDATA2MSB = 2;
@@ -243,6 +351,9 @@ deftype Elf64_File =
     Elf64_Shdr[ehdr.e_shnum] shdr @ ehdr.e_shoff
       if ehdr.e_shnum > 0;
 
+    Elf64_Phdr[ehdr.e_phnum] phdr @ ehdr.e_phoff
+      if ehdr.e_phnum > 0;
+
     /* Given an offset in the ELF file's string table, return the
        string.  */
     method get_string = (offset<Elf_Word,B> offset) string:
@@ -257,16 +368,15 @@ deftype Elf64_File =
        exception.  */
     method get_section_by_name = (string name) Elf64_Shdr:
       {
-        for (s in shdr)
-          if (get_string (s.sh_name) == name)
-            return s;
+        for (s in shdr where get_string (s.sh_name) == name)
+          return s;
 
         raise E_generic;
       }
 
     /* Given a section type (SHT_* value) return the section header
        corresponding to the first section in the ELF file featuring
-       that name.  In case no such section exists, raise a generic
+       that type.  In case no such section exists, raise a generic
        error exception.  */
     method get_section_by_type = (Elf_Word type) Elf64_Shdr:
       {
@@ -274,5 +384,14 @@ deftype Elf64_File =
           return s;
 
         raise E_generic;
+      }
+
+    /* Given a section name, return whether it exists in this
+       file.  */
+    method section_name_p = (string name) int:
+      {
+        try get_section_by_name (name);
+        catch if E_generic { return 0; }
+        return 1;
       }
   };

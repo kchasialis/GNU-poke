@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <alloca.h>
+#include <locale.h>
 #include <gettext.h>
 #define _(str) dgettext (PACKAGE, str)
 

@@ -1,7 +1,7 @@
 /* { dg-do run } */
 /* { dg-data {c*} {0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80} a#b } */
 
-/* { dg-command { .file "a#b" } } */
+/* { dg-command { .file a#b } } */
 /* { dg-command { .info ios } } */
 /* { dg-output "  Id\tMode\tSize\t\tName" } */
 /* { dg-output "\n\\* #0\trw\t0x00000008#B\t./a#b" } */

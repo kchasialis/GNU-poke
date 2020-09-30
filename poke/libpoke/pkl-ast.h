@@ -831,8 +831,9 @@ pkl_ast_node pkl_ast_make_func_type_arg (pkl_ast ast,
    CODE contains the kind of type, as defined in the pkl_ast_type_code
    enumeration above.
 
-   COMPILED is 0 if the type has not been compiled yet.  1 otherwise.
-   This is used to avoid unneccessary work in the compiler.
+   COMPILED contains an integer identifying the last compiler pass
+   that was run on the node.  This is only used in certain nodes, and
+   is controlled in the pass manager.
 
    In integral types, SIGNED is 1 if the type denotes a signed numeric
    type.  In non-integral types SIGNED is 0.  SIZE is the size in bits
@@ -853,8 +854,11 @@ pkl_ast_node pkl_ast_make_func_type_arg (pkl_ast ast,
    type, NFIELD is the number of fields, and NDECL is the number of
    declarations.  ELEMS is a chain of elements, which can be
    PKL_AST_STRUCT_TYPE_FIELD or PKL_AST_DECL nodes, potentially mixed.
-   PINNED is 1 if the struct is pinned, 0 otherwise.  MAPPER, WRITER
-   CONSTRUCTOR and COMPARATOR are used to hold closures, or PVM_NULL.
+   PINNED_P is 1 if the struct is pinned, 0 otherwise.  MAPPER, WRITER
+   CONSTRUCTOR, COMPARATOR and INTEGRATOR are used to hold closures,
+   or PVM_NULL.  INT_TYPE, if not NULL, is an AST node with an
+   integral type, that defines the nature of this struct type as
+   integral.
 
    In offset types, BASE_TYPE is a PKL_AST_TYPE with the base type for
    the offset's magnitude, and UNIT is either a PKL_AST_IDENTIFIER
@@ -879,7 +883,7 @@ pkl_ast_node pkl_ast_make_func_type_arg (pkl_ast ast,
 #define PKL_AST_TYPE_COMPLETE(AST) ((AST)->type.complete)
 #define PKL_AST_TYPE_COMPILED(AST) ((AST)->type.compiled)
 #define PKL_AST_TYPE_I_SIZE(AST) ((AST)->type.val.integral.size)
-#define PKL_AST_TYPE_I_SIGNED(AST) ((AST)->type.val.integral.signed_p)
+#define PKL_AST_TYPE_I_SIGNED_P(AST) ((AST)->type.val.integral.signed_p)
 #define PKL_AST_TYPE_A_BOUND(AST) ((AST)->type.val.array.bound)
 #define PKL_AST_TYPE_A_ETYPE(AST) ((AST)->type.val.array.etype)
 #define PKL_AST_TYPE_A_MAPPER(AST) ((AST)->type.val.array.mapper)
@@ -890,12 +894,14 @@ pkl_ast_node pkl_ast_make_func_type_arg (pkl_ast ast,
 #define PKL_AST_TYPE_S_NDECL(AST) ((AST)->type.val.sct.ndecl)
 #define PKL_AST_TYPE_S_NELEM(AST) ((AST)->type.val.sct.nelem)
 #define PKL_AST_TYPE_S_ELEMS(AST) ((AST)->type.val.sct.elems)
-#define PKL_AST_TYPE_S_PINNED(AST) ((AST)->type.val.sct.pinned)
-#define PKL_AST_TYPE_S_UNION(AST) ((AST)->type.val.sct.union_p)
+#define PKL_AST_TYPE_S_PINNED_P(AST) ((AST)->type.val.sct.pinned_p)
+#define PKL_AST_TYPE_S_UNION_P(AST) ((AST)->type.val.sct.union_p)
 #define PKL_AST_TYPE_S_MAPPER(AST) ((AST)->type.val.sct.mapper)
 #define PKL_AST_TYPE_S_WRITER(AST) ((AST)->type.val.sct.writer)
 #define PKL_AST_TYPE_S_CONSTRUCTOR(AST) ((AST)->type.val.sct.constructor)
 #define PKL_AST_TYPE_S_COMPARATOR(AST) ((AST)->type.val.sct.comparator)
+#define PKL_AST_TYPE_S_INTEGRATOR(AST) ((AST)->type.val.sct.integrator)
+#define PKL_AST_TYPE_S_ITYPE(AST) ((AST)->type.val.sct.itype)
 #define PKL_AST_TYPE_O_UNIT(AST) ((AST)->type.val.off.unit)
 #define PKL_AST_TYPE_O_BASE_TYPE(AST) ((AST)->type.val.off.base_type)
 #define PKL_AST_TYPE_F_RTYPE(AST) ((AST)->type.val.fun.rtype)
@@ -941,12 +947,14 @@ struct pkl_ast_type
       size_t nfield;
       size_t ndecl;
       union pkl_ast_node *elems;
-      int pinned;
+      union pkl_ast_node *itype;
+      int pinned_p;
       int union_p;
       pvm_val mapper;
       pvm_val writer;
       pvm_val constructor;
       pvm_val comparator;
+      pvm_val integrator;
     } sct;
 
     struct
@@ -984,8 +992,9 @@ pkl_ast_node pkl_ast_make_array_type (pkl_ast ast, pkl_ast_node etype,
   __attribute__ ((visibility ("hidden")));
 
 pkl_ast_node pkl_ast_make_struct_type (pkl_ast ast, size_t nelem, size_t nfield,
-                                       size_t ndecl, pkl_ast_node elems,
-                                       int pinned, int union_p)
+                                       size_t ndecl, pkl_ast_node itype,
+                                       pkl_ast_node elems,
+                                       int pinned_p, int union_p)
   __attribute__ ((visibility ("hidden")));
 
 pkl_ast_node pkl_ast_make_offset_type (pkl_ast ast, pkl_ast_node base_type,
@@ -1349,6 +1358,7 @@ pkl_ast_node pkl_ast_make_var (pkl_ast ast,
 #define PKL_AST_BUILTIN_CLOSE 8
 #define PKL_AST_BUILTIN_IOSIZE 9
 #define PKL_AST_BUILTIN_GETENV 10
+#define PKL_AST_BUILTIN_FORGET 11
 
 struct pkl_ast_comp_stmt
 {

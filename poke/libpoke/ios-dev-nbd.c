@@ -45,7 +45,7 @@ startswith (const char *str, const char *prefix)
 }
 
 static char *
-ios_dev_nbd_handler_normalize (const char *handler)
+ios_dev_nbd_handler_normalize (const char *handler, uint64_t flags)
 {
   if (startswith (handler, "nbd://")
       || startswith (handler, "nbd+unix://"))
@@ -169,6 +169,12 @@ ios_dev_nbd_size (void *iod)
   return nio->size;
 }
 
+static int
+ios_dev_nbd_flush (void *iod, ios_dev_off offset)
+{
+  return IOS_OK;
+}
+
 struct ios_dev_if ios_dev_nbd
   __attribute__ ((visibility ("hidden"))) =
   {
@@ -179,4 +185,5 @@ struct ios_dev_if ios_dev_nbd
    .pwrite = ios_dev_nbd_pwrite,
    .get_flags = ios_dev_nbd_get_flags,
    .size = ios_dev_nbd_size,
+   .flush = ios_dev_nbd_flush,
   };

@@ -23,7 +23,7 @@ DISTCLEANFILES =
 MAINTAINERCLEANFILES =
 
 dist_pkgdata_DATA = pk-cmd.pk pk-dump.pk pk-save.pk pk-copy.pk \
-                    poke.pk
+                    pk-extract.pk poke.pk
 
 bin_PROGRAMS = poke
 poke_SOURCES = poke.c poke.h \

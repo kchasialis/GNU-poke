@@ -66,17 +66,6 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify_pr_program)
 }
 PKL_PHASE_END_HANDLER
 
-/* The following handler is used in all the typify phases to avoid
-   re-typifying already processed AST type nodes.  */
-
-PKL_PHASE_BEGIN_HANDLER (pkl_typify_pr_type)
-{
-  if (PKL_AST_TYPE_COMPILED (PKL_PASS_NODE))
-    PKL_PASS_BREAK;
-}
-PKL_PHASE_END_HANDLER
-
-
 /* The type of a NOT is a boolean encoded as a 32-bit signed integer,
    and the type of its sole operand sould be suitable to be promoted
    to a boolean, i.e. it is an integral value.  */
@@ -85,6 +74,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_op_not)
 {
   pkl_ast_node op = PKL_AST_EXP_OPERAND (PKL_PASS_NODE, 0);
   pkl_ast_node op_type = PKL_AST_TYPE (op);
+
+  /* Handle integral structs.  */
+  if (PKL_AST_TYPE_CODE (op_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op_type))
+    op_type = PKL_AST_TYPE_S_ITYPE (op_type);
 
   if (PKL_AST_TYPE_CODE (op_type) != PKL_TYPE_INTEGRAL)
     {
@@ -185,6 +179,9 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_op_rela)
 
         break;
       }
+    case PKL_TYPE_ANY:
+      goto invalid_operands;
+      break;
     default:
       assert (0);
     }
@@ -235,6 +232,15 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_op_boolean)
   pkl_ast_node op2 = PKL_AST_EXP_OPERAND (PKL_PASS_NODE, 1);
   pkl_ast_node op2_type = PKL_AST_TYPE (op2);
 
+  /* Integral structs shall be considered as integers in this
+     context.  */
+  if (PKL_AST_TYPE_CODE (op1_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op1_type))
+    op1_type = PKL_AST_TYPE_S_ITYPE (op1_type);
+
+  if (PKL_AST_TYPE_CODE (op2_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (op2_type))
+    op2_type = PKL_AST_TYPE_S_ITYPE (op2_type);
 
   if (PKL_AST_TYPE_CODE (op1_type) != PKL_TYPE_INTEGRAL
       || PKL_AST_TYPE_CODE (op2_type) != PKL_TYPE_INTEGRAL)
@@ -263,6 +269,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_first_operand)
 
   if (PKL_AST_EXP_CODE (exp) != PKL_AST_OP_UNMAP)
     {
+      /* Handle an integral struct operand.  */
+      if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_STRUCT
+          && PKL_AST_TYPE_S_ITYPE (type))
+        type = PKL_AST_TYPE_S_ITYPE (type);
+
       switch (PKL_AST_TYPE_CODE (type))
         {
         case PKL_TYPE_INTEGRAL:
@@ -425,7 +436,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_cast)
   /* Only characters (uint<8>) can be casted to string.  */
   if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_STRING
       && (PKL_AST_TYPE_CODE (exp_type) != PKL_TYPE_INTEGRAL
-          || PKL_AST_TYPE_I_SIGNED (exp_type) != 0
+          || PKL_AST_TYPE_I_SIGNED_P (exp_type) != 0
           || PKL_AST_TYPE_I_SIZE (exp_type) != 8))
     {
       char *found_type = pkl_type_str (exp_type, 1);
@@ -457,13 +468,22 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_cast)
       PKL_PASS_ERROR;
     }
 
-  if (PKL_AST_TYPE_CODE (exp_type) == PKL_TYPE_STRUCT
-      && PKL_AST_TYPE_CODE (type) != PKL_TYPE_STRUCT)
+  /* Structs can be casted to other structs.  Additionally, integral
+     structs can also be casted to integral types.  */
+  if (PKL_AST_TYPE_CODE (exp_type) == PKL_TYPE_STRUCT)
     {
-      PKL_ERROR (PKL_AST_LOC (type),
-                 "invalid cast, expected struct");
-      PKL_TYPIFY_PAYLOAD->errors++;
-      PKL_PASS_ERROR;
+      if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_STRUCT
+          || (PKL_AST_TYPE_S_ITYPE (exp_type)
+              && PKL_AST_TYPE_CODE (type) == PKL_TYPE_INTEGRAL))
+        ;
+      else
+        {
+          PKL_ERROR (PKL_AST_LOC (type),
+                     "invalid cast, expected struct%s",
+                     PKL_AST_TYPE_S_ITYPE (exp_type) ? " or integer" : "");
+          PKL_TYPIFY_PAYLOAD->errors++;
+          PKL_PASS_ERROR;
+        }
     }
 
   /* Only arrays can be casted to arrays.  Also, only array boundaries
@@ -541,6 +561,15 @@ PKL_PHASE_END_HANDLER
                                                                         \
     pkl_ast_node type;                                                  \
                                                                         \
+    /* Integral structs are integers for binary operators.  */          \
+    if (PKL_AST_TYPE_CODE (t1) == PKL_TYPE_STRUCT                       \
+        && PKL_AST_TYPE_S_ITYPE (t1))                                   \
+      t1 = PKL_AST_TYPE_S_ITYPE (t1);                                   \
+                                                                        \
+    if (PKL_AST_TYPE_CODE (t2) == PKL_TYPE_STRUCT                       \
+        && PKL_AST_TYPE_S_ITYPE (t2))                                   \
+      t2 = PKL_AST_TYPE_S_ITYPE (t2);                                   \
+                                                                        \
     if (PKL_AST_TYPE_CODE (t1) != PKL_AST_TYPE_CODE (t2))               \
       goto error;                                                       \
                                                                         \
@@ -577,8 +606,8 @@ PKL_PHASE_END_HANDLER
 #define CASE_INTEGRAL                                                   \
   case PKL_TYPE_INTEGRAL:                                               \
   {                                                                     \
-    int signed_p = (PKL_AST_TYPE_I_SIGNED (t1)                          \
-                    && PKL_AST_TYPE_I_SIGNED (t2));                     \
+    int signed_p = (PKL_AST_TYPE_I_SIGNED_P (t1)                        \
+                    && PKL_AST_TYPE_I_SIGNED_P (t2));                   \
     int size = MAX (PKL_AST_TYPE_I_SIZE (t1),                           \
                     PKL_AST_TYPE_I_SIZE (t2));                          \
                                                                         \
@@ -598,10 +627,10 @@ PKL_PHASE_END_HANDLER
       {                                                                 \
         size_t base_type_1_size = PKL_AST_TYPE_I_SIZE (base_type_1);    \
         size_t base_type_2_size = PKL_AST_TYPE_I_SIZE (base_type_2);    \
-        int base_type_1_signed = PKL_AST_TYPE_I_SIGNED (base_type_1);   \
-        int base_type_2_signed = PKL_AST_TYPE_I_SIGNED (base_type_2);   \
+        int base_type_1_signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type_1); \
+        int base_type_2_signed_p = PKL_AST_TYPE_I_SIGNED_P (base_type_2); \
                                                                         \
-        int signed_p = (base_type_1_signed && base_type_2_signed);      \
+        int signed_p = (base_type_1_signed_p && base_type_2_signed_p);  \
         int size = MAX (base_type_1_size, base_type_2_size);            \
                                                                         \
         type = pkl_ast_make_integral_type (PKL_PASS_AST,                \
@@ -660,8 +689,8 @@ TYPIFY_BIN (mod);
     pkl_ast_node unit;                                                  \
                                                                         \
     /* Promotion rules work like in integral operations.  */            \
-    int signed_p = (PKL_AST_TYPE_I_SIGNED (base_type_1)                 \
-                    && PKL_AST_TYPE_I_SIGNED (base_type_2));            \
+    int signed_p = (PKL_AST_TYPE_I_SIGNED_P (base_type_1)               \
+                    && PKL_AST_TYPE_I_SIGNED_P (base_type_2));          \
     int size                                                            \
       = MAX (PKL_AST_TYPE_I_SIZE (base_type_1),                         \
              PKL_AST_TYPE_I_SIZE (base_type_2));                        \
@@ -759,6 +788,16 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_bshift_pow)
 
   pkl_ast_node type;
 
+  /* Integral structs shall be considered as integers in this
+     context.  */
+  if (PKL_AST_TYPE_CODE (t1) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (t1))
+    t1 = PKL_AST_TYPE_S_ITYPE (t1);
+
+  if (PKL_AST_TYPE_CODE (t2) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (t2))
+    t2 = PKL_AST_TYPE_S_ITYPE (t2);
+
   /* The second argument should be an integral.  */
   if (PKL_AST_TYPE_CODE (t2) != PKL_TYPE_INTEGRAL)
     {
@@ -773,7 +812,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_bshift_pow)
     {
     case PKL_TYPE_INTEGRAL:
       {
-        int signed_p = PKL_AST_TYPE_I_SIGNED (t1);
+        int signed_p = PKL_AST_TYPE_I_SIGNED_P (t1);
         int size = PKL_AST_TYPE_I_SIZE (t1);
 
         type = pkl_ast_make_integral_type (PKL_PASS_AST,
@@ -818,6 +857,16 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_mul)
 
   pkl_ast_node type;
 
+  /* Integral structs shall be considered as integers in this
+     context.  */
+  if (PKL_AST_TYPE_CODE (t1) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (t1))
+    t1 = PKL_AST_TYPE_S_ITYPE (t1);
+
+  if (PKL_AST_TYPE_CODE (t2) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (t2))
+    t2 = PKL_AST_TYPE_S_ITYPE (t2);
+
   if (t1_code == PKL_TYPE_STRING || t2_code == PKL_TYPE_STRING)
     {
       /* One operand must be a string, the other an integral.  */
@@ -851,8 +900,8 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_mul)
       offset_base_type = PKL_AST_TYPE_O_BASE_TYPE (offset_type);
 
       /* Promotion rules work like in integral operations.  */
-      signed_p = (PKL_AST_TYPE_I_SIGNED (offset_base_type)
-                  && PKL_AST_TYPE_I_SIGNED (int_type));
+      signed_p = (PKL_AST_TYPE_I_SIGNED_P (offset_base_type)
+                  && PKL_AST_TYPE_I_SIGNED_P (int_type));
       size = MAX (PKL_AST_TYPE_I_SIZE (offset_base_type),
                   PKL_AST_TYPE_I_SIZE (int_type));
 
@@ -944,7 +993,7 @@ expected %s, got %s",
 PKL_PHASE_END_HANDLER
 
 /* When applied to integral arguments, the type of a bit-concatenation
-   :: is an integral type with the following characteristics: the
+   ::: is an integral type with the following characteristics: the
    width of the operation is the sum of the widths of the operands,
    which in no case can exceed 64-bits.  The sign of the operation is
    the sign of the first argument.  */
@@ -958,6 +1007,16 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_op_bconc)
   pkl_ast_node t2 = PKL_AST_TYPE (op2);
 
   pkl_ast_node exp_type;
+
+  /* Integral structs shall be considered as integers in this
+     context.  */
+  if (PKL_AST_TYPE_CODE (t1) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (t1))
+    t1 = PKL_AST_TYPE_S_ITYPE (t1);
+
+  if (PKL_AST_TYPE_CODE (t2) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (t2))
+    t2 = PKL_AST_TYPE_S_ITYPE (t2);
 
   /* This operation is only defined for integral arguments, of any
      width.  */
@@ -985,7 +1044,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_op_bconc)
   exp_type = pkl_ast_make_integral_type (PKL_PASS_AST,
                                          PKL_AST_TYPE_I_SIZE (t1)
                                          + PKL_AST_TYPE_I_SIZE (t2),
-                                         PKL_AST_TYPE_I_SIGNED (t1));
+                                         PKL_AST_TYPE_I_SIGNED_P (t1));
   PKL_AST_LOC (exp_type) = PKL_AST_LOC (exp);
 
   PKL_AST_TYPE (exp) = ASTREF (exp_type);
@@ -1106,9 +1165,10 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_array)
 }
 PKL_PHASE_END_HANDLER
 
-/* The type of a trim is the type of the trimmed entity.  The trimmer
-   indexes should be unsigned 64-bit integrals, but this phase lets
-   any integral pass to promo.  */
+/* The type of a trim is the type of the trimmed array, but unbounded.
+   For strings, the result is another string.  The trimmer indexes
+   should be unsigned 64-bit integrals, but this phase lets any
+   integral pass to promo.  */
 
 PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_trimmer)
 {
@@ -1145,7 +1205,19 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_trimmer)
       PKL_PASS_ERROR;
     }
 
-  PKL_AST_TYPE (trimmer) = ASTREF (entity_type);
+  if (PKL_AST_TYPE_CODE (entity_type) == PKL_TYPE_ARRAY)
+  {
+    pkl_ast_node new_type;
+
+    new_type = pkl_ast_make_array_type (PKL_PASS_AST,
+                                        PKL_AST_TYPE_A_ETYPE (entity_type),
+                                        NULL /* bound */);
+    PKL_AST_LOC (new_type) = PKL_AST_LOC (entity_type);
+
+    PKL_AST_TYPE (trimmer) = ASTREF (new_type);
+  }
+  else
+    PKL_AST_TYPE (trimmer) = ASTREF (entity_type);
 }
 PKL_PHASE_END_HANDLER
 
@@ -1233,6 +1305,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_struct)
                                    PKL_AST_STRUCT_NELEM (node),
                                    PKL_AST_STRUCT_NELEM (node), /* nfield */
                                    0, /* ndecl */
+                                   NULL, /* itype */
                                    struct_field_types,
                                    0 /* pinned */,
                                    0 /* union */);
@@ -1658,6 +1731,105 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_type_integral)
 }
 PKL_PHASE_END_HANDLER
 
+/* The type associated with an integral struct shall be integral.
+
+   The fields in an integral struct type shall be all of integral or
+   offset types (_not_ including other integral structs) and the total
+   int size shall match the sum of the sizes of all the fields.
+
+   The total size declared in the integral struct should exactly match
+   the size of all the contained fields.
+
+   Labels are not allowed in integral structs.
+   Optional fields are not allowed in integral structs.  */
+
+PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_type_struct)
+{
+  pkl_ast_node struct_type = PKL_PASS_NODE;
+  pkl_ast_node struct_type_itype = PKL_AST_TYPE_S_ITYPE (struct_type);
+  pkl_ast_node field;
+
+  if (struct_type_itype)
+    {
+      int fields_int_size = 0;
+
+      /* This checks that the itype of the struct type is correct.  */
+      PKL_PASS_SUBPASS (struct_type_itype);
+
+      if (PKL_AST_TYPE_CODE (struct_type_itype)
+          != PKL_TYPE_INTEGRAL)
+        {
+          PKL_ERROR (PKL_AST_LOC (struct_type_itype),
+                     "expected an integral type");
+          PKL_TYPIFY_PAYLOAD->errors++;
+          PKL_PASS_ERROR;
+        }
+
+      if (PKL_AST_TYPE_S_UNION_P (struct_type))
+        {
+          PKL_ERROR (PKL_AST_LOC (struct_type),
+                     "unions can't be integral");
+          PKL_TYPIFY_PAYLOAD->errors++;
+          PKL_PASS_ERROR;
+        }
+
+      for (field = PKL_AST_TYPE_S_ELEMS (struct_type);
+           field;
+           field = PKL_AST_CHAIN (field))
+        {
+          if (PKL_AST_CODE (field) == PKL_AST_STRUCT_TYPE_FIELD)
+            {
+              pkl_ast_node ftype
+                = PKL_AST_STRUCT_TYPE_FIELD_TYPE (field);
+
+              if (PKL_AST_TYPE_CODE (ftype) != PKL_TYPE_INTEGRAL
+                  && PKL_AST_TYPE_CODE (ftype) != PKL_TYPE_OFFSET)
+                {
+                  PKL_ERROR (PKL_AST_LOC (field),
+                             "invalid field in integral struct");
+                  PKL_TYPIFY_PAYLOAD->errors++;
+                  PKL_PASS_ERROR;
+                }
+
+              if (PKL_AST_STRUCT_TYPE_FIELD_LABEL (field))
+                {
+                  PKL_ERROR (PKL_AST_LOC (field),
+                             "labels are not allowed in integral structs");
+                  PKL_TYPIFY_PAYLOAD->errors++;
+                  PKL_PASS_ERROR;
+                }
+
+              /* XXX relax this restriction.  This needs work in the
+                 writer.  */
+              if (PKL_AST_STRUCT_TYPE_FIELD_OPTCOND (field))
+                {
+                  PKL_ERROR (PKL_AST_LOC (field),
+                             "optional fields are not allowed in integral structs");
+                  PKL_TYPIFY_PAYLOAD->errors++;
+                  PKL_PASS_ERROR;
+                }
+
+              if (PKL_AST_TYPE_CODE (ftype) == PKL_TYPE_INTEGRAL)
+                fields_int_size += PKL_AST_TYPE_I_SIZE (ftype);
+              else
+                {
+                  pkl_ast_node base_type = PKL_AST_TYPE_O_BASE_TYPE (ftype);
+                  fields_int_size += PKL_AST_TYPE_I_SIZE (base_type);
+                }
+            }
+        }
+
+      if (fields_int_size != PKL_AST_TYPE_I_SIZE (struct_type_itype))
+        {
+          PKL_ERROR (PKL_AST_LOC (struct_type_itype),
+                     "invalid total size in integral struct type");
+          PKL_TYPIFY_PAYLOAD->errors++;
+          PKL_PASS_ERROR;
+        }
+    }
+}
+PKL_PHASE_END_HANDLER
+
 /* The array bounds in array type literals, if present, should be
    integer expressions, or offset expressions.  */
 
@@ -1856,16 +2028,20 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_loop_stmt)
   pkl_ast_node loop_stmt = PKL_PASS_NODE;
   pkl_ast_node condition = PKL_AST_LOOP_STMT_CONDITION (loop_stmt);
 
-  /* The type of the loop condition should be a boolean.  */
+  /* The type of the loop condition should be a boolean, i.e. a
+     promoteable integer or integral struct.  */
   if (condition)
     {
       pkl_ast_node condition_type;
 
       condition_type = PKL_AST_TYPE (condition);
 
-      if (PKL_AST_TYPE_CODE (condition_type) != PKL_TYPE_INTEGRAL
-          || PKL_AST_TYPE_I_SIZE (condition_type) != 32
-          || PKL_AST_TYPE_I_SIGNED (condition_type) != 1)
+      /* Allow an integral struct.  */
+      if (PKL_AST_TYPE_CODE (condition_type) == PKL_TYPE_STRUCT
+          && PKL_AST_TYPE_S_ITYPE (condition_type))
+        condition_type = PKL_AST_TYPE_S_ITYPE (condition_type);
+
+      if (PKL_AST_TYPE_CODE (condition_type) != PKL_TYPE_INTEGRAL)
         {
           PKL_ERROR (PKL_AST_LOC (condition),
                      "expected boolean expression");
@@ -2475,6 +2651,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_if_stmt)
   pkl_ast_node exp = PKL_AST_IF_STMT_EXP (if_stmt);
   pkl_ast_node exp_type = PKL_AST_TYPE (exp);
 
+  /* Allow an integral struct.  */
+  if (PKL_AST_TYPE_CODE (exp_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (exp_type))
+    exp_type = PKL_AST_TYPE_S_ITYPE (exp_type);
+
   if (PKL_AST_TYPE_CODE (exp_type) != PKL_TYPE_INTEGRAL)
     {
       PKL_ERROR (PKL_AST_LOC (exp),
@@ -2501,6 +2682,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify1_ps_cond_exp)
 
   pkl_ast_node then_type = PKL_AST_TYPE (then_exp);
   pkl_ast_node else_type = PKL_AST_TYPE (else_exp);
+
+  /* Allow an integral struct.  */
+  if (PKL_AST_TYPE_CODE (cond_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (cond_type))
+    cond_type = PKL_AST_TYPE_S_ITYPE (cond_type);
 
   if (!pkl_ast_type_equal (then_type, else_type))
     {
@@ -2571,8 +2757,6 @@ struct pkl_phase pkl_phase_typify1
   __attribute__ ((visibility ("hidden"))) =
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_typify_pr_program),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_typify_pr_type),
-
    PKL_PHASE_PS_HANDLER (PKL_AST_VAR, pkl_typify1_ps_var),
    PKL_PHASE_PS_HANDLER (PKL_AST_CAST, pkl_typify1_ps_cast),
    PKL_PHASE_PS_HANDLER (PKL_AST_ISA, pkl_typify1_ps_isa),
@@ -2633,16 +2817,13 @@ struct pkl_phase pkl_phase_typify1
 
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_INTEGRAL, pkl_typify1_ps_type_integral),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_ARRAY, pkl_typify1_ps_type_array),
+   PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_STRUCT, pkl_typify1_ps_type_struct),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_OFFSET, pkl_typify1_ps_type_offset),
   };
 
 
 
-/* Determine the completeness of a type node.
-
-   Also, since this is the last phase in the compiler front-end, mark
-   the type as processed, to avoid useless and potentially harmful
-   re-compilations.  */
+/* Determine the completeness of a type node.  */
 
 PKL_PHASE_BEGIN_HANDLER (pkl_typify2_ps_type)
 {
@@ -2651,8 +2832,6 @@ PKL_PHASE_BEGIN_HANDLER (pkl_typify2_ps_type)
   if (PKL_AST_TYPE_CODE (type) == PKL_TYPE_ARRAY
       || PKL_AST_TYPE_CODE (type) == PKL_TYPE_STRUCT)
   PKL_AST_TYPE_COMPLETE (type) = pkl_ast_type_is_complete (type);
-
-  PKL_AST_TYPE_COMPILED (PKL_PASS_NODE) = 1;
 }
 PKL_PHASE_END_HANDLER
 
@@ -2697,8 +2876,6 @@ struct pkl_phase pkl_phase_typify2
   __attribute__ ((visibility ("hidden"))) =
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_typify_pr_program),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_typify_pr_type),
-
    PKL_PHASE_PS_HANDLER (PKL_AST_TYPE, pkl_typify2_ps_type),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_ARRAY, pkl_typify2_ps_type_array),
    PKL_PHASE_PS_OP_HANDLER (PKL_AST_OP_SIZEOF, pkl_typify2_ps_op_sizeof),

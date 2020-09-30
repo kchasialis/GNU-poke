@@ -1,6 +1,1078 @@
-2020-07-03  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+2020-09-30  Kostas Chasialis  <sdi1600195@di.uoa.gr>
 
-	*libpoke/libpoke.h (pk_make_struct_type): Prototype.
+    * poke/pk-mi-json.h (pk_mi_val_to_json): Prototype.
+	(pk_mi_json_to_val): Prototype.
+	* poke/pk-mi-json.c (pk_mi_val_to_json): Define.
+	(pk_mi_json_to_val): Define.
+	(pk_mi_val_to_json): New function.
+	(pk_mi_val_to_json_1): Likewise.
+	(pk_mi_int_to_json): Likewise.
+	(pk_mi_uint_to_json): Likewise.
+	(pk_mi_string_to_json): Likewise.
+	(pk_mi_offset_to_json): Likewise.
+	(pk_mi_mapping_to_json): Likewise.
+	(pk_mi_sct_to_json): Likewise.
+	(pk_mi_array_to_json): Likewise.
+	(pk_mi_null_to_json): Likewise.
+	(pk_mi_json_to_val): Likewise.
+	(pk_mi_json_to_val_1): Likewise.
+	(pk_mi_json_to_int): Likewise.
+	(pk_mi_json_to_uint): Likewise.
+	(pk_mi_json_to_string): Likewise.
+	(pk_mi_json_to_offset): Likewise.
+	(pk_mi_json_to_mapping): Likewise.
+	(pk_mi_json_to_sct): Likewise.
+	(pk_mi_json_to_array): Likewise.
+	(pk_mi_json_poke_value_type): Likewise.
+	(pk_mi_json_array_element_pair): Likewise.
+	* testsuite/poke.mi-json/mi-json.c (test_json_to_val_to_json): New function.
+	(test_json_file): Likewise.
+	(test_json_to_val): Likewise.
+	(test_val_to_json): Likewise.
+	(test_json_pk_val): Likewise.
+	(test_json_pk_int): Likewise.
+	(test_json_pk_uint): Likewise.
+	(test_json_pk_string): Likewise.
+	(test_json_pk_offset): Likewise.
+	(test_json_pk_null): Likewise.
+	(test_json_pk_sct): Likewise.
+	(test_json_pk_array): Likewise.
+	(compile_initial_poke_code): Likewise.
+	(compile_poke_expression): Likewise.
+	(read_json_object): Likewise.
+	(parse_json_str_object): Likewise.
+	* testsuite/poke.mi-json/pk_int.json: New test.
+	* testsuite/poke.mi-json/pk_uint.json: New test.
+	* testsuite/poke.mi-json/pk_string.json: New test.
+	* testsuite/poke.mi-json/pk_offset.json: New test.
+	* testsuite/poke.mi-json/pk_array.json: New test.
+	* testsuite/poke.mi-json/pk_sct.json: New test.
+	* testsuite/poke.mi-json/Makefile.am: Added TESTDIR.
+	* testsuite/Makefile.am (EXTRA_DIST): Updated with new tests.
+
+2020-09-30  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* etc/poke-mode.el: Delete trailing whitespaces.
+
+2020-09-30  Pierre-Evariste Dagand  <pierre-evariste.dagand@lip6.fr>
+
+	* doc/poke.texi: Fix typos.
+
+2020-09-15  Aurélien Aptel  <aaptel@suse.com>
+
+	* etc/poke-mode.el: Add SMIE grammar and indent code.
+
+2020-09-15  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/time.pk: New file.
+	(ptime): Move from std.pk.
+	(POSIX_Time32): Likewise.
+	(POSIX_Time64): Likewise.
+	* pickles/Makefile.am (dist_pickles_DATA): Add time.pk.
+	* testsuite/poke.time/time32.pk: Moved from poke.std.
+	* testsuite/poke.time/time.exp: New file.
+	* testsuite/Makefile.am (EXTRA_DIST): Reflect change of opsition
+	of time32.pk
+	* doc/poke.texi (Time): New chapter.
+
+2020-09-15  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/libpoke.c (struct pk_compiler): New field complete_type.
+	(pk_compiler_new): Initialize complete_type.
+	(complete_struct): Use complete_type.
+
+2020-09-06  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* testsuite/poke.libpoke/values.c: Now all tests run with make check.
+	* testsuite/poke.libpoke/Makefile.am: Added TESTDIR and LTLIBTEXTSTYLE
+	for this purpose.
+
+2020-09-04  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl.c (rest_of_compilation): Revert fold and trans4 in
+	the middleend pass.
+
+2020-09-04  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-pass.c (pkl_do_pass): Get a new argument `level'.
+	(pkl_do_subpass): Likewise.
+	(pkl_do_pass_1): Likewise.
+	(pkl_call_node_handlers): Likewise.
+	(PKL_PASS_CHAIN): Pass the new argument.
+	(PKL_PASS): Likewise.
+	(PKL_CALL_PHASES_SINGLE): Likewise.
+	* libpoke/pkl.c (rest_of_compilation): Set pass levels.
+	* libpoke/pkl-ast.h: Update comment on COMPILED.
+	* libpoke/pkl-anal.c (pkl_anal_pr_type): Remove handler.
+	(pkl_phase_anal1): Likewise.
+	(pkl_phase_anal2): Likewise.
+	(pkl_anal_ps_type): Likewise.
+	(pkl_phase_analf): Likewise.
+	* libpoke/pkl-trans.c (pkl_trans_pr_type): Likewise.
+	(pkl_phase_trans1): Likewise.
+	(pkl_phase_trans2): Likewise.
+	(pkl_phase_trans3): Likewise.
+	(pkl_phase_trans4): Likewise.
+	* libpoke/pkl-promo.c (pkl_promo_pr_type): Likewise.
+	(pkl_phase_promo): Likewise.
+	* libpoke/pkl-fold.c (pkl_fold_pr_type): Likewise.
+	(pkl_phase_fold): Likewise.
+	* libpoke/pkl-typify.c (pkl_typify_pr_type): Likewise.
+	(pkl_phase_typify1): Likewise.
+	(pkl_phase_typify2): Likewise.
+	* testsuite/poke.pkl/compiler-passes-1.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new test.
+
+2020-09-03  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_pr_type): Process types in
+	PKL_AST_FUNC_TYPE_ARG nodes.
+	(pkl_gen_pr_func_type_arg): Remove weird subpass.
+
+2020-09-03  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_ps_func): New handler.
+	(pkl_phase_gen): Install handler.
+
+2020-09-02  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-typify.c (pkl_typify2_ps_type): Do not set
+	COMPILED=1.
+	* libpoke/pkl-anal.c (pkl_analf_ps_type): New handler.
+	(pkl_phase_analf): Install handler.
+	* testsuite/poke.pkl/ass-diag-9.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new test.
+
+2020-09-02  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-asm.pks (aconc): Fix the type of the resulting
+	array.
+	* testsuite/poke.pkl/add-arrays-4.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new test.
+
+2020-09-01  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* libpoke/libpoke.h (pk_val_equal_p): Prototype.
+	* libpoke/pk-val.c (pk_val_equal_p): Define.
+	* libpoke/pvm.h (pvm_val_equal_p): Prototype.
+	* libpoke/pvm-val.c (pvm_val_equal_p): Define.
+	* testsuite/poke.libpoke/values.c (test_pk_val_equal_p): New function.
+	(test_pk_equal_file): Likewise.
+	(copy_line_to_expression): Likewise.
+	(compile_poke_expressions): Likewise.
+	(compile_initial_poke_code): Likewise.
+	* testsuite/poke.libpoke/pk_equal_int.test: New test.
+	* testsuite/poke.libpoke/pk_equal_uint.test: New test.
+	* testsuite/poke.libpoke/pk_equal_str.test: New test.
+	* testsuite/poke.libpoke/pk_equal_off.test: New test.
+	* testsuite/poke.libpoke/pk_equal_sct.test: New test.
+	* testsuite/poke.libpoke/pk_equal_arr.test: New test.
+	* testsuite/poke.libpoke/pk_nequal_int.test: New test.
+	* testsuite/poke.libpoke/pk_nequal_uint.test: New test.
+	* testsuite/poke.libpoke/pk_nequal_str.test: New test.
+	* testsuite/poke.libpoke/pk_nequal_off.test: New test.
+	* testsuite/poke.libpoke/pk_nequal_sct.test: New test.
+	* testsuite/poke.libpoke/pk_nequal_arr.test: New test.
+	* testsuite/poke.libpoke/Makefile.am: Added PKGDATADIR.
+	* testsuite/Makefile.am (EXTRA_DIST): Updated with new tests.
+	* bootstrap.conf (gnulib_modules): Added new modules.
+
+2020-09-01  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_pr_type): Update comment.
+	(pkl_gen_pr_type_array): Duplicating logic from pkl_gen_pr_type is
+	no longer necessary.
+	(pkl_gen_pr_type_struct): Likewise.
+	* libpoke/pkl-anal.c (pkl_anal1_pr_type_struct): It is no longer
+	needed to break the pass here.
+
+2020-09-01  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-pass.c (pkl_call_node_handlers): Execute pre-order
+	handlers from more generic to more particular, and post-order
+	handlers from more particular to more generic.
+	* libpoke/pkl-pass.h: Document new precedence of handlers based on
+	the ordering.
+
+2020-09-01  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-pass.c (pkl_do_pass_1): Pass the right pass order to
+	pkl_cal_node_handlers.
+	(pkl_call_node_handlers): Adjust accordingly.
+
+2020-09-01  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/dwarf-info.pk: New file.
+	* pickles/dwarf.pk: Load dwarf-info.pk.
+	* pickles/dwarf-common.pk: Do not load leb128.pk.
+	* maps/dwarf.map: Add comment with information on DWARF related
+	sections and the data stored in them.
+
+2020-09-01  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* poke/pk-cmd-map.c (pk_cmd_map_show): Include the $ prefix in the
+	map entry names.
+	* testsuite/poke.cmd/maps-4.pk: Update accordingly.
+	* testsuite/poke.cmd/maps-5.pk: Likewise.
+	* testsuite/poke.cmd/maps-6.pk: Likewise.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/dwarf-frame.pk (Dwarf_CFI): Adapt to use Dwarf_Op for
+	CFA_def_cfa_expression, CFA_expression and CFA_val_expression.
+	* pickles/dwarf-expr.pk: New file.
+	* pickles/dwarf.pk (DW_TAG_hi_user): Fix value.
+	Load dwarf-expr.pk.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/dwarf-common.pk: New file.
+	* pickles/dwarf-frame.pk: Likewise.
+	* pickles/dwarf-pubnames.pk: Likewise.
+	* pickles/dwarf-types.pk: Likewise.
+	* pickles/dwarf.pk: load the other dwarf- files.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/dwarf.pk (Dwarf_Name_Lookup_Table): pubnames and
+	pubtypes weren't available until DWARF 3.
+	(Dwarf_Name_Lookup_Table): New method `lookup'.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_pr_type_struct): Fix handling of
+	payload->generating_pvm_struct_type.
+	Break pass whenever appropriate.
+	(pkl_gen_ps_type_struct): Likewise.
+	* testsuite/poke.pkl/scons-57.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new test.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/leb128.pk (LEB128): Define.
+	* pickles/dwarf.pk (Dwarf_Block): Define.
+	(Dwarf_CFI): Options for DW_CFA_def_cfa_expression,
+	DW_CFA_expression and DW_CFA_val_expression.
+	(Dwarf_Call_Frame_Info): Define.
+	* maps/dwarf.map (frame): New entry.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-anal.c (pkl_anal_ps_program): New handler.
+	(pkl_phase_anal1): Install handler.
+	(pkl_phase_anal2): Likewise.
+	(pkl_phase_analf): Likewise.
+	(pkl_anal1_pr_type_struct): Break phase if compiled.
+
+2020-08-31  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/dwarf.pk (Dwarf_Section_Offset): New method `value'.
+	(Dwarf_Type_Unit_Header): Define.
+	(Dwarf_CIE): Likewise.
+	* maps/dwarf.map: New file.
+	* maps/elf.map: Move dwarf entries to dwarf.map.
+	* maps/Makefile.am (dist_maps_DATA): Add dwarf.map.
+
+2020-08-30  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/dwarf.pk: Add more constants.
+
+2020-08-30  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/future/dwarf.pk: Remove.
+	* pickles/dwarf.pk: Copied and adapted from future/dwarf.pk.
+	* maps/elf.map: Add debug_info.
+
+2020-08-27  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* gui/poke-gui.c: Include locale.h, for setlocale.
+
+2020-08-27  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/leb128.pk: Simplify pretty printing.
+
+2020-08-26  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/bpf.pk (BPF_Insn_Opcode.class): Turn into method.
+	(BPF_Insn_Opcode.imm64): Likewise.
+
+2020-08-26  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-anal.c (pkl_anal1_ps_type_struct): Allow methods
+	anywhere in union types.  Declarations are still only allowed
+	before alternatives.
+	* libpoke/pkl-gen.pks (struct_mapper): Support methods in union
+	types.
+	(struct_constructor): Likewise.
+	* testsuite/poke.pkl/scons-union-method-1.pk: New test.
+	* testsuite/poke.pkl/scons-union-method-2.pk: Likewise
+	* testsuite/poke.pkl/scons-union-method-3.pk: Likewise.
+	* testsuite/poke.pkl/scons-union-method-4.pk: Likewise.
+	* testsuite/poke.map/maps-unions-method-1.pk: Likewise.
+	* testsuite/poke.map/maps-unions-method-2.pk: Likewise.
+	* testsuite/poke.map/maps-unions-method-3.pk: Likewise.
+	* testsuite/poke.pkl/union-pretty-print-1.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new tests.
+
+2020-08-26  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pk-val.c (pk_type_code): Fix regression.
+	* poke/pk-map.c (pk_map_load_parsed_map): Remove spurious trace.
+
+2020-08-26  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/elf.pk (Elf64_File.section_name_p): New method.
+
+2020-08-26  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_field_mapper): Keep the right
+	lexical environment when subpassing results in a constraint
+	exception.
+	* testsuite/poke.map/maps-unions-11.pk: New test.
+	* testsuite/poke.map/maps-unions-12.pk: Likewise.
+	* testsuite/poke.map/maps-unions-13.pk: Likewise.
+	* testsuite/poke.pkl/scons-56.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new tests.
+
+2020-08-25  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-tab.y: IN has a bigger priority than AND and OR.
+	* testsuite/poke.pkl/in-8.pk: New test.
+	* testsuite/poke.pkl/in-9.pk: Likewise.
+
+2020-08-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* cfg.mk (sc_tests_listed_in_makefile_am): New rule.
+
+2020-08-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/Makefile.am (EXTRA_DIST): Add trim-26.pk, scons-55.pk,
+	add-int-struct-4.pk, poke.pkl/offset-type-diag-6.pk,
+	offset-type-1.pk.
+
+2020-08-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-typify.c (pkl_typify1_ps_trimmer): The type of a
+	trimmed array is unbounded.
+	* testsuite/poke.pkl/trim-26.pk: New test.
+
+2020-08-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_constructor): Avoid invalid memory
+	access.
+	(struct_mapper): Likewise.
+	* testsuite/poke.pkl/scons-55.pk: New test.
+
+2020-08-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/btf.pk (BTF_Type): Fix ordering of fields in `info', and
+	add pretty-printer for `info'.
+	(BTF_KIND_UNKNOWN): Define.
+	(btf_kind_names): Likewise.
+	* libpoke/pkl-anal.c (pkl_anal1_ps_type_struct): Allow methods
+	after union fields.
+
+2020-08-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_ps_cast): Struct types used in casts
+	may not have integrators compiled, if they are anonymous structs.
+	* libpoke/pkl-gen.pks (struct_integrator): Fix stale reference to
+	type_struct.
+	* testsuite/poke.pkl/add-int-struct-4.pk: New test.
+
+2020-08-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/btf.pk (btf_types): Fix offset.
+	(btf_strings): Likewise.
+	(BTF_Header): Fix endian determination.
+
+2020-08-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.c (pkl_ast_type_is_complete): Fix logic in the
+	determination on whether a struct type is complete.
+	* testsuite/poke.pkl/offset-type-diag-6.pk: New test.
+
+2020-08-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-promo.c (pkl_promo_ps_type_offset): New handler.
+	(pkl_phase_promo): Use handler.
+	* libpoke/pkl-trans.c (pkl_trans2_ps_type_offset): Renamed from
+	pkl_trans2_ps_offset_type.
+	(pkl_phase_trans2): Likewise.
+	* testsuite/poke.pkl/offset-type-1.pk: New test.
+
+2020-08-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/btf.pk (BTF_Type): Make `info' an integral struct.
+	(BTF_Int): Turn into an integral struct.
+
+2020-08-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/btf.pk (BTF_Type): Move the vararg_p method from
+	BTF_Func_Proto to BTF_Type.
+
+2020-08-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/bmp.pk (BMP_Info_Header): Make `num_colors' a method and
+	not a function.
+
+2020-08-07  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* libpoke/pvm-val.c (pvm_type_equal): Bugfixes.
+
+2020-08-04  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/libpoke.h: Document that PK_NULL should have the same
+	value than PVM_NULL.
+
+2020-08-03  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* libpoke/pvm-val.c (pvm_typeof): pvm_integral_type now represents
+	signed_p as int.
+	(pvm_type_equal): Updated accordingly.
+	(pvm_print_val_1): Likewise.
+
+2020-08-03  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* libpoke/pk-val.c (pk_type_code): Now return PK_UINT
+	if integral type is unsigned.
+	* etc/pk-mi-json-schema.json (json_schema) : Changed "offsets"
+	to "boffsets" on arrays and structs.
+
+2020-08-02  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* libpoke/libpoke.h: Change poke to Poke on function documentations.
+
+2020-08-01  Bruno Haible  <bruno@clisp.org>
+
+	Update after gnulib changed.
+	* configure.ac: Invoke gl_LIBTEXTSTYLE_OPTIONAL explicitly.
+
+2020-07-27  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* etc/pk-mi-json-schema.json (json_schema): Indentation fixes.
+	* libpoke/libpoke.h (pk_make_struct): Fixed function documentation.
+
+2020-07-25  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi (Command Files): Renamed from Scripts.
+	(Scripts): Renamed from Shebang.
+	(Modifying SBM Images): Fix typo.
+
+2020-07-24  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pvm-val.h (PVM_VAL_TYP_I_SIGNED_P): Renamed from
+	PVM_VAL_TYP_I_SIGNED.
+	* libpoke/pkl.c (pvm_type_to_ast_type): Update accordingly.
+	* libpoke/pvm-val.c (pvm_make_integral_type): Likewise.
+	(pvm_print_val_1): Likewise.
+	(pvm_type_equal): Likewise.
+	* libpoke/pk-val.c (pk_integral_type_signed_p): Likewise.
+
+2020-07-24  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi: Change title.
+
+2020-07-24  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-anal.c (pkl_anal1_ps_type_struct): Integral structs
+	cannot be pinned.
+	* testsuite/poke.pkl/pinned-int-struct-1.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Update.
+	* doc/poke.texi (Pinned Structs): Document that integral structs
+	cannot be pinned.
+
+2020-07-24  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi (Integral Structs): Document explicit casts to
+	integral types, and coercions.
+
+2020-07-23  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.h (PKL_AST_TYPE_I_SIGNED_P): Rename from
+	PKL_AST_TYPE_I_SIGNED.
+	* libpoke/pkl-promo.c: Likewise.
+	* libpoke/pkl-gen.c: Likewise.
+	* libpoke/pkl-fold.c: Likewise.
+	* libpoke/pkl-ast.c: Likewise.
+	* libpoke/pkl-asm.c: Likewise.
+	* libpoke/pkl-typify.c: Likewise.
+	* libpoke/pkl.c: Likewise.
+
+2020-07-23  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.c (pkl_ast_type_promoteable): Integral struct
+	types can be promoted to integral types.
+	* libpoke/pkl-typify.c (TYPIFY_BIN): Consider integral structs as
+	integers in binary operators.
+	(pkl_typify1_ps_bshift_pow): Likewise.
+	(pkl_typify1_ps_mul): Likewise.
+	(pkl_typify1_ps_op_bconc): Likewise.
+	(pkl_typify1_ps_op_boolean): Likewise.
+	(pkl_typify1_ps_first_operand): Likewise.
+	(pkl_typify1_ps_op_not): Likewise.
+	(pkl_typify1_ps_loop_stmt): Likewise.
+	(pkl_typify1_ps_if_stmt): Likewise.
+	* libpoke/pkl-anal.c (pkl_anal1_ps_op_sl): Likewise.
+	* libpoke/pkl-promo.c (promote_integral): Support promoting
+	integral structs.
+	(pkl_promo_ps_op_mul): Likewise.
+	(pkl_promo_ps_op_rela): Likewise.
+	(pkl_promo_ps_op_div): Likewise.
+	(pkl_promo_ps_cond_exp): Likewise.
+	(pkl_promo_ps_struct_type_field): Likewise.
+	(pkl_phase_promo): Promote OP_NEG, OP_POS and OP_BNOT.
+	(pkl_promo_ps_op_bconc): New handler.
+	(pkl_promo_ps_if_stmt): Likewise.
+	(pkl_promo_ps_loop_stmt): Likewise.
+	(pkl_phase_promo): Install new handlers.
+	* testsuite/poke.pkl/add-int-struct-1.pk: New test.
+	* testsuite/poke.pkl/add-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/add-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/sub-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/sub-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/sub-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/mul-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/mul-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/mul-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/div-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/div-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/div-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/and-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/and-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/and-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/or-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/or-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/or-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/not-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/neg-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/pos-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/band-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/band-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/band-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/ior-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/ior-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/ior-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/bnot-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/xor-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/xor-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/xor-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/bconc-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/bconc-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/bconc-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/cdiv-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/cdiv-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/cdiv-int-struct-3.pk: Likewise.
+	* testsuite/poke.pkl/sl-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/sl-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/sr-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/sr-int-struct-2.pk: Likewise.
+	* testsuite/poke.pkl/promo-int-struct-arg-1.pk: Likewise.
+	* testsuite/poke.pkl/promo-int-struct-return-1.pk: Likewise.
+	* testsuite/poke.pkl/if-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/while-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/while-3.pk: Likewise.
+	* testsuite/poke.pkl/for-in-5.pk: Likewise.
+	* testsuite/poke.pkl/for-in-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/cond-exp-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/cond-exp-int-struct-2.pk: Likewise.
+	* testsuite/poke.map/maps-int-struct-constraint-1.pk: Likewise.
+	* testsuite/poke.map/maps-int-struct-constraint-2.pk: Likewise.
+	* testsuite/poke.map/map-opcond-int-struct-1.pk: Likewise.
+	* testsuite/poke.map/map-opcond-int-struct-2.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Update with new tests.
+
+2020-07-23  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_field_inserter): Take into account
+	the struct offse in calculations.
+	* testsuite/poke.pkl/cast-int-struct-2.pk: New test.
+	* testsuite/poke.pkl/cast-int-struct-3.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Update with new tests.
+
+2020-07-22  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.h (PKL_AST_TYPE_S_INTEGRATOR): Define.
+	(sct): New field integrator.
+	* libpoke/pkl-ast.c (pkl_ast_make_struct_type): Handle the
+	integrator.
+	(pkl_ast_node_free): Likewise.
+	* libpoke/pkl-gen.h: Note that IN_WRITER is also used for struct
+	integrators.
+	* libpoke/pkl-gen.c (pkl_gen_pr_decl): Compile integrators for
+	integral structs.
+	(pkl_gen_ps_cast): Handle casts from struct to integral.
+	* libpoke/pkl-gen.pks (struct_integrator): New RAS function.
+	* libpoke/pkl-typify.c (pkl_typify1_ps_cast): Allow casts from
+	integral structs to integral types.
+	* testsuite/poke.pkl/cast-struct-diag-3.pk: New test.
+	* testsuite/poke.pkl/cast-int-struct-1.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Update with new tests.
+	* doc/poke.texi (Casting Structs): Document casts from integral
+	struct to integral type.
+	(Integral Structs): Likewise.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/poke.pkl/scons-int-struct-3.pk: New test.
+	* testsuite/poke.map/maps-int-structs-19.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-20.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Update with new tests.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_pr_type_struct): Handle gen
+	environment properly before and after calling
+	RAS_FUNCTION_STRUCT_WRITER.
+	(pkl_gen_pr_type_array): Ditto for RAS_FUNCTION_ARRAY_WRITER.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/poke.map/map-int-structs-17.pk: New test.
+	* testsuite/poke.map/map-int-structs-18.pk: Likewise.
+	* testsuite/poke.pkl/scons-int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/scons-int-struct-2.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Update with new tests.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/id3v2.pk: Moved from future and adapted to actual Poke.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-typify.c (pkl_typify1_ps_op_rela): Do not allow
+	operands of type any.
+	* testsuite/poke.pkl/eq-any-diag-1.pk: New test.
+	* testsuite/poke.pkl/neq-any-diag-1.pk (equalstructs): Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Update with new tests.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-fold.c (pkl_fold_ps_cast): Fix masking of the
+	resulting magnitude of converted offsets.
+	* testsuite/poke.pkl/cast-offsets-5.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new tests.
+
+2020-07-21  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_field_inserter): Simplify code.
+	(struct_mapper): Likewise.
+	(struct_comparator): Likewise.
+	(struct_constructor): Likewise.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ras: Rename .arg to .let, support initialization
+	expressions, and substitute RAS variables in literal C.
+	* libpoke/pkl-gen.pks (struct_field_extractor): Make use of these
+	new goodies.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ras: Support for .arg directives.
+	* libpoke/pkl-gen.pks: Make use of them.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (array_mapper): Use macro arguments to
+	access AST nodes instead of relying on the context.
+	(array_valmapper): Likewise.
+	(array_writer): Likewise.
+	(array_bounder): Likewise.
+	(array_constructor): Likewise.
+	* libpoke/pkl-gen.c: Adjust accordingly.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_mapper): Use macro arguments to
+	access AST nodes, instead of relying on the context.
+	(struct_comparator): Likewise.
+	(struct_constructor): Likewise.
+	(struct_writer): Likewise.
+	(struct_field_writer): Likewise.
+	(handle_struct_field_constraints): Likewise.
+	* libpoke/pkl-gen.c: Adapt accordingly.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ras: Support arguments in RAS functions.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* HACKING (Calling compiled Poke from RAS): New section.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ras: Support for the .call directive.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ras: Use RAS_PUSH_ASM and RAS_POP_ASM instead of the
+	PKL_GEN_ macros.
+	* libpoke/pkl-gen.c (RAS_PUSH_ASM): Define.
+	(RAS_POP_ASM): Likewise.
+
+2020-07-20  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-tab.y (integral_struct): Accept any
+	simple_type_specifier after struct.
+	* libpoke/pkl-typify.c (pkl_typify1_ps_type_struct): Make sure the
+	type associated with an integral struct is itself integral.
+	* pickles/elf.pk (Elf64_RelInfo): Use Elf64_Xword as the integer
+	type of the struct.
+	* testsuite/poke.pkl/int-struct-type-diag-14.pk: New test.
+	* testsuite/poke.pkl/int-struct-1.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-2.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new tests.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/elf.pk (elf_stv_names): Define.
+	(STT_NOTYPE): Likewise.
+	(STT_OBJECT): Likewise.
+	(STT_FUNC): Likewise.
+	(STT_SECTION): Likewise.
+	(STT_FILE): Likewise.
+	(STT_COMMON): Likewise.
+	(STT_TLS): Likewise.
+	(STT_NUM): Likewise.
+	(STT_LOOS): Likewise.
+	(STT_GNU_IFUNC): Likewise.
+	(STT_HIOS): Likewise.
+	(STT_LOPROC): Likewise.
+	(STT_HIPROC): Likewise.
+	(elf_stt_names): Likewise.
+	(elf_stb_names): Likewise.
+	(Elf64_Sym): Pretty-printers for st_info and st_other.
+	* TODO: Update.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_field_inserter): Remove description
+	of the no-longer required C environment for this macro.
+	* libpoke/ras: Document how macro/function arguments can be
+	referred inside literal C directives.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/poke.map/maps-int-structs-14.pk: Avoid cast.
+	* testsuite/poke.map/maps-int-structs-16.pk: Likewise.
+	* pickles/elf.pk (Elf64_Sym): st_info should not be an integral
+	struct.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_writer): Support integral structs.
+	(struct_field_inserter): New macro.
+	* libpoke/pvm.jitter (srefia): Fix instruction.
+	* libpoke/pkl-typify.c (pkl_typify1_ps_type_struct): Do not allow
+	optional fields in integral structs.
+	* testsuite/poke.map/maps-int-structs-13.pk: New test.
+	* testsuite/poke.map/maps-int-structs-14.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-15.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-16.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-17.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-13.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new tests.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.h (PKL_AST_TYPE_S_PINNED_P): Renamed from
+	PKL_AST_TYPE_S_PINNED.
+	* libpoke/pkl-ast.c (pkl_ast_make_struct_type): Adapt accordingly.
+	(pkl_ast_dup_type): Likewise.
+	(pkl_ast_print_1): Likewise.
+	* libpoke/pkl-gen.pks (struct_mapper): Likewise.
+	(struct_constructor): Likewise.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/poke.map/maps-int-structs-12.pk: New test.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new test.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-typify.c (pkl_typify1_ps_type_struct): Handle offset
+	fields.
+	* libpoke/pkl-gen.pks (struct_mapper): Support offset fields in
+	integral structs.
+	(struct_field_extractor): Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-12.pk: New test.
+	* testsuite/poke.map/maps-int-structs-11.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-10.pk: Likewise.
+	* testsuite/Makefile.am (EXTRA_DIST): Add new tests.
+	* pickles/ctf.pk (CTF_Name): Turn into an integral struct.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/elf.pk (Elf64_RelInfo): Turn into an integral struct.
+	(st_info): Likewise.
+	* pickles/ctf.pk (CTF_Type_Id): Likewise.
+	(CTF_Info): Likewise.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks (struct_mapper): Use null as a dummy and not
+	an uint<64>0.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/Makefile.am (EXTRA_DIST): Add missing tests.
+
+2020-07-19  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-tab.y (struct_type_specifier): Register one more
+	dummy.
+	* libpoke/pkl-gen.pks (struct_mapper): Support for mapping
+	integral structs.
+	(struct_constructor): Match the lexical
+	structure of struct_mapper.
+	(struct_field_mapper): Adapt to new lexical structure of
+	struct_mapper.
+	(struct_field_extractor): New macro.
+	(handle_struct_field_constraints): New macro.
+	* libpoke/pkl-typify.c (pkl_typify1_ps_type_struct): Do not allow
+	integral structs inside other integral structs.
+	* testsuite/poke.pkl/int-struct-type-diag-10.pk: Adapt accordingly.
+	* testsuite/poke.pkl/int-struct-type-diag-8.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-9.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-1.pk: New test.
+	* testsuite/poke.map/maps-int-structs-2.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-5.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-4.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-3.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-6.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-7.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-8.pk: Likewise.
+	* testsuite/poke.map/maps-int-structs-9.pk: Likewise.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks: Typo in comment fixed.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ios-dev.h (IOD_ERROR): Redefine to -1.
+	(IOD_EOF): Redefine to -2.
+	(IOD_EINVAL): Redefine to -3.
+	* libpoke/ios.h: Remove IOS_EIOBJ.
+	* libpoke/ios.c (IOS_PUT_C_ERR_CHCK): Replace IOS_EIOBJ with
+	IOS_EIBOFF.
+	(ios_write_int_fast): Likewise.
+	* libpoke/pvm.jitter: Likewise.
+	* testsuite/poke.pkl/ios-mem-5.pk: Update accordingly.
+	* TODO: Update.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* poke/pk-copy.pk (copy): Make argument `to' to default to `from',
+	and do not move data around if to == from and to_ios == from_ios.
+	* doc/poke.texi (copy): Reflect change in documentation.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/Makefile.am (EXTRA_DIST): Add poke.cmd/extract-1.pk,
+	poke.map/maps-structs-labels-2.pk, poke.pkl/funcall-15.pk and
+	poke.pkl/funcall-16.pk.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* poke/pk-extract.pk: New file.
+	* poke/pk-cmd.pk: Load pk-extract.pk.
+	* poke/Makefile.am (dist_pkgdata_DATA): Add pk-extract.pk.
+	* doc/poke.texi (extract): New section.
+	* testsuite/poke.cmd/extract-1.pk: New test.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* bootstrap.conf (gnulib_modules): Import glob module.
+	* poke/pk-cmd.c (pk_cmd_exec_1): Use the more portable `glob' than
+	`wordexp'.
+	* testsuite/poke.cmd/file-relative.pk: Do not quote the file name.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-promo.c (pkl_promo_ps_struct_type_field): Promote
+	struct field labels to offset<uint<64>,b>.
+	* libpoke/pkl-gen.pks (handle_struct_field_label): Simplify
+	assuming that the label unit is bits.
+	* testsuite/poke.map/maps-structs-labels-2.pk (Foo): New test.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi: Fix references to prototypes to not include a
+	trailing colon.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* .x-sc_prohibit_magic_number_exit: Whitelist utils/*.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pvm.jitter (rand): Take an additional argument in the
+	stack for the seed.
+	* libpoke/pkl-rt.pk (rand): Redefine the builtin `rand' to take an
+	optional argument for the seed.
+	* libpoke/pkl-gen.c (pkl_gen_ps_comp_stmt): Likewise.
+	* doc/poke.texi (rand): New section.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* utils/elfextractor: New file.
+	* HACKING (Poke Utilities): New section.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi (From Bytes to Integers): Reflect new syntax for
+	bit-concatenation.
+	(Big and Little Endians): Likewise.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi (Unions): Note about placing most common
+	alternatives first in unions.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-tab.y (primary): Allow funcall statements.
+	* testsuite/poke.pkl/funcall-15.pk: New test.
+	* testsuite/poke.pkl/funcall-16.pk: Likewise.
+	* doc/poke.texi (Calling Functions): Document that the funcall
+	alternative syntax can be used in expressions.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ops.def: Remove unused ELEMSOF and TYPEOF operator
+	definitions.
+
+2020-07-18  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* doc/poke.texi (Casting Structs): Expand a little.
+
+2020-07-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.pks: Remove obsolete comments.
+	* libpoke/pkl-tab.y (INTEGER): Likewise.
+	(identifier): Likewise.
+	* libpoke/pk-val.c: Likewise.
+
+2020-07-17  Bruno Haible  <bruno@clisp.org>
+
+	Fix build failure during "make distcheck".
+	* testsuite/Makefile.am (EXTRA_DIST): Remove all directories. Add
+	individual files instead.
+	* testsuite/poke.libpoke/Makefile.am (EXTRA_DIST): Add libpoke.exp.
+	* testsuite/poke.mi-json/Makefile.am (EXTRA_DIST): Add mi-json.exp.
+	* HACKING: Mention that test files beed to be listed.
+
+2020-07-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.h (PKL_AST_TYPE_S_UNION_P): Renamed from
+	PKL_AST_TYPE_S_UNION.
+	* libpoke/pkl-ast.c (pkl_ast_make_struct_type): Update
+	accordingly.
+	(pkl_ast_dup_type): Likewise.
+	(pkl_ast_print_1): Likewise.
+	* libpoke/pkl-typify.c (pkl_typify1_ps_type_struct): Likewise.
+	* libpoke/pkl-gen.pks (struct_mapper): Likewise.
+	* libpoke/pkl-anal.c (pkl_anal1_ps_type_struct): Likewise.
+	(pkl_anal2_ps_type_struct): Likewise.
+
+2020-07-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-typify.c (pkl_typify1_ps_type_struct): Unions can't
+	be integral.
+	* testsuite/poke.pkl/int-struct-type-diag-11.pk: New test.
+
+2020-07-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-typify.c (pkl_typify1_ps_struct): Do not allow
+	labels in fields in integral structs.
+	* testsuite/poke.pkl/int-struct-type-diag-10.pk: New test.
+
+2020-07-17  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.h (sct): New field sct.itype.
+	(PKL_AST_TYPE_S_ITYPE): Define
+	* libpoke/pkl-ast.c (pkl_ast_make_struct_type): Get itype as
+	argument.
+	(pkl_ast_print_1): Print out itype.
+	* libpoke/pkl-typify.c (pkl_typify1_ps_struct): Pass itype to
+	pkl_ast_make_struct_type.
+	(pkl_typify1_ps_type_struct): New handler.
+	(pkl_phase_typify1): Install handler.
+	* libpoke/pkl-tab.y (integral_struct): New rule.
+	(struct_type_specifier): Support for integral structs.
+	* testsuite/poke.pkl/int-struct-type-diag-1.pk: New test.
+	* testsuite/poke.pkl/int-struct-type-diag-2.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-9.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-8.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-7.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-6.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-5.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-4.pk: Likewise.
+	* testsuite/poke.pkl/int-struct-type-diag-3.pk: Likewise.
+
+2020-07-16  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/elf.pk (Elf64_File.get_section_by_name): Optimize
+	slightly.
+
+2020-07-16  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* pickles/elf.pk (Elf64_Phdr): Define.
+	(Elf64_File): Add field phdr.
+	(PT_NULL): Define.
+	(PT_LOAD): Likewise.
+	(PT_DYNAMIC): Likewise.
+	(PT_INTERP): Likewise.
+	(PT_NOTE): Likewise.
+	(PT_SHLIB): Likewise.
+	(PT_PHDR): Likewise.
+	(PT_TLS): Likewise.
+	(PT_LOOS): Likewise.
+	(PT_HIOS): Likewise.
+	(PT_LOPROC): Likewise.
+	(PT_HIPROC): Likewise.
+	(Elf64_SegmentFlags): Likewise.
+	(PF_X): Likewise.
+	(PF_W): Likewise.
+	(PF_R): Likewise.
+	(PF_MASKOS): Likewise.
+	(PF_MASKPROC): Likewise.
+
+2020-07-16  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* configure.ac: Fail if an usable Boehm GC library is not found at
+	configure time.
+
+2020-07-16  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* poke/poke.c (parse_args_1): Set that poke is invoked
+	non-interactively when -L is used.
+	(main): Initialize poke_interactive_p in main.
+
+2020-07-14  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* etc/pk-mi-json-schema.json (json schema) : Fixed indentation style
+	and change to PokeValue properties.
+
+2020-07-14  Bruno Haible  <bruno@clisp.org>
+
+	Fix build failure during "make check" without libjson-c.
+	* testsuite/poke.mi-json/Makefile.am: Don't build anything if POKE_MI is
+	false.
+	* testsuite/poke.mi-json/mi-json.exp: Don't run any test if
+	poke.mi-json/mi-json wasn't built.
+
+2020-07-14  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pk-val.c: Remove trailing spaces.
+	* libpoke/libpoke.h: Likewise.
+
+2020-07-14  Kostas Chasialis  <sdi1600195@di.uoa.gr>
+
+	* libpoke/libpoke.h (pk_make_struct_type): Prototype.
 	(pk_struct_type): Likewise.
 	(pk_allocate_struct_attrs): Likewise.
 	(pk_struct_type_name): Likewise.
@@ -9,7 +1081,7 @@
 	(pk_struct_type_set_fname): Likewise.
 	(pk_struct_type_ftype): Likewise.
 	(pk_struct_type_set_ftype): Likewise.
-	*libpoke/pk-val.c (pk_make_struct_type): Define.
+	* libpoke/pk-val.c (pk_make_struct_type): Define.
 	(pk_struct_type): Likewise.
 	(pk_allocate_struct_attrs): Likewise.
 	(pk_struct_type_name): Likewise.
@@ -18,6 +1090,101 @@
 	(pk_struct_type_set_fname): Likewise.
 	(pk_struct_type_ftype): Likewise.
 	(pk_struct_type_set_ftype): Likewise.
+
+2020-07-14  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/poke.mi-json/mi-json.c (pk_fatal): Use EXIT_FAILURE
+	instead of hardcoded 1.
+	* libpoke/ios-dev.h (IOS_FILE_HANDLER_NORMALIZE): Replace tabs
+	with whitespaces.
+
+2020-07-14  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* poke/poke.c (pk_print_version): Change jemarch for "the poke
+	authors".
+	* doc/poke.texi: Likewise.
+
+2020-07-14  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/ios-dev.h (IOS_FILE_HANDLER_NORMALIZE): Fix logic.
+
+2020-07-14  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-gen.c (pkl_gen_pr_map): Fix subpassing on the map
+	offset when it is on the left side of an assignment.
+
+2020-07-13  Egeyar Bagcioglu  <egeyar@gmail.com>
+
+	* libpoke/ios-dev-file.c (ios_dev_file_handler_normalize): Move
+	the file name normalization logic from here ...
+	* libpoke/ios-dev.h (IOS_FILE_HANDLER_NORMALIZE): ... to here.
+
+2020-07-13  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* .x-sc_bindtextdomain: New file.
+	* testsuite/poke.mi-json/Makefile.am: New file.
+	* testsuite/poke.mi-json/mi-json.c: Likewise.
+	* testsuite/poke.mi-json/json.exp: Likewise.
+	* configure.ac: AC_CONFIG testsuite/poke.mi-json/Makefile.
+	* testsuite/Makefile.am (SUBDIRS): Add poke.mi-json.
+	* poke/pk-mi-json.c (pk_mi_json_to_msg): Do not print tokener
+	diagnostics.
+	* HACKING (Test Suite): Update.
+
+2020-07-13  Bruno Haible  <bruno@clisp.org>
+
+	Fix build failure during "make check".
+	* bootstrap.conf (libpoke_modules): Add vasprintf-posix.
+	(ACLOCAL_FLAGS): New variable.
+	* Makefile.am (ACLOCAL_AMFLAGS): Add -I options for the second and third
+	gnulib-tool invocation.
+	* configure.ac: Invoke libpoke_EARLY, gui_EARLY, libpoke_INIT, gui_INIT.
+
+2020-07-12  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* testsuite/Makefile.am (EXTRA_DIST): Add libpoke.
+	* testsuite/poke.libpoke/libpoke.exp: New file.
+	* testsuite/poke.libpoke/Makefile.am: Likewise.
+	* testsuite/poke.libpoke/values.c: Likewise.
+	* testsuite/poke.libpoke/term-if.h: Likewise.
+	* configure.ac: AC_CONFIG testsuite/libpoke/Makefile.
+	* HACKING (Unit Tests): New section.
+
+2020-07-12  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pkl-ast.h (PKL_AST_BUILTIN_FORGET): Define.
+	* libpoke/pkl-tab.y (BUILTIN_FORGET): Define.
+	(builtin): Handle BUILTIN_FORGET.
+	* libpoke/pkl-lex.l: Handle __PKL_BUILTIN_FORGET__.
+	* libpoke/pkl-rt.pk (flush): Define.
+	* doc/poke.texi (flush): New section.
+	* libpoke/pkl-insn.def (PKL_INSN_FLUSH): Define.
+	* libpoke/pvm.jitter (flush): New instruction.
+
+2020-07-12  Egeyar Bagcioglu  <egeyar@gmail.com>
+
+	* libpoke/ios-dev-file.c (ios_dev_file_handler_normalize): Add
+	parameter "flags".
+	* libpoke/ios-dev-mem.c (ios_dev_mem_handler_normalize): Likewise.
+	* libpoke/ios-dev-nbd.c (ios_dev_nbd_handler_normalize): Likewise.
+	* libpoke/ios-dev.h (struct ios_dev_if): Add parameter "flags" to
+	handler_normalize.
+	* libpoke/ios.c (ios_open): Pass "flags" to handler_normalize.
+
+2020-07-12  Egeyar Bagcioglu  <egeyar@gmail.com>
+
+	* libpoke/ios.h (ios_flush): New.
+	* libpoke/ios.c (ios_flush): New.
+	* libpoke/ios-dev.h (struct ios_dev_if): Add new member "flush".
+	* libpoke/ios-dev-file.c (ios_dev_file_flush): New.
+	* libpoke/ios-dev-mem.c (ios_dev_mem_flush): New.
+	* libpoke/ios-dev-nbd.c (ios_dev_nbd_flush): New.
+
+2020-07-12  Jose E. Marchesi  <jemarch@gnu.org>
+
+	* libpoke/pk-val.c: Remove trailing whitespace.
+	* libpoke/libpoke.h: Likewise.
+	* etc/pk-mi-json-schema.json: Add missing newline at EOF.
 
 2020-07-02  Kostas Chasialis  <sdi1600195@di.uoa.gr>
 

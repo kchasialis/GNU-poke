@@ -258,7 +258,7 @@ pk_print_version (void)
      copyright symbol (U+00A9 in Unicode), but there is no obligation
      to do this.  In other cases it's probably best to leave it untranslated.  */
   pk_printf (_("\
-%s (C) %s Jose E. Marchesi.\n\
+%s (C) %s The poke authors.\n\
 License GPLv3+: GNU GPL version 3 or later"), "Copyright", "2019, 2020");
   pk_term_hyperlink ("http://gnu.org/licenses/gpl.html", NULL);
   pk_puts (" <http://gnu.org/licenses/gpl.html>");
@@ -364,6 +364,7 @@ parse_args_1 (int argc, char *argv[])
             }
           break;
         case 'L':
+          poke_interactive_p = 0;
           return;
         case NO_AUTO_MAP_ARG:
           poke_auto_map_p = 0;
@@ -436,7 +437,6 @@ parse_args_2 (int argc, char *argv[])
                command-line arguments.  Then execute the script and
                return.  */
             set_script_args (argc, argv);
-            poke_interactive_p = 0;
             if (!pk_compile_file (poke_compiler, optarg, &exit_status))
               goto exit_success;
 
@@ -503,9 +503,6 @@ initialize (int argc, char *argv[])
   setlocale (LC_ALL, "");
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
-
-  /* Determine whether the tool has been invoked interactively.  */
-  poke_interactive_p = isatty (fileno (stdin));
 
   /* Determine the directory containing poke's scripts and other
      architecture-independent data.  */
@@ -658,6 +655,9 @@ pk_fatal (const char *errmsg)
 int
 main (int argc, char *argv[])
 {
+  /* Determine whether the tool has been invoked interactively.  */
+  poke_interactive_p = isatty (fileno (stdin));
+
   /* First round of argument parsing: everything that can impact the
      initialization.  */
   parse_args_1 (argc, argv);

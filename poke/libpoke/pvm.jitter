@@ -70,6 +70,7 @@ wrapped-functions
   ios_read_string
   ios_write_string
   random
+  srandom
   secure_getenv
 end
 
@@ -838,6 +839,35 @@ instruction close ()
       PVM_RAISE_DFL (PVM_E_IO);
 
     ios_close (io);
+    JITTER_DROP_STACK ();
+  end
+end
+
+# Instruction: flush
+#
+#
+# Flush an IO space.  The descriptor of the space to flush, and the
+# bit-offset up to which perform the flushing are provided on the stack.
+#
+# If the specified IO space doesn't exist, this instruction raises
+# PVM_E_IO.
+#
+# Stack: ( INT ULONG -- )
+# Exceptions: PVM_E_IO
+
+instruction flush ()
+  code
+    ios_off offset = PVM_VAL_ULONG (JITTER_TOP_STACK ());
+    int io_id = PVM_VAL_INT (JITTER_UNDER_TOP_STACK ());
+    ios io = ios_search_by_id (io_id);
+
+    if (io == NULL)
+      PVM_RAISE_DFL (PVM_E_IO);
+
+    if (ios_flush (io, offset) != IOS_OK)
+      PVM_RAISE_DFL (PVM_E_IO);
+
+    JITTER_DROP_STACK ();
     JITTER_DROP_STACK ();
   end
 end
@@ -3801,14 +3831,15 @@ instruction srefia ()
   code
     pvm_val sct = JITTER_UNDER_TOP_STACK ();
     pvm_val index = JITTER_TOP_STACK ();
+    int absent_p;
 
     if (PVM_VAL_ULONG (index) < 0
         || (PVM_VAL_ULONG (index) >=
             PVM_VAL_INTEGRAL (PVM_VAL_SCT_NFIELDS (sct))))
       PVM_RAISE_DFL (PVM_E_OUT_OF_BOUNDS);
 
-    JITTER_PUSH_STACK (PVM_VAL_SCT_FIELD_ABSENT_P (sct,
-                                                   PVM_VAL_ULONG (index)));
+    absent_p = PVM_VAL_SCT_FIELD_ABSENT_P (sct, PVM_VAL_ULONG (index));
+    JITTER_PUSH_STACK (pvm_make_int (absent_p, 32));
   end
 end
 
@@ -4825,10 +4856,18 @@ end
 #
 # Push a pseudo-random integer to the stack.
 #
-# Stack: ( -- INT )
+# If the argument is 0U then it is ignored.  Otherwise it is
+# used to set the seed for a new sequence of pseudo-random numbers.
+#
+# Stack: ( UINT -- INT )
 
 instruction rand ()
   code
+    unsigned int seed = PVM_VAL_UINT (JITTER_TOP_STACK ());
+
+    if (seed != 0)
+      srandom (seed);
+    JITTER_DROP_STACK ();
     JITTER_PUSH_STACK (pvm_make_int (random (), 32));
   end
 end

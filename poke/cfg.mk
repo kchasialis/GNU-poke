@@ -45,3 +45,11 @@ sc_tabs_in_source:
 	in_vc_files='\.[chly]$$'                 \
 	halt='found tabs in source.  Use spaces instead.'           \
 	$(_sc_search_regexp)
+
+sc_tests_listed_in_makefile_am:
+	@for tfile in $(patsubst $(top_srcdir)/testsuite/%,%,$(wildcard $(top_srcdir)/testsuite/**/*.pk)); \
+	do require="$$tfile" \
+	   in_vc_files='testsuite/Makefile.am'	\
+	   halt='missing tests in EXTRA_DIST'	\
+	   $(_sc_search_regexp)		\
+	done

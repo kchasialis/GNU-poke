@@ -16,8 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <assert.h>
 #include <config.h>
+
+#include <assert.h>
 #include <string.h>
 #include <json.h>
 
@@ -25,6 +26,22 @@
 #include "pk-mi.h"
 #include "pk-mi-json.h"
 #include "pk-mi-msg.h"
+#include "libpoke.h"
+
+#define PK_MI_CHECK(errmsg, A, M, ...)    \
+    do                                     \
+     {                                     \
+       int r;                              \
+       if (A)                              \
+         break;                            \
+       if (errmsg != NULL &&               \
+           (r = asprintf (errmsg, "[ERROR] " M , ##__VA_ARGS__)) == -1) { \
+         *errmsg = NULL;                   \
+         assert (0 && "asprintf () failed"); \
+       }                                   \
+       goto error;                         \
+     }                                     \
+     while (0)
 
 /* Message::
    {
@@ -420,7 +437,7 @@ pk_mi_msg
 pk_mi_json_to_msg (const char *str)
 {
   pk_mi_msg msg = NULL;
-  struct json_tokener *tokener;
+  json_tokener *tokener;
   json_object *json;
 
   tokener = json_tokener_new ();
@@ -428,92 +445,47 @@ pk_mi_json_to_msg (const char *str)
     return NULL;
 
   json = json_tokener_parse_ex (tokener, str, strlen (str));
-  if (!json)
-    pk_printf ("internal error: %s\n",
-               json_tokener_error_desc (json_tokener_get_error (tokener)));
   json_tokener_free (tokener);
 
   if (json)
-    msg = pk_mi_json_object_to_msg (json);
+    {
+      msg = pk_mi_json_object_to_msg (json);
+      assert (json_object_put (json) == 1);
+    }
 
-  /* XXX: free the json object  */
   return msg;
 }
 
-/*Functions to convert pk_val to JSON Poke Value*/
-static json_object* _pk_mi_make_json_int (pk_val integer, char **errmsg);
-static json_object* _pk_mi_make_json_string (pk_val str, char **errmsg);
-static json_object* _pk_mi_make_json_offset (pk_val offset, char **errmsg);
-static json_object* _pk_mi_make_json_struct (pk_val sct, char **errmsg);
-static json_object* _pk_mi_make_json_array (pk_val array, char **errmsg);
-static json_object* _pk_mi_make_json_null ();
+/* Functions to convert pk_val to JSON Poke Value.  */
+static json_object *pk_mi_val_to_json_1 (pk_val val, char **errmsg);
 
-static json_object* _pk_mi_val_to_json (pk_val val, char **errmsg)
+static json_object *
+pk_mi_int_to_json (pk_val pk_int, char **errmsg)
 {
-  struct json_object *pk_val_object = NULL;
-  if  (val == PK_NULL) {
-    pk_val_object = _pk_mi_make_json_null (errmsg);
-  }
-  else {
-    switch (pk_type_code (pk_typeof (val))) {
-      case PK_INT:
-        pk_val_object = _pk_mi_make_json_int (val, errmsg);
-        break;
-      case PK_STRING:
-        pk_val_object = _pk_mi_make_json_string (val, errmsg);
-        break;
-      case PK_OFFSET:
-        pk_val_object = _pk_mi_make_json_offset (val, errmsg);
-        break;
-      case PK_STRUCT:
-        pk_val_object = _pk_mi_make_json_struct (val, errmsg);
-        break;
-      case PK_ARRAY:
-        pk_val_object = _pk_mi_make_json_array (val, errmsg);
-        break;
-      case PK_CLOSURE:
-      case PK_ANY:
-        assert (0);
-    }
-    if (!pk_val_object) {
-      return NULL;
-    }
-  }
-
-  return pk_val_object;
-}
-
-static json_object* 
-_pk_mi_make_json_int (pk_val integer, char **errmsg) 
-{ 
-  struct json_object *int_object, *type_object, *value_object, *size_object;
+  json_object *int_object, *type_object, *value_object, *size_object;
   const char *type;
   int size;
-  
-  assert (pk_type_code (pk_typeof (integer)) == PK_INT);
 
-  PK_MI_CHECK (errmsg, (int_object = json_object_new_object ()) != NULL, "json_object_new_object() failed");
+  assert (pk_type_code (pk_typeof (pk_int)) == PK_INT);
 
-  if  (! (pk_uint_value (pk_integral_type_signed_p (pk_typeof (integer))))) {
-    PK_MI_CHECK (errmsg, (value_object = json_object_new_uint64 (pk_uint_value (integer))) != NULL, "json_object_new_object() failed");
-    size = pk_uint_size (integer);
-    type = "UnsignedInteger";
-  }
-  else {
-    PK_MI_CHECK (errmsg,  (value_object = json_object_new_int64 (pk_int_value (integer))) != NULL, "json_object_new_object() failed");
-    size = pk_int_size (integer);
-    type = "Integer";
-  }
+  int_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, int_object != NULL, "json_object_new_object () failed");
 
-  assert (size <= 64);
+  value_object = json_object_new_int64 (pk_int_value (pk_int));
+  PK_MI_CHECK (errmsg, value_object != NULL,
+              "json_object_new_object () failed");
+  size = pk_int_size (pk_int);
+  type = "Integer";
 
-  PK_MI_CHECK (errmsg, (size_object = json_object_new_int (size)) != NULL, "json_object_new_object() failed");
-  PK_MI_CHECK (errmsg, (type_object = json_object_new_string (type)) != NULL, "json_object_new_object() failed");
-  
-  /*OK, fill the properties of our object*/
-  PK_MI_CHECK (errmsg, json_object_object_add (int_object, "type", type_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (int_object, "value", value_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (int_object, "size", size_object) != -1, "json_object_object_add() failed");
+  size_object = json_object_new_int (size);
+  type_object = json_object_new_string (type);
+  PK_MI_CHECK (errmsg, size_object != NULL, "json_object_new_object () failed");
+  PK_MI_CHECK (errmsg, type_object != NULL, "json_object_new_object () failed");
+
+  /* OK, fill the properties of our object.  */
+  json_object_object_add (int_object, "type", type_object);
+  json_object_object_add (int_object, "value", value_object);
+  json_object_object_add (int_object, "size", size_object);
 
   return int_object;
 
@@ -521,57 +493,120 @@ _pk_mi_make_json_int (pk_val integer, char **errmsg)
     return NULL;
 }
 
-static json_object* 
-_pk_mi_make_json_string (pk_val str, char **errmsg) 
+static json_object *
+pk_mi_uint_to_json (pk_val pk_uint, char **errmsg)
 {
-  struct json_object *string_object, *string_type_object, *string_value_object;
-  
-  assert (pk_type_code (pk_typeof (str)) == PK_STRING);
-  
-  PK_MI_CHECK (errmsg, (string_object = json_object_new_object ()) != NULL, "json_object_new_object() failed");
+  json_object *uint_object, *type_object, *value_object, *size_object;
+  const char *type;
+  int size;
 
-  PK_MI_CHECK (errmsg, (string_type_object = json_object_new_string ("String")) != NULL, "json_object_new_object() failed");  
-  PK_MI_CHECK (errmsg, (string_value_object = json_object_new_string (pk_string_str (str))) != NULL, "json_object_new_object() failed");
+  assert (pk_type_code (pk_typeof (pk_uint)) == PK_UINT);
 
-  /*OK, fill the properties of our object*/
-  PK_MI_CHECK (errmsg, json_object_object_add (string_object, "type", string_type_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (string_object, "value", string_value_object) != -1, "json_object_object_add() failed");
- 
+  uint_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, uint_object != NULL, "json_object_new_object () failed");
+
+  /* Older versions of libjson-c (0.3.1 & under) do not support
+      json_object_new_uint64.
+
+      In order to support previous versions, we store unsigned integers
+      as signed integers despite them being too large to represent as
+      signed. (i.e. they are stored as negative).  */
+  value_object = json_object_new_int64 ((int64_t) pk_uint_value (pk_uint));
+  PK_MI_CHECK (errmsg, value_object != NULL,
+              "json_object_new_object () failed");
+  size = pk_uint_size (pk_uint);
+  type = "UnsignedInteger";
+
+  size_object = json_object_new_int (size);
+  type_object = json_object_new_string (type);
+  PK_MI_CHECK (errmsg, size_object != NULL, "json_object_new_object () failed");
+  PK_MI_CHECK (errmsg, type_object != NULL, "json_object_new_object () failed");
+
+  /* OK, fill the properties of our object.  */
+  json_object_object_add (uint_object, "type", type_object);
+  json_object_object_add (uint_object, "value", value_object);
+  json_object_object_add (uint_object, "size", size_object);
+
+  return uint_object;
+
+  error:
+    return NULL;
+}
+
+static json_object *
+pk_mi_string_to_json (pk_val pk_str, char **errmsg)
+{
+  json_object *string_object, *string_type_object, *string_value_object;
+
+  assert (pk_type_code (pk_typeof (pk_str)) == PK_STRING);
+
+  string_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, string_object != NULL,
+              "json_object_new_object () failed");
+
+  string_type_object = json_object_new_string ("String");
+  PK_MI_CHECK (errmsg, string_type_object != NULL,
+              "json_object_new_object () failed");
+
+  string_value_object = json_object_new_string (pk_string_str (pk_str));
+  PK_MI_CHECK (errmsg, string_value_object != NULL,
+              "json_object_new_object () failed");
+
+  /* OK, fill the properties of our object.  */
+  json_object_object_add (string_object, "type", string_type_object);
+  json_object_object_add (string_object, "value", string_value_object);
+
   return string_object;
 
   error:
     return NULL;
 }
 
-static json_object* 
-_pk_mi_make_json_offset (pk_val offset, char **errmsg) 
+static json_object *
+pk_mi_offset_to_json (pk_val pk_offset, char **errmsg)
 {
-  struct json_object *offset_object, *offset_type_object;
-  struct json_object *magnitude_object;
-  struct json_object *unit_object, *unit_type_object, *unit_size_object, *unit_value_object;
-  
-  assert (pk_type_code (pk_typeof (offset)) == PK_OFFSET);
+  json_object *offset_object, *offset_type_object;
+  json_object *magnitude_object;
+  json_object *unit_object, *unit_type_object, *unit_size_object;
+  json_object *unit_value_object;
+  pk_val off_unit;
 
-  PK_MI_CHECK (errmsg,  (offset_type_object = json_object_new_string ("Offset")) != NULL, "json_object_new_object() failed");
+  assert (pk_type_code (pk_typeof (pk_offset)) == PK_OFFSET);
 
-  magnitude_object = _pk_mi_make_json_int (pk_offset_magnitude (offset), errmsg);
-  
-  PK_MI_CHECK (errmsg,  (unit_type_object = json_object_new_string ("UnsignedInteger")) != NULL, "json_object_new_object() failed");
-  PK_MI_CHECK (errmsg,  (unit_size_object = json_object_new_int (64)) != NULL, "json_object_new_object() failed");
-  PK_MI_CHECK (errmsg,  (unit_value_object = json_object_new_uint64 (pk_uint_value (pk_offset_unit (offset)))) != NULL, "json_object_new_object() failed");
-  
-  PK_MI_CHECK (errmsg,  (unit_object = json_object_new_object ()) != NULL, "json_object_new_object() failed");
+  offset_type_object = json_object_new_string ("Offset");
+  PK_MI_CHECK (errmsg, offset_type_object != NULL,
+              "json_object_new_object () failed");
 
-  PK_MI_CHECK (errmsg, json_object_object_add (unit_object, "type", unit_type_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (unit_object, "value", unit_value_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (unit_object, "size", unit_size_object) != -1, "json_object_object_add() failed");
+  magnitude_object = pk_mi_int_to_json (pk_offset_magnitude (pk_offset), errmsg);
 
-  PK_MI_CHECK (errmsg,  (offset_object = json_object_new_object ()) != NULL, "json_object_new_object() failed");
-  
-  /*Built sub-objects, add them to our offset_object*/
-  PK_MI_CHECK (errmsg, json_object_object_add (offset_object, "type", offset_type_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (offset_object, "magnitude", magnitude_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (offset_object, "unit", unit_object) != -1, "json_object_object_add() failed");
+  unit_type_object = json_object_new_string ("UnsignedInteger");
+  PK_MI_CHECK (errmsg, unit_type_object != NULL,
+              "json_object_new_object () failed");
+
+  unit_size_object = json_object_new_int (64);
+  PK_MI_CHECK (errmsg, unit_size_object != NULL,
+              "json_object_new_object () failed");
+
+  off_unit = pk_offset_unit (pk_offset);
+  unit_value_object = json_object_new_int64 ((int64_t) pk_uint_value (off_unit));
+  PK_MI_CHECK (errmsg, unit_value_object != NULL,
+              "json_object_new_object () failed");
+
+  unit_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg,  unit_object != NULL,
+              "json_object_new_object () failed");
+
+  json_object_object_add (unit_object, "type", unit_type_object);
+  json_object_object_add (unit_object, "value", unit_value_object);
+  json_object_object_add (unit_object, "size", unit_size_object);
+
+  offset_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, offset_object != NULL, "json_object_new_object () failed");
+
+  /* Built sub-objects, add them to our offset_object.  */
+  json_object_object_add (offset_object, "type", offset_type_object);
+  json_object_object_add (offset_object, "magnitude", magnitude_object);
+  json_object_object_add (offset_object, "unit", unit_object);
 
   return offset_object;
 
@@ -579,125 +614,40 @@ _pk_mi_make_json_offset (pk_val offset, char **errmsg)
     return NULL;
 }
 
-static json_object* 
-_pk_mi_make_json_mapping (pk_val val, char **errmsg) 
+static json_object *
+pk_mi_mapping_to_json (pk_val val, char **errmsg)
 {
-  struct json_object *mapping_object, *ios_object, *offset_object;
+  json_object *mapping_object, *ios_object, *offset_object;
 
-  offset_object = _pk_mi_make_json_offset (pk_val_offset (val), errmsg);
-  
-  PK_MI_CHECK (errmsg, (ios_object = json_object_new_int64 (pk_int_value (pk_val_ios (val)))) != NULL, "json_object_new_object() failed");
+  offset_object = pk_mi_offset_to_json (pk_val_offset (val), errmsg);
 
-  PK_MI_CHECK (errmsg, (mapping_object = json_object_new_object ()) != NULL, "json_object_new_object() failed"); 
+  ios_object = json_object_new_int64 (pk_int_value (pk_val_ios (val)));
+  PK_MI_CHECK (errmsg, ios_object != NULL, "json_object_new_object () failed");
 
-  PK_MI_CHECK (errmsg, json_object_object_add (mapping_object, "IOS", ios_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (mapping_object, "offset", offset_object) != -1, "json_object_object_add() failed");
+  mapping_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, mapping_object != NULL, "json_object_new_object () failed");
+
+  json_object_object_add (mapping_object, "IOS", ios_object);
+  json_object_object_add (mapping_object, "offset", offset_object);
 
   return mapping_object;
 
   error:
-    return NULL;  
-}
-
-static json_object* 
-_pk_mi_make_json_struct (pk_val sct, char **errmsg) 
-{
-  struct json_object *pk_struct_object, *pk_struct_type_object, *pk_struct_fields_object, *pk_struct_name_object, *pk_struct_mapping_object;
-  struct json_object *pk_struct_field_object, *pk_struct_field_value_object, *pk_struct_field_offset_object, *pk_struct_field_name_object;
-  
-  assert (pk_type_code (pk_typeof (sct)) == PK_STRUCT);
-  
-  PK_MI_CHECK (errmsg,  (pk_struct_type_object = json_object_new_string ("Struct")) != NULL, "json_object_new_object() failed");
-  PK_MI_CHECK (errmsg,  (pk_struct_fields_object = json_object_new_array ()) != NULL, "json_object_new_object() failed");
-  PK_MI_CHECK (errmsg,  (pk_struct_name_object = _pk_mi_make_json_string (pk_struct_type_name (pk_struct_type (sct)), errmsg)) != NULL, "json_object_new_object() failed");
-
-  /*Fill the array of struct fields*/
-  for  (ssize_t i = 0 ; i < pk_uint_value (pk_struct_nfields (sct)) ; i++) {
-    pk_struct_field_value_object = _pk_mi_val_to_json (pk_struct_field_value  (sct, i), errmsg);
-    pk_struct_field_offset_object = _pk_mi_make_json_offset (pk_struct_field_boffset  (sct, i), errmsg);
-    pk_struct_field_name_object = _pk_mi_make_json_string (pk_struct_field_name  (sct, i), errmsg);
-
-    if (pk_struct_field_value_object == NULL || pk_struct_field_offset_object == NULL || pk_struct_field_name_object == NULL) {
-      goto error;
-    }
-    
-    pk_struct_field_object = json_object_new_object();
-    json_object_object_add (pk_struct_field_object, "name", pk_struct_field_name_object);
-    json_object_object_add (pk_struct_field_object, "value", pk_struct_field_value_object);
-    json_object_object_add (pk_struct_field_object, "offset", pk_struct_field_offset_object);
-
-    PK_MI_CHECK (errmsg, json_object_array_add (pk_struct_fields_object, pk_struct_field_object) != -1, "failed to add name object to struct field");
-  }  
-
-  /*Optionally, add a mapping*/
-  pk_struct_mapping_object = pk_val_mapped_p  (sct) ? _pk_mi_make_json_mapping (sct, errmsg) : _pk_mi_make_json_null (errmsg);
-
-  PK_MI_CHECK (errmsg,  (pk_struct_object = json_object_new_object ()) != NULL, "json_object_new_object() failed");
-
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_struct_object, "type", pk_struct_type_object) != -1, "failed to add type object to struct");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_struct_object, "name", pk_struct_name_object) != -1, "failed to add type object to struct");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_struct_object, "fields", pk_struct_fields_object) != -1, "failed to add fields object to struct");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_struct_object, "mapping", pk_struct_mapping_object) != -1, "failed to add mapping object to struct");
-
-  return pk_struct_object;
-
-  error:
     return NULL;
 }
 
-static json_object* 
-_pk_mi_make_json_array (pk_val array, char **errmsg) 
+static json_object *
+pk_mi_null_to_json (char **errmsg)
 {
-  struct json_object *pk_array_object, *pk_array_type_object, *pk_array_elements_object, *pk_array_mapping_object;
-  struct json_object *pk_array_element_object, *pk_array_element_value_object, *pk_array_element_offset_object;
+  json_object *pk_null_object;
 
-  assert (pk_type_code (pk_typeof (array)) == PK_ARRAY);
-  
-  PK_MI_CHECK (errmsg,  (pk_array_object = json_object_new_object ()) != NULL, "json_object_new_object() failed");
+  pk_null_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, pk_null_object != NULL,
+               "json_object_new_object () failed");
 
-  const char *type = "Array";
-  PK_MI_CHECK (errmsg,  (pk_array_type_object = json_object_new_string (type)) != NULL, "json_object_new_object() failed");
-  
-  /*Initialize our array*/
-  PK_MI_CHECK (errmsg,  (pk_array_elements_object = json_object_new_array ()) != NULL, "json_object_new_object() failed");
-   
-  /*Fill elements object*/
-  for  (size_t i = 0 ; i < pk_uint_value (pk_array_nelem (array)) ; i++) {
-    pk_array_element_value_object = _pk_mi_val_to_json (pk_array_elem_val (array, i), errmsg);
-    pk_array_element_offset_object = _pk_mi_make_json_offset (pk_array_elem_boffset (array, i), errmsg);
-    
-    pk_array_element_object = json_object_new_object ();
-    json_object_object_add (pk_array_element_object, "value", pk_array_element_value_object);
-    json_object_object_add (pk_array_element_object, "offset", pk_array_element_offset_object);
-
-    PK_MI_CHECK (errmsg, json_object_array_add (pk_array_elements_object, pk_array_element_object) != -1, "failed to add element to array");
-  }
-
-  pk_array_mapping_object = pk_val_mapped_p (array) ? _pk_mi_make_json_mapping (array, errmsg) : _pk_mi_make_json_null (errmsg);
-  if (pk_array_mapping_object == NULL) {
-    goto error;
-  }
-
-  /*OK, fill the properties of the array object*/
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_array_object, "type", pk_array_type_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_array_object, "elements", pk_array_elements_object) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_array_object, "mapping", pk_array_mapping_object) != -1, "json_object_object_add() failed");
-
-  return pk_array_object;
-
-  error:
-    return NULL;
-}
-
-static json_object* _pk_mi_make_json_null (char **errmsg) 
-{
-  struct json_object *pk_null_object;
-  
-  pk_null_object = json_object_new_object();
-  PK_MI_CHECK (errmsg, pk_null_object != NULL, "json_object_new_object() failed");
-
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_null_object, "type", json_object_new_string ("Null")) != -1, "json_object_object_add() failed");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_null_object, "value", json_object_new_null ()) != -1, "json_object_object_add() failed");
+  json_object_object_add (pk_null_object, "type",
+                          json_object_new_string ("Null"));
+  json_object_object_add (pk_null_object, "value", NULL);
 
   return pk_null_object;
 
@@ -705,55 +655,251 @@ static json_object* _pk_mi_make_json_null (char **errmsg)
     return NULL;
 }
 
-const char * 
-pk_mi_val_to_json (pk_val val, char **errmsg) 
+static json_object *
+pk_mi_sct_to_json (pk_val pk_sct, char **errmsg)
 {
-  struct json_object *pk_val_object, *pk_object; 
+  json_object *pk_sct_object, *pk_sct_type_object;
+  json_object *pk_sct_fields_object, *pk_sct_field_object;
+  json_object *pk_sct_mapping_object, *pk_sct_name_object;
+  json_object *pk_sct_field_value_object;
+  json_object *pk_sct_field_offset_object;
+  json_object *pk_sct_field_name_object;
+  pk_val tmp;
+  int err;
 
-  pk_val_object = _pk_mi_val_to_json (val, errmsg);
-  
-  pk_object = json_object_new_object ();
-  PK_MI_CHECK (errmsg, pk_object != NULL, "failed to create new json_object");
-  PK_MI_CHECK (errmsg, json_object_object_add (pk_object, "PokeValue", pk_val_object) != -1, "json_object_object_add() failed");
+  assert (pk_type_code (pk_typeof (pk_sct)) == PK_STRUCT);
 
-  return pk_object != NULL ? json_object_to_json_string_ext (pk_object, JSON_C_TO_STRING_PRETTY) : NULL;
+  pk_sct_type_object = json_object_new_string ("Struct");
+  PK_MI_CHECK (errmsg, pk_sct_type_object != NULL,
+               "json_object_new_object () failed");
+
+  pk_sct_fields_object = json_object_new_array ();
+  PK_MI_CHECK (errmsg, pk_sct_fields_object != NULL,
+               "json_object_new_object () failed");
+
+  /* Get the name of the struct type and convert it to JSON object.  */
+  tmp = pk_struct_type (pk_sct);
+  pk_sct_name_object = pk_mi_string_to_json (pk_struct_type_name (tmp),
+                                                errmsg);
+  PK_MI_CHECK (errmsg, pk_sct_name_object != NULL,
+               "json_object_new_object () failed");
+
+  /* Fill the array of struct fields.  */
+  for (ssize_t i = 0 ; i < pk_uint_value (pk_struct_nfields (pk_sct)) ; i++)
+    {
+      tmp = pk_struct_field_value (pk_sct, i);
+      pk_sct_field_value_object = pk_mi_val_to_json_1 (tmp, errmsg);
+      tmp = pk_struct_field_boffset (pk_sct, i);
+      pk_sct_field_offset_object = pk_mi_uint_to_json (tmp, errmsg);
+      tmp = pk_struct_field_name (pk_sct, i);
+      pk_sct_field_name_object = pk_mi_string_to_json (tmp, errmsg);
+
+      if (pk_sct_field_value_object == NULL
+          || pk_sct_field_offset_object == NULL
+          || pk_sct_field_name_object == NULL)
+            goto error;
+
+      pk_sct_field_object = json_object_new_object ();
+
+      json_object_object_add (pk_sct_field_object, "name",
+                                         pk_sct_field_name_object);
+
+      json_object_object_add (pk_sct_field_object, "value",
+                                         pk_sct_field_value_object);
+
+      json_object_object_add (pk_sct_field_object, "boffset",
+                                         pk_sct_field_offset_object);
+
+      err = json_object_array_add (pk_sct_fields_object,
+                                        pk_sct_field_object);
+      PK_MI_CHECK (errmsg, err != -1,
+                   "failed to add name object to struct field");
+    }
+
+  /* Optionally, add a mapping.  */
+  pk_sct_mapping_object = pk_val_mapped_p (pk_sct) ?
+                            pk_mi_mapping_to_json (pk_sct, errmsg) :
+                            pk_mi_null_to_json (errmsg);
+
+  pk_sct_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, pk_sct_object != NULL,
+              "json_object_new_object () failed");
+
+  json_object_object_add (pk_sct_object, "type", pk_sct_type_object);
+  json_object_object_add (pk_sct_object, "name", pk_sct_name_object);
+  json_object_object_add (pk_sct_object, "fields", pk_sct_fields_object);
+  json_object_object_add (pk_sct_object, "mapping", pk_sct_mapping_object);
+
+  return pk_sct_object;
 
   error:
-    return NULL;  
+    return NULL;
 }
 
-/*Functions to convert JSON Poke Value to pk_val*/
-static int _pk_mi_make_pk_int (pk_val *pk_int, struct json_object *int_obj, char **errmsg);
-static int _pk_mi_make_pk_uint (pk_val *pk_uint, struct json_object *uint_obj, char **errmsg);
-static int _pk_mi_make_pk_string (pk_val *pk_string, struct json_object *str_obj, char **errmsg);
-static int _pk_mi_make_pk_offset (pk_val *pk_offset, struct json_object *offset_obj, char **errmsg);
-static int _pk_mi_make_pk_struct (pk_val *pk_struct, struct json_object *sct_obj, char **errmsg);
-static int _pk_mi_make_pk_array (pk_val *pk_array, struct json_object *array_obj, char **errmsg);
-pk_val _pk_mi_json_to_val (struct json_object *obj, char **errmsg);
+static json_object *
+pk_mi_array_to_json (pk_val pk_array, char **errmsg)
+{
+  json_object *pk_array_object, *pk_array_type_object;
+  json_object *pk_array_mapping_object, *pk_array_elements_object;
+  json_object *pk_array_element_object, *pk_array_element_value_object;
+  json_object *pk_array_element_offset_object;
+  pk_val tmp;
+  int err;
 
-static const char*
-_pk_mi_get_json_poke_value_type (struct json_object *obj)
-{ 
-  struct json_object *search_object;
-  
-  if (json_object_object_get_ex (obj, "type", &search_object) == 0) {
+  assert (pk_type_code (pk_typeof (pk_array)) == PK_ARRAY);
+
+  pk_array_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, pk_array_object != NULL,
+               "json_object_new_object () failed");
+
+  const char *type = "Array";
+  pk_array_type_object = json_object_new_string (type);
+  PK_MI_CHECK (errmsg, pk_array_type_object != NULL,
+               "json_object_new_object () failed");
+
+  /* Initialize our array.  */
+  pk_array_elements_object = json_object_new_array ();
+  PK_MI_CHECK (errmsg, pk_array_elements_object != NULL,
+               "json_object_new_object () failed");
+
+  /* Fill elements object.  */
+  for (size_t i = 0 ; i < pk_uint_value (pk_array_nelem (pk_array)) ; i++)
+    {
+      /* For every element on the array, get its value & offset and build
+         the corresponding JSON objects.  */
+      tmp = pk_array_elem_val (pk_array, i);
+      pk_array_element_value_object = pk_mi_val_to_json_1 (tmp, errmsg);
+      tmp = pk_array_elem_boffset (pk_array, i);
+      pk_array_element_offset_object = pk_mi_uint_to_json (tmp, errmsg);
+
+      pk_array_element_object = json_object_new_object ();
+
+      json_object_object_add (pk_array_element_object, "value",
+                                         pk_array_element_value_object);
+
+      json_object_object_add (pk_array_element_object, "boffset",
+                                         pk_array_element_offset_object);
+
+      err = json_object_array_add (pk_array_elements_object,
+                                        pk_array_element_object);
+      PK_MI_CHECK (errmsg, err != -1, "failed to add element to array");
+    }
+
+  /* Optionally, add a mapping.  */
+  pk_array_mapping_object = pk_val_mapped_p (pk_array) ?
+                            pk_mi_mapping_to_json (pk_array, errmsg) :
+                            pk_mi_null_to_json (errmsg);
+
+  if (pk_array_mapping_object == NULL)
+    goto error;
+
+  /* Everything is built on this point.
+     Fill the properties of the array object.  */
+  json_object_object_add (pk_array_object, "type", pk_array_type_object);
+  json_object_object_add (pk_array_object, "elements", pk_array_elements_object);
+  json_object_object_add (pk_array_object, "mapping", pk_array_mapping_object);
+
+  return pk_array_object;
+
+  error:
     return NULL;
+}
+
+static json_object *
+pk_mi_val_to_json_1 (pk_val val, char **errmsg)
+{
+  json_object *pk_val_object = NULL;
+
+  if (val == PK_NULL) {
+    pk_val_object = pk_mi_null_to_json (errmsg);
   }
-  
+  else {
+    switch (pk_type_code (pk_typeof (val)))
+      {
+        case PK_INT:
+          pk_val_object = pk_mi_int_to_json (val, errmsg);
+          break;
+        case PK_UINT:
+          pk_val_object = pk_mi_uint_to_json (val, errmsg);
+          break;
+        case PK_STRING:
+          pk_val_object = pk_mi_string_to_json (val, errmsg);
+          break;
+        case PK_OFFSET:
+          pk_val_object = pk_mi_offset_to_json (val, errmsg);
+          break;
+        case PK_STRUCT:
+          pk_val_object = pk_mi_sct_to_json (val, errmsg);
+          break;
+        case PK_ARRAY:
+          pk_val_object = pk_mi_array_to_json (val, errmsg);
+          break;
+        case PK_CLOSURE:
+        case PK_ANY:
+        default:
+          assert (0);
+      }
+    if (!pk_val_object)
+      return NULL;
+  }
+
+  return pk_val_object;
+}
+
+const char *
+pk_mi_val_to_json (pk_val val, char **errmsg)
+{
+  json_object *pk_val_object, *pk_object;
+
+  pk_val_object = pk_mi_val_to_json_1 (val, errmsg);
+
+  pk_object = json_object_new_object ();
+  PK_MI_CHECK (errmsg, pk_object != NULL,
+               "failed to create new json_object");
+
+  json_object_object_add (pk_object, "PokeValue", pk_val_object);
+
+  return pk_object != NULL ?
+         json_object_to_json_string_ext (pk_object, JSON_C_TO_STRING_PRETTY)
+         : NULL;
+
+  error:
+    return NULL;
+}
+
+/* Functions to convert JSON object to Poke value.  */
+static int pk_mi_json_to_val_1 (pk_val *poke_value, json_object *obj,
+                                char **errmsg);
+
+static const char *
+pk_mi_json_poke_value_type (json_object *obj)
+{
+  json_object *search_object;
+
+  /* Get the Poke value type.  */
+  if (json_object_object_get_ex (obj, "type", &search_object) == 0)
+    return NULL;
+
   return json_object_to_json_string (search_object);
 }
 
-static int 
-_pk_mi_make_pk_int (pk_val *pk_int, struct json_object *int_obj, char **errmsg) 
-{ 
-  struct json_object *value_object, *size_object;  
-  int64_t value; 
-  int size;
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (int_obj, "value", &value_object) != 0, "json type %s does not contain key \"value\"", _pk_mi_get_json_poke_value_type (int_obj));
+static int
+pk_mi_json_to_int (pk_val *pk_int, json_object *int_obj, char **errmsg)
+{
+  json_object *value_object, *size_object;
+  int64_t value;
+  int size, err;
+
+  err = json_object_object_get_ex (int_obj, "value", &value_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"value\"",
+               pk_mi_json_poke_value_type (int_obj));
   value = json_object_get_int64 (value_object);
 
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (int_obj, "size", &size_object) != 0, "json type %s does not contain key \"size\"", _pk_mi_get_json_poke_value_type (int_obj));
+  err = json_object_object_get_ex (int_obj, "size", &size_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"size\"",
+               pk_mi_json_poke_value_type (int_obj));
   size = json_object_get_int (size_object);
 
   *pk_int = pk_make_int (value, size);
@@ -765,17 +911,35 @@ _pk_mi_make_pk_int (pk_val *pk_int, struct json_object *int_obj, char **errmsg)
     return -1;
 }
 
-static int 
-_pk_mi_make_pk_uint (pk_val *pk_uint, struct json_object *uint_obj, char **errmsg) 
-{ 
-  struct json_object *value_object, *size_object;  
-  uint64_t value; 
-  int size;
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (uint_obj, "value", &value_object) != 0, "json type %s does not contain key \"value\"", _pk_mi_get_json_poke_value_type (uint_obj));
-  value = json_object_get_uint64 (value_object);
+static int
+pk_mi_json_to_uint (pk_val *pk_uint, json_object *uint_obj,
+                    char **errmsg)
+{
+  json_object *value_object, *size_object;
+  uint64_t value;
+  int size, err;
 
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (uint_obj, "size", &size_object) != 0, "json type %s does not contain key \"size\"", _pk_mi_get_json_poke_value_type (uint_obj));
+  err = json_object_object_get_ex (uint_obj, "value", &value_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"value\"",
+               pk_mi_json_poke_value_type (uint_obj));
+
+  /* Older versions of libjson-c (0.3.1 & under) do not support
+     json_object_get_uint64 (only json_object_get_int64).
+
+    In order to support previous versions, we store unsigned integers
+    as signed integers despite them being too large to represent as
+    signed. (i.e. they are stored as negative).
+
+    However, users expect to get the unsigned integer they stored.
+
+    Thus, we have to convert it back to uint64_t.  */
+  value = (uint64_t) json_object_get_int64 (value_object);
+
+  err = json_object_object_get_ex (uint_obj, "size", &size_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"size\"",
+               pk_mi_json_poke_value_type (uint_obj));
   size = json_object_get_int (size_object);
 
   *pk_uint = pk_make_uint (value, size);
@@ -784,16 +948,21 @@ _pk_mi_make_pk_uint (pk_val *pk_uint, struct json_object *uint_obj, char **errms
   return 0;
 
   error:
-    return -1; 
+    return -1;
 }
 
-static int 
-_pk_mi_make_pk_string (pk_val *pk_string, struct json_object *str_obj, char **errmsg)
-{ 
-  struct json_object *value_object;
+static int
+pk_mi_json_to_string (pk_val *pk_string, json_object *str_obj,
+                      char **errmsg)
+{
+  json_object *value_object;
   const char *value_str;
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (str_obj, "value", &value_object) != 0, "json type %s does not contain key \"value\"", _pk_mi_get_json_poke_value_type (str_obj));
+  int err;
+
+  err = json_object_object_get_ex (str_obj, "value", &value_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"value\"",
+               pk_mi_json_poke_value_type (str_obj));
   value_str = json_object_get_string (value_object);
 
   *pk_string = pk_make_string (value_str);
@@ -805,253 +974,349 @@ _pk_mi_make_pk_string (pk_val *pk_string, struct json_object *str_obj, char **er
     return -1;
 }
 
-static int 
-_pk_mi_make_pk_offset (pk_val *pk_offset, struct json_object *offset_obj, char **errmsg)
+static int
+pk_mi_json_to_offset (pk_val *pk_offset, json_object *offset_obj,
+                      char **errmsg)
 {
-  /*To build a pk_offset, we need its magnitude and its unit*/
+  /* To build a pk_offset, we need its magnitude and its unit.  */
   pk_val magnitude, unit;
-  struct json_object *magnitude_object, *unit_object;
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (offset_obj, "magnitude", &magnitude_object) != 0, "json type %s does not contain key \"magnitude\"", _pk_mi_get_json_poke_value_type (offset_obj));
-  PK_MI_CHECK (errmsg, _pk_mi_make_pk_uint (&magnitude, magnitude_object, errmsg) != -1, "_pk_mi_make_pk_uint failed");
+  json_object *magnitude_object, *unit_object;
+  int err;
 
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (offset_obj, "unit", &unit_object) != 0, "json type %s does not contain key \"unit\"", _pk_mi_get_json_poke_value_type (offset_obj));
+  err = json_object_object_get_ex (offset_obj, "magnitude", &magnitude_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"magnitude\"",
+               pk_mi_json_poke_value_type (offset_obj));
+
+  if (pk_mi_json_to_val_1 (&magnitude, magnitude_object, errmsg) == -1)
+    goto error;
+
+  err = json_object_object_get_ex (offset_obj, "unit", &unit_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"unit\"",
+               pk_mi_json_poke_value_type (offset_obj));
 
   assert (json_object_get_type (unit_object) == json_type_object);
 
-  PK_MI_CHECK (errmsg, _pk_mi_make_pk_uint (&unit, unit_object, errmsg) != -1, "unable to conver offset unit to pk_uint");
+  err = pk_mi_json_to_uint (&unit, unit_object, errmsg);
+  PK_MI_CHECK (errmsg, err != -1,
+               "unable to convert offset unit to pk_uint");
   assert (pk_uint_size (unit) == 64);
-  
+
   *pk_offset = pk_make_offset (magnitude, unit);
   PK_MI_CHECK(errmsg, *pk_offset != PK_NULL, "pk_make_offset failed");
-  
+
   return 0;
-  
+
   error:
     return -1;
 }
 
-static pk_val
-pk_mi_make_pk_mapping ()
+static int
+pk_mi_json_to_mapping (pk_val *poke_value, json_object *obj,
+                       char **errmsg)
 {
-  /*TODO: build me*/
+  /* TODO: write me.  */
   return 0;
 }
 
-static int 
-_pk_mi_make_pk_struct (pk_val *pk_struct, struct json_object *sct_obj, char **errmsg) 
-{ 
-  /*To build a pk_struct, we need its fields, its name and its mapping*/
-  struct json_object *fields_object, *search_object;
-  pk_val mapping, sct_type, sct_field_name, sct_field_value, sct_field_offset, sct, *fnames, *ftypes, nfields, name;
+static int
+pk_mi_json_to_sct (pk_val *pk_sct, json_object *sct_obj,
+                      char **errmsg)
+{
+  /* To build a pk_struct, we need its fields, its name and its mapping.  */
+  json_object *array_object, *fields_object, *search_object;
+  pk_val mapping, sct_type, sct_field_name, sct_field_value, sct_field_boffset;
+  pk_val sct, *fnames, *ftypes, nfields, name;
   size_t fields_len;
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (sct_obj, "fields", &search_object) != 0, "json type %s does does not contain key \"fields\"", _pk_mi_get_json_poke_value_type (sct_obj));
-  
+  int err;
+
+  err = json_object_object_get_ex (sct_obj, "fields", &search_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does does not contain key \"fields\"",
+               pk_mi_json_poke_value_type (sct_obj));
+
   fields_object = search_object;
   assert (json_object_get_type (fields_object) == json_type_array);
 
   fields_len = json_object_array_length (fields_object);
-  
-  if (fields_len > 0) {  
-    PK_MI_CHECK (errmsg, json_object_object_get_ex (sct_obj, "name", &search_object) != 0, "json type %s does does not contain key \"name\"", _pk_mi_get_json_poke_value_type (sct_obj));
-    nfields = pk_make_uint (fields_len, 64);
-    name = _pk_mi_json_to_val (search_object, errmsg);
-    pk_allocate_struct_attrs (nfields, &fnames, &ftypes);
-    
-    sct_type = pk_make_struct_type (nfields, name, fnames, ftypes);
-    sct = pk_make_struct (nfields, sct_type);
-    for (size_t i = 0 ; i < fields_len ; i++) {
-      PK_MI_CHECK (errmsg, json_object_object_get_ex (json_object_array_get_idx (fields_object, i), "name", &search_object) != 0, "json type %s does not contain key \"name\"", _pk_mi_get_json_poke_value_type (json_object_array_get_idx (fields_object, i)));
-      sct_field_name = _pk_mi_json_to_val (search_object, errmsg);
 
-      PK_MI_CHECK (errmsg, json_object_object_get_ex (json_object_array_get_idx (fields_object, i), "value", &search_object) != 0, "json type %s does not contain key \"value\"", _pk_mi_get_json_poke_value_type (json_object_array_get_idx (fields_object, i)));
-      sct_field_value = _pk_mi_json_to_val (search_object, errmsg);
-      
-      PK_MI_CHECK (errmsg, json_object_object_get_ex (json_object_array_get_idx (fields_object, i), "offset", &search_object) != 0, "json type %s does not contain key \"offset\"", _pk_mi_get_json_poke_value_type (json_object_array_get_idx (fields_object, i)));
-      sct_field_offset = _pk_mi_json_to_val (search_object, errmsg);
-      
-      assert (pk_type_code (pk_typeof (sct_field_name)) == PK_STRING);
-      assert (pk_type_code (pk_typeof (sct_field_offset)) == PK_OFFSET);
-      
-      pk_struct_type_set_fname (sct_type, i, sct_field_name);
-      pk_struct_type_set_ftype (sct_type, i, pk_typeof(sct_field_value));
-      pk_struct_set_field_boffset (sct, i, sct_field_offset);
-      pk_struct_set_field_name (sct, i, sct_field_name);
-      pk_struct_set_field_value (sct, i, sct_field_value);
-    }
+  if (fields_len > 0)
+    {
+      err = json_object_object_get_ex (sct_obj, "name", &search_object);
+      PK_MI_CHECK (errmsg, err != 0,
+                   "json type %s does does not contain key \"name\"",
+                   pk_mi_json_poke_value_type (sct_obj));
+      nfields = pk_make_uint (fields_len, 64);
 
-    PK_MI_CHECK (errmsg, json_object_object_get_ex (sct_obj, "mapping", &search_object) != 0, "json type %s does not contain key \"mapping\"", _pk_mi_get_json_poke_value_type (sct_obj));    
-    mapping = pk_mi_make_pk_mapping (search_object, errmsg);
+      /* Here, we don't use PK_MI_CHECK because
+        it would reallocate & refill errmsg.
+
+        TODO (kostas): check if there is a bug anywhere in the code
+        if asprintf () gets called more than once.  */
+      if (pk_mi_json_to_val_1 (&name, search_object, errmsg) == -1)
+        goto error;
+
+      pk_allocate_struct_attrs (nfields, &fnames, &ftypes);
+
+      sct_type = pk_make_struct_type (nfields, name, fnames, ftypes);
+      sct = pk_make_struct (nfields, sct_type);
+      for (size_t i = 0 ; i < fields_len ; i++)
+        {
+          array_object = json_object_array_get_idx (fields_object, i);
+
+          err = json_object_object_get_ex (array_object, "name",
+                                           &search_object);
+          PK_MI_CHECK (errmsg, err != 0,
+                       "json type %s does not contain key \"name\"",
+                       pk_mi_json_poke_value_type (array_object));
+
+          if (pk_mi_json_to_val_1 (&sct_field_name, search_object, errmsg) == -1)
+            goto error;
+
+          err = json_object_object_get_ex (array_object, "value",
+                                           &search_object);
+          PK_MI_CHECK (errmsg, err != 0,
+                       "json type %s does not contain key \"value\"",
+                       pk_mi_json_poke_value_type (array_object));
+
+          if (pk_mi_json_to_val_1 (&sct_field_value, search_object, errmsg) == -1)
+            goto error;
+
+          err = json_object_object_get_ex (array_object, "boffset",
+                                           &search_object);
+          PK_MI_CHECK (errmsg, err != 0,
+                       "json type %s does not contain key \"boffset\"",
+                       pk_mi_json_poke_value_type (array_object));
+
+          if (pk_mi_json_to_val_1 (&sct_field_boffset, search_object, errmsg) == -1)
+            goto error;
+
+          assert (pk_type_code (pk_typeof (sct_field_name)) == PK_STRING);
+          assert (pk_type_code (pk_typeof (sct_field_boffset)) == PK_UINT);
+
+          pk_struct_type_set_fname (sct_type, i, sct_field_name);
+          pk_struct_type_set_ftype (sct_type, i, pk_typeof (sct_field_value));
+          pk_struct_set_field_boffset (sct, i, sct_field_boffset);
+          pk_struct_set_field_name (sct, i, sct_field_name);
+          pk_struct_set_field_value (sct, i, sct_field_value);
+      }
+
+    err = json_object_object_get_ex (sct_obj, "mapping", &search_object);
+    PK_MI_CHECK (errmsg, err != 0,
+                 "json type %s does not contain key \"mapping\"",
+                 pk_mi_json_poke_value_type (sct_obj));
+    PK_MI_CHECK (errmsg,
+                 pk_mi_json_to_mapping (&mapping, search_object, errmsg) != -1,
+                 "failed to create mapping for struct");
   }
-  else {
+  else
+  {
     sct = PK_NULL;
   }
 
-  *pk_struct = sct; 
+  *pk_sct = sct;
 
   return 0;
-  
+
   error:
     return -1;
 }
 
-static pk_val* 
-_pk_mi_json_array_element_pair (struct json_object *elements_object, size_t idx, char **errmsg) 
+static pk_val *
+pk_mi_json_array_element_pair (json_object *elements_object, size_t idx,
+                               char **errmsg)
 {
-  struct json_object *element_object, *search_object;
-  /*value-offset pair*/
+  json_object *element_object, *search_object;
+  int err;
+
+  /* value-offset pair.  */
   pk_val *pair = (pk_val *) malloc (sizeof (pk_val) * 2);
 
   element_object = json_object_array_get_idx (elements_object, idx);
 
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (element_object, "value", &search_object) != 0, "json type %s does not contain key \"value\"", _pk_mi_get_json_poke_value_type (element_object));
-  pair[0] =  _pk_mi_json_to_val (search_object, errmsg);
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (element_object, "offset", &search_object) != 0, "json type %s does not contain key \"offset\"", _pk_mi_get_json_poke_value_type (element_object));  
-  pair[1] = _pk_mi_json_to_val (search_object, errmsg);
+  err = json_object_object_get_ex (element_object, "value", &search_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"value\"",
+               pk_mi_json_poke_value_type (element_object));
+  if (pk_mi_json_to_val_1 (&(pair[0]), search_object, errmsg) == -1)
+    goto error;
+
+  err = json_object_object_get_ex (element_object, "boffset", &search_object);
+  PK_MI_CHECK (errmsg, err != 0,
+              "json type %s does not contain key \"boffset\"",
+              pk_mi_json_poke_value_type (element_object));
+
+  if (pk_mi_json_to_val_1 (&(pair[1]), search_object, errmsg) == -1)
+    goto error;
 
   return pair;
 
   error:
     return NULL;
-} 
+}
 
-static int 
-_pk_mi_make_pk_array (pk_val *pk_array, struct json_object *array_obj, char **errmsg)
+static int
+pk_mi_json_to_array (pk_val *pk_array, json_object *array_obj,
+                     char **errmsg)
 {
-  /*To build a pk_array, we need its elements and its mapping*/
-  struct json_object *elements_object, *search_object;
-  pk_val mapping, array_etype, array, *element_pair;
+  /* To build a pk_array, we need its elements and its mapping.  */
+  json_object *elements_object, *search_object;
+  pk_val array_type, mapping, array_etype, array, *element_pair;
   size_t elements_len;
-  
-  PK_MI_CHECK (errmsg, json_object_object_get_ex (array_obj, "elements", &search_object) != 0, "json type %s does not contain key \"elements\"", _pk_mi_get_json_poke_value_type (array_obj));
-  
-  elements_object = search_object; 
+  int err;
+
+  err = json_object_object_get_ex (array_obj, "elements", &search_object);
+  PK_MI_CHECK (errmsg, err != 0,
+               "json type %s does not contain key \"elements\"",
+               pk_mi_json_poke_value_type (array_obj));
+
+  elements_object = search_object;
   assert (json_object_get_type (elements_object) == json_type_array);
-  
+
   elements_len = json_object_array_length (elements_object);
-  
-  if (elements_len > 0) {
-    /*We need to get the type of array elements first*/
-    element_pair = _pk_mi_json_array_element_pair (elements_object, 0, errmsg);
-    if (element_pair == NULL) {
-      goto error;
+
+  if (elements_len > 0)
+    {
+      /* We need to get the type of array elements first.  */
+      element_pair = pk_mi_json_array_element_pair (elements_object, 0, errmsg);
+      if (element_pair == NULL)
+        goto error;
+
+      array_etype = pk_typeof (element_pair[0]);
+      array_type = pk_make_array_type (array_etype, PK_NULL);
+      array = pk_make_array (pk_make_uint (elements_len, 64), array_type);
+
+      assert (pk_type_code (pk_typeof (element_pair[1])) == PK_UINT);
+
+      pk_array_set_elem_val (array, 0, element_pair[0]);
+      pk_array_set_elem_boffset (array, 0, element_pair[1]);
+
+      free (element_pair);
+
+      for (size_t i = 1 ; i < elements_len ; i++)
+        {
+          element_pair = pk_mi_json_array_element_pair (elements_object, i,
+                                                        errmsg);
+          if (element_pair == NULL)
+            goto error;
+
+          assert (pk_type_code (pk_typeof (element_pair[0]))
+                                           == pk_type_code (array_etype));
+          assert (pk_type_code (pk_typeof (element_pair[1])) == PK_UINT);
+
+          pk_array_set_elem_val (array, i, element_pair[0]);
+          pk_array_set_elem_boffset (array, i, element_pair[1]);
+
+          free (element_pair);
+        }
+
+      err = json_object_object_get_ex (array_obj, "mapping", &search_object);
+      PK_MI_CHECK (errmsg, err != 0,
+                  "json type %s does not contain key \"mapping\"",
+                  pk_mi_json_poke_value_type (array_obj));
+
+      PK_MI_CHECK(errmsg,
+                pk_mi_json_to_mapping (&mapping, search_object, errmsg) != -1,
+                "failed to create mapping for struct");
     }
-    
-    array_etype = pk_type_code (pk_typeof (element_pair[0]));
-    array = pk_make_array (pk_make_uint (elements_len, 64), pk_make_array_type (array_etype, PK_NULL));
-    
-    pk_array_set_elem_val (array, 0, element_pair[0]);
-    pk_array_set_elem_boffset (array, 0, element_pair[1]);
-    
-    for (size_t i = 1 ; i < elements_len ; i++) {
-      element_pair = _pk_mi_json_array_element_pair (elements_object, i, errmsg);
-      
-      assert (pk_type_code (pk_typeof (element_pair[0])) == array_etype);
-      assert (pk_type_code (pk_typeof (element_pair[1])) == PK_OFFSET);
-
-      pk_array_set_elem_val (array, i, element_pair[0]);
-      pk_array_set_elem_boffset (array, i, element_pair[1]);
+  else
+    {
+      array = PK_NULL;
     }
-
-    PK_MI_CHECK (errmsg, json_object_object_get_ex (array_obj, "mapping", &search_object) != 0, "json type %s does not contain key \"mapping\"", _pk_mi_get_json_poke_value_type (array_obj));
-    
-    mapping = pk_mi_make_pk_mapping (search_object);
-
-    free(element_pair);
-  }
-  else {
-    array = PK_NULL;
-  }
 
   *pk_array = array;
-  
+
   return 0;
 
   error:
     return -1;
 }
 
-pk_val 
-_pk_mi_json_to_val (struct json_object *obj, char **errmsg)
-{ 
-  pk_val poke_value; 
+static int
+pk_mi_json_to_val_1 (pk_val *poke_value, json_object *obj,
+                     char **errmsg)
+{
   const char *poke_object_type;
-  
-  poke_object_type = _pk_mi_get_json_poke_value_type (obj);
-  if (poke_object_type == NULL) {
-    goto error;
-  }
- 
-  if (!strncmp (poke_object_type, "\"Integer\"", strlen ("\"Integer\""))) {
-    if (_pk_mi_make_pk_int (&poke_value, obj, errmsg) == -1) {
-      goto error;
-    }
-  }
-  else if (!strncmp (poke_object_type, "\"UnsignedInteger\"", strlen ("\"UnsignedInteger\""))) {
-    if (_pk_mi_make_pk_uint (&poke_value, obj, errmsg) == -1) {
-      goto error;
-    }
-  }
-  else if (!strncmp (poke_object_type, "\"String\"", strlen ("\"String\""))) {
-    if (_pk_mi_make_pk_string (&poke_value, obj, errmsg) == -1) {
-      goto error;
-    }
-  }
-  else if (!strncmp (poke_object_type, "\"Offset\"", strlen ("\"Offset\""))) {
-    if (_pk_mi_make_pk_offset (&poke_value, obj, errmsg) == -1) {
-      goto error;
-    }
-  }
-  else if (!strncmp (poke_object_type, "\"Array\"", strlen ("Array"))) {
-    if (_pk_mi_make_pk_array (&poke_value, obj, errmsg) == -1) {
-      goto error;
-    }
-  }
-  else if (!strncmp (poke_object_type, "\"Struct\"", strlen ("\"Struct\""))) {\
-    if (_pk_mi_make_pk_struct (&poke_value, obj, errmsg) == -1) {
-      goto error;
-    }
-  }
-  else if (!strncmp (poke_object_type, "\"Null\"", strlen("\"Null\""))) {
-    poke_value = PK_NULL;
-  }
-  else {
-    PK_MI_SET_ERRMSG (errmsg, "An error happened, this is a bug.");
-    return PK_NULL;
-  }
 
-  return poke_value;
+  poke_object_type = pk_mi_json_poke_value_type (obj);
+  if (poke_object_type == NULL)
+    goto error;
+
+  if (!strncmp (poke_object_type, "\"Integer\"", strlen ("\"Integer\"")))
+    {
+      if (pk_mi_json_to_int (poke_value, obj, errmsg) == -1)
+        goto error;
+    }
+  else if (!strncmp (poke_object_type, "\"UnsignedInteger\"",
+            strlen ("\"UnsignedInteger\"")))
+    {
+      if (pk_mi_json_to_uint (poke_value, obj, errmsg) == -1)
+        goto error;
+    }
+  else if (!strncmp (poke_object_type, "\"String\"", strlen ("\"String\"")))
+    {
+      if (pk_mi_json_to_string (poke_value, obj, errmsg) == -1)
+        goto error;
+    }
+  else if (!strncmp (poke_object_type, "\"Offset\"", strlen ("\"Offset\"")))
+    {
+      if (pk_mi_json_to_offset (poke_value, obj, errmsg) == -1)
+        goto error;
+    }
+  else if (!strncmp (poke_object_type, "\"Array\"", strlen ("Array")))
+    {
+      if (pk_mi_json_to_array (poke_value, obj, errmsg) == -1)
+        goto error;
+    }
+  else if (!strncmp (poke_object_type, "\"Struct\"", strlen ("\"Struct\"")))
+    {
+      if (pk_mi_json_to_sct (poke_value, obj, errmsg) == -1)
+        goto error;
+    }
+  else if (!strncmp (poke_object_type, "\"Null\"", strlen ("\"Null\"")))
+      *poke_value = PK_NULL;
+  else
+    {
+      asprintf (errmsg, "An unexpected error happened, this is a bug.");
+      return -1;
+    }
+
+  return 0;
 
   error:
-    return PK_NULL;
+    return -1;
 }
 
-pk_val 
-pk_mi_json_to_val (const char *poke_object_str, char **errmsg)
+int
+pk_mi_json_to_val (pk_val *value, const char *json_str, char **errmsg)
 {
-  pk_val poke_value; 
-  struct json_object *search_object, *poke_object = NULL;
-  struct json_tokener *tok = json_tokener_new ();
+  json_object *search_object, *poke_object = NULL;
+  json_tokener *tok = json_tokener_new ();
   enum json_tokener_error jerr;
-  
-  /*Parse the current object and get its PK_TYPE*/
-  do {
-    poke_object = json_tokener_parse_ex (tok, poke_object_str, strlen (poke_object_str));
-  } while ((jerr = json_tokener_get_error (tok)) == json_tokener_continue);
-  
-  PK_MI_CHECK(errmsg, jerr == json_tokener_success, "%s", json_tokener_error_desc (jerr));
-  
-  search_object = json_object_object_get (poke_object, "PokeValue");
-  PK_MI_CHECK(errmsg, search_object != NULL, "Not a valid PokeValue object");
-  
-  poke_value = _pk_mi_json_to_val (search_object, errmsg);
+  int err;
+
+  /* Parse the current object and get its PK_TYPE.  */
+  do
+    {
+      poke_object = json_tokener_parse_ex (tok, json_str,
+                                           strlen (json_str));
+    }
+  while ((jerr = json_tokener_get_error (tok)) == json_tokener_continue);
+
+  PK_MI_CHECK(errmsg, jerr == json_tokener_success, "%s",
+              json_tokener_error_desc (jerr));
+
+  err = json_object_object_get_ex (poke_object, "PokeValue", &search_object);
+  PK_MI_CHECK(errmsg, err != 0, "Not a valid PokeValue object");
+
+  if (pk_mi_json_to_val_1 (value, search_object, errmsg) == -1)
+    goto error;
 
   json_tokener_free (tok);
 
-  return poke_value; 
+  return 0;
 
   error:
-    return PK_NULL;
+    return -1;
 }

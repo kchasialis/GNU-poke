@@ -46,11 +46,29 @@
 # If FILE is not specified then ras will read the assembly program in
 # the standard input.
 #
-# In the C code, define the assembler to be used by RAS and include
-# the compiled pkc files.  Then use the macros at pleasure.  For
-# example:
+# In the C code, it is necessary to define a few cpp constants that
+# are needed by RAS before #including the compiled pkc files.  These
+# are:
+#
+# RAS_ASM
+#    This is the assembler used by RAS in order to assemble
+#    instructions.  It should expand to the top of a stack of
+#    assemblers.
+#
+# RAS_PUSH_ASM (ASM)
+#    This macro is invoked by RAS when it creates a new assembler
+#    and wants to push it in the stack of assemblers.
+#
+# RAS_POP_ASM
+#    This macro is invoked by RAS when it no longer needs the
+#    current assembler.
+#
+# Example;
 #
 #  #define RAS_ASM PKL_GEN_ASM
+#  #define RAS_PUSH_ASM PKL_GEN_PUSH_ASM
+#  #define RAS_POP_ASM PKL_GEN_POP_ASM
+#
 #  #include <pkl-gen.pkc>
 #
 #  ...
@@ -75,7 +93,7 @@
 # Likewise, functions can be defined using .function/.end pairs of
 # assembler directives:
 #
-#  .function NAME
+#  .function NAME [(@ARG|#ARG)]...
 #  ...
 #  .end
 #
@@ -94,6 +112,56 @@
 #
 # In the C level, this will expand RAS_MACRO_NAME (ARG, ...)
 #
+# RAS Macro Variables
+# -------------------
+#
+# Within the body of a macro or a function it may become necessary to
+# create a value to pass to some other macro or function.  This new
+# value is typically derived from another argument.
+#
+# RAS variables can be defined using the .let directive:
+#
+#     .let (@|#)VARNAME [= CEXPR]
+#
+# Where CEXPR is an optional C expression that that serves as the
+# initialization value.  The symbol used as a prefix identifies the
+# nature of the value stored in the RAS variable.  Supported symbols
+# are:
+#
+# @ for AST node values, i.e. values of type pkl_ast_node.
+# # for PVM values, i.e. values of type pvm_val.
+#
+# Usage example:
+#
+#     .function FOO @field
+#     [...]
+#
+#     .let @field_type = PKL_AST_TYPE (field_arg)
+#
+#      .e do_something @field_type
+#     .end
+#
+# Note how we create a new RAS variable @field_type, derived from the
+# received argument @field.  Typically, inline C code is necessary to
+# initialize the value of the newly declared variables.
+#
+# Keep in mind that the .let directive translates into the declaration
+# of a C variable, so they follow C visibility and scope rules,
+# i.e. they can be nested and they are visible only until the end of
+# the current C block.
+#
+# Calling Poke Functions
+# ----------------------
+#
+# The .call directive allows to call a compiled Poke function by name.
+# It has the following syntax:
+#
+# .call FUNCTION_NAME
+#
+# The called function should be defined in the global environment.
+# Most typically this directive is used to call functions defined in
+# the compiler's run-time library (pkl-rt.pk).
+#
 # Literal C Code
 # --------------
 #
@@ -103,12 +171,16 @@
 # A typical example is to invoke a GEN subpass, like:
 #
 #  .c PKL_GEN_PAYLOAD->in_mapper = 0;
-#  .c PKL_PASS_SUBPASS (PKL_AST_TYPE_A_ETYPE (array_type));
+#  .c PKL_PASS_SUBPASS (PKL_AST_TYPE_A_ETYPE (@array_type));
 #  .c PKL_GEN_PAYLOAD->in_mapper = 1;
 #
-# The directives above will generate the literal C code.  The C code
-# is copied verbatim and ras knows nothing about its contents, so
-# please be careful.
+# The directives above will generate the literal C code, after
+# references to macro arguments (like @this or #that) are replaced.
+#
+# Note that macro and function arguments (like @this or #that) can
+# also be referred in literal C code as this_arg and that_arg,
+# respectively, i.e. adding a suffix `_arg' to the argument name.  But
+# it is always better to rely on the substitution done by RAS.
 #
 # Loops
 # -----
@@ -205,21 +277,21 @@
 #      ...
 #  .c }
 #
-# Variables
-# ---------
+# Lexical Variables
+# -----------------
 #
 # Wherever a lexical address (a pair of BACK, OVER numbers) is
 # expected in a program, ras allows you to specify a variable name
-# instead.  Variable names are identifiers that start with the $
-# character.
+# instead.  Lexical variable names are identifiers that start with the
+# $ character.
 #
 # For example, both forms of pushvar are allowed:
 #
 #   pushvar 0,3
 #   pushvar $foo
 #
-# Using variable names eases writing PVM assembly code by a lot, for
-# several reasons.
+# Using lexical variable names eases writing PVM assembly code by a
+# lot, for several reasons.
 #
 # First, the location of a given variable in a given lexical frame
 # depends on how many other variables have been registered before.
@@ -303,10 +375,10 @@
 # do the tracking job:
 #
 # pushf 0
-# regvar %a
-# pushvar %a
+# regvar $a
+# pushvar $a
 # pushf 0
-# pushvar %a
+# pushvar $a
 # popf 2
 #
 # Summarizing: ultimately it is up to you to decide when to use
@@ -544,6 +616,9 @@ BEGIN {
 /^[ \t]*\.c( .*|)$/ {
     $0 = gensub (/\.c$/, "", "g", $0)
     $0 = gensub (/.*\.c (.*)$/, "\\1", "g", $0)
+    # Substitute macro arguments.
+    $0 = gensub (marg_re, "(\\2_arg)", "g", $0);
+
     out("\t" $0 " \\")
     next
 }
@@ -581,22 +656,32 @@ BEGIN {
 }
 
 # .function NAME
-/^[ \t]*\.function[ \t]+[a-zA-Z][0-9a-zA-Z_]*[ \t]*(;.*)?$/ {
+/^[ \t]*\.function[ \t]+[a-zA-Z][0-9a-zA-Z_]*[ \t]*((@|#)[a-zA-Z_][0-9a-zA-Z_]*[ \t]*)*[ \t]*(;.*)?$/ {
     # Get the function name
     function_name = $2
     if (match (function_name, /^[a-zA-Z][0-9a-zA-Z_]*$/) == 0)
         fatal(FNR ": invalid function name. This should NOT happen.")
 
-    init_entity()
 
-    out("#define RAS_FUNCTION_" toupper($2) "(CLOSURE)  \\")
+    # Build the list of arguments
+    function_args=""
+    for (i = 3; i <= NF; i++)
+    {
+        if (match ($i, /^;.*$/) == 0)
+        {
+            function_args = function_args "," gensub (marg_re, "\\2_arg", "g", $i);
+        }
+    }
+
+    init_entity()
+    out("#define RAS_FUNCTION_" toupper($2) "(CLOSURE" function_args ") \\")
     out("\tdo {                                         \\")
     out("\tpvm_program program;                         \\")
     out("\t                                             \\")
-    out("\tPKL_GEN_PUSH_ASM (pkl_asm_new (PKL_PASS_AST, \\")
-    out("\t                               PKL_GEN_PAYLOAD->compiler, \\")
-    out("\t                               0 /* prologue */));        \\")
-    out("\t                                                          \\")
+    out("\tRAS_PUSH_ASM (pkl_asm_new (PKL_PASS_AST,              \\")
+    out("\t                           PKL_GEN_PAYLOAD->compiler, \\")
+    out("\t                           0 /* prologue */));        \\")
+    out("\t                                                      \\")
     out("---LABELDECLS---")
 
     current_entity = "function"
@@ -615,7 +700,7 @@ BEGIN {
         out("\t{                                                       \\")
         out("\t  program = pkl_asm_finish (RAS_ASM,                    \\")
         out("\t                            0 /* epilogue */);          \\")
-        out("\t  PKL_GEN_POP_ASM;                                      \\")
+        out("\t  RAS_POP_ASM;                                          \\")
         out("\t  pvm_program_make_executable (program);                \\")
         out("\t  (CLOSURE) = pvm_make_cls (program);                   \\")
         out("\t}                                                       \\")
@@ -672,8 +757,7 @@ BEGIN {
     if (match ($0, marg_re) != 0)
     {
         # Add parenthesis
-        $0 = gensub (anode_re, "(@\\1", 1, $0)
-        $0 = gensub (aval_re, "(#\\1", 1, $0)
+        $0 = gensub (anode_re "|" aval_re, "(@\\1", 1, $0)
         $0 = $0 ")"
         # Process the macro arguments
         $0 = gensub (marg_re, "(\\2_arg)", "g", $0)
@@ -724,6 +808,34 @@ BEGIN {
 
     labels[labelname] = labelname
     out("\tpkl_asm_label (RAS_ASM," labelname "_label); \\")
+    next
+}
+
+# .call
+/^[ \t]*\.call[ \t]+\.[a-zA-Z][0-9a-zA-Z_]*[ \t]*(;.*)?$/ {
+    fname = gensub (/^[ \t]*\.call[ \t]+\.([a-zA-Z][0-9a-zA-Z_]*)[ \t]*(;.*)?$/, \
+                    "\\1", 1, $0)
+    out("\tpkl_asm_call (RAS_ASM," fname "); \\")
+    next
+}
+
+# .let
+/^[ \t]*\.let[ \t]+(@|#)([a-zA-Z_][0-9a-zA-Z_]*)[ \t]*(= .*|)?$/ {
+    kind = gensub (/^[ \t]*\.let[ \t]+(@|#)([a-zA-Z_][0-9a-zA-Z_]*)[ \t]*(= .*|)?$/,
+                   "\\1", 1, $0)
+    varname = gensub (/^[ \t]*\.let[ \t]+(@|#)([a-zA-Z_][0-9a-zA-Z_]*)[ \t]*(= .*|)?$/, \
+                      "\\2", 1, $0) "_arg"
+    cinit = gensub  (/^[ \t]*\.let[ \t]+(@|#)([a-zA-Z_][0-9a-zA-Z_]*)[ \t]*(= .*|)?$/, \
+                      "\\3", 1, $0)
+    # Substitute macro arguments.
+    cinit = gensub (marg_re, "(\\2_arg)", "g", cinit);
+
+    if (kind == "@")
+        vartype = "pkl_ast_node"
+    else
+        vartype = "pvm_val"
+
+    out("\t" vartype " " varname " " cinit "; \\")
     next
 }
 

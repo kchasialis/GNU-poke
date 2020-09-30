@@ -20,6 +20,7 @@
    documented in https://www.kernel.org/doc/html/latest/bpf/btf.html
    (fetched 2019-10-25) */
 
+defvar BTF_KIND_UKNONWN = 0;
 defvar BTF_KIND_INT = 1;
 defvar BTF_KIND_PTR = 2;
 defvar BTF_KIND_ARRAY = 3;
@@ -36,21 +37,31 @@ defvar BTF_KIND_FUNC_PROTO = 13;
 defvar BTF_KIND_VAR = 14;
 defvar BTF_KIND_DATASEC = 15;
 
+defvar btf_kind_names =
+  ["unkn", "int", "ptr", "array", "struct", "union", "enum",
+   "fwd", "typedef", "volatile", "const", "restrict", "func",
+   "func_proto", "var", "datasec"];
+
 deftype BTF_Type_Id = uint<32>;
 
 deftype BTF_Int =
-  struct
+  struct uint<32>
   {
     uint<4>;
-    struct
-    {
-      uint<1> bool_p;
-      uint<1> char_p;
-      uint<1> signed_p;
-    } encoding;
+    uint<1>;
+    uint<1> bool_p;
+    uint<1> char_p;
+    uint<1> signed_p;
     uint<8> offset;
     uint<8>;
     uint<8> bits;
+
+    /* XXX turn `encoding' into a nested integral struct once we
+       support it in the compiler.  */
+    method encoding = uint<4>:
+    {
+      return bool_p:::char_p:::signed_p;
+    }
   };
 
 deftype BTF_Array =
@@ -94,13 +105,19 @@ deftype BTF_Type =
   {
     offset<uint<32>,B> name;
 
-    struct
+    struct uint<32>
     {
-      uint<16> vlen;
-      uint<8>;
-      uint<4> kind;
-      uint<3>;
       uint<1> kind_flag;
+      uint<3>;
+      uint<4> kind;
+      uint<8>;
+      uint<16> vlen;
+
+      method _print = void:
+        {
+          printf ("#<%s,kind_flag:%u32d,vlen:%v>",
+                  btf_kind_names[kind], kind_flag, vlen);
+        }
     } info;
 
     union
@@ -135,12 +152,6 @@ deftype BTF_Type =
       struct
       {
         BTF_Param[info.vlen] params;
-
-        method vararg_p = int:
-          {
-           defvar last_param = params[info.vlen - 1];
-           return (last_param.name == 0#B && last_param.type == 0);
-           }
       };
 
     union
@@ -156,13 +167,18 @@ deftype BTF_Type =
       struct {};
     } data;
 
+    method vararg_p = int:
+      {
+        defvar last_param = data.func_proto.params[info.vlen - 1];
+        return (last_param.name == 0#B && last_param.type == 0);
+      }
   };
 
 deftype BTF_Header =
   struct
   {
-    uint<16> magic : ((magic == 0x9feb && set_endian (ENDIAN_LITTLE)
-                       || (magic == 0xeb9f && set_endian (ENDIAN_BIG))));
+    uint<16> magic : ((magic == 0x9feb && set_endian (ENDIAN_BIG)
+                       || (magic == 0xeb9f && set_endian (ENDIAN_LITTLE))));
     uint<8> version;
     uint<8> flags;
     offset<uint<32>,B> hdr_len; /* Size of this header.  */
@@ -176,10 +192,10 @@ deftype BTF_Header =
 
 defun btf_types = (BTF_Header hdr) BTF_Type[]:
   {
-   return BTF_Type[hdr.type_len] @ (hdr'size + hdr.type_off);
+   return BTF_Type[hdr.type_len] @ (hdr'offset + hdr'size + hdr.type_off);
   }
 
 defun btf_strings = (BTF_Header hdr) string[]:
   {
-   return string[hdr.str_len] @ (hdr'size + hdr.str_off);
+   return string[hdr.str_len] @ (hdr'offset + hdr'size + hdr.str_off);
   }

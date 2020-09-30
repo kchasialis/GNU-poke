@@ -47,7 +47,7 @@ deftype BMP_Info_Header =
     uint<16> planes;     /* Number of planes. (=1) XXX */
 
     uint<16> bits_per_pixel;
-    defun num_colors = int: { return 2 ** bits_per_pixel; }
+    method num_colors = int: { return 2 ** bits_per_pixel; }
 
     uint<32> compression; /* Type of compression.  */
 

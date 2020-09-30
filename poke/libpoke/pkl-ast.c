@@ -339,7 +339,7 @@ pkl_ast_make_integral_type (pkl_ast ast, size_t size, int signed_p)
   PKL_AST_TYPE_CODE (type) = PKL_TYPE_INTEGRAL;
   PKL_AST_TYPE_COMPLETE (type)
     = PKL_AST_TYPE_COMPLETE_YES;
-  PKL_AST_TYPE_I_SIGNED (type) = signed_p;
+  PKL_AST_TYPE_I_SIGNED_P (type) = signed_p;
   PKL_AST_TYPE_I_SIZE (type) = size;
   return type;
 }
@@ -415,8 +415,9 @@ pkl_ast_make_struct_type (pkl_ast ast,
                           size_t nelem,
                           size_t nfield,
                           size_t ndecl,
+                          pkl_ast_node itype,
                           pkl_ast_node struct_type_elems,
-                          int pinned, int union_p)
+                          int pinned_p, int union_p)
 {
   pkl_ast_node type = pkl_ast_make_type (ast);
 
@@ -426,18 +427,22 @@ pkl_ast_make_struct_type (pkl_ast ast,
   PKL_AST_TYPE_S_NDECL (type) = ndecl;
   if (struct_type_elems)
     PKL_AST_TYPE_S_ELEMS (type) = ASTREF (struct_type_elems);
-  PKL_AST_TYPE_S_PINNED (type) = pinned;
-  PKL_AST_TYPE_S_UNION (type) = union_p;
+  if (itype)
+    PKL_AST_TYPE_S_ITYPE (type) = ASTREF (itype);
+  PKL_AST_TYPE_S_PINNED_P (type) = pinned_p;
+  PKL_AST_TYPE_S_UNION_P (type) = union_p;
   PKL_AST_TYPE_S_MAPPER (type) = PVM_NULL;
   PKL_AST_TYPE_S_WRITER (type) = PVM_NULL;
   PKL_AST_TYPE_S_CONSTRUCTOR (type) = PVM_NULL;
   PKL_AST_TYPE_S_COMPARATOR (type) = PVM_NULL;
+  PKL_AST_TYPE_S_INTEGRATOR (type) = PVM_NULL;
 
   /* The closure slots are GC roots.  */
   pvm_alloc_add_gc_roots (&PKL_AST_TYPE_S_WRITER (type), 1);
   pvm_alloc_add_gc_roots (&PKL_AST_TYPE_S_MAPPER (type), 1);
   pvm_alloc_add_gc_roots (&PKL_AST_TYPE_S_CONSTRUCTOR (type), 1);
   pvm_alloc_add_gc_roots (&PKL_AST_TYPE_S_COMPARATOR (type), 1);
+  pvm_alloc_add_gc_roots (&PKL_AST_TYPE_S_INTEGRATOR (type), 1);
 
   return type;
 }
@@ -536,7 +541,7 @@ pkl_ast_dup_type (pkl_ast_node type)
       break;
     case PKL_TYPE_INTEGRAL:
       PKL_AST_TYPE_I_SIZE (new) = PKL_AST_TYPE_I_SIZE (type);
-      PKL_AST_TYPE_I_SIGNED (new) = PKL_AST_TYPE_I_SIGNED (type);
+      PKL_AST_TYPE_I_SIGNED_P (new) = PKL_AST_TYPE_I_SIGNED_P (type);
       break;
     case PKL_TYPE_ARRAY:
       {
@@ -594,8 +599,8 @@ pkl_ast_dup_type (pkl_ast_node type)
             = pkl_ast_chainon (PKL_AST_TYPE_S_ELEMS (new),
                                struct_type_elem);
           PKL_AST_TYPE_S_ELEMS (new) = ASTREF (PKL_AST_TYPE_S_ELEMS (type));
-          PKL_AST_TYPE_S_PINNED (new) = PKL_AST_TYPE_S_PINNED (type);
-          PKL_AST_TYPE_S_UNION (new) = PKL_AST_TYPE_S_UNION (type);
+          PKL_AST_TYPE_S_PINNED_P (new) = PKL_AST_TYPE_S_PINNED_P (type);
+          PKL_AST_TYPE_S_UNION_P (new) = PKL_AST_TYPE_S_UNION_P (type);
         }
       break;
     case PKL_TYPE_FUNCTION:
@@ -751,7 +756,7 @@ pkl_ast_type_equal (pkl_ast_node a, pkl_ast_node b)
       break;
     case PKL_TYPE_INTEGRAL:
       return (PKL_AST_TYPE_I_SIZE (a) == PKL_AST_TYPE_I_SIZE (b)
-              && PKL_AST_TYPE_I_SIGNED (a) == PKL_AST_TYPE_I_SIGNED (b));
+              && PKL_AST_TYPE_I_SIGNED_P (a) == PKL_AST_TYPE_I_SIGNED_P (b));
       break;
     case PKL_TYPE_ARRAY:
       {
@@ -903,6 +908,13 @@ pkl_ast_type_promoteable (pkl_ast_node ft, pkl_ast_node tt,
       //                                       PKL_AST_TYPE_A_ETYPE (tt),
       //                                       promote_array_of_any);
     }
+
+  /* A struct type is promoteable to any integral type if the struct
+     itself is integral.  */
+  if (PKL_AST_TYPE_CODE (ft) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (ft)
+      && PKL_AST_TYPE_CODE (tt) == PKL_TYPE_INTEGRAL)
+    return 1;
 
   return 0;
 }
@@ -1068,7 +1080,8 @@ pkl_ast_type_is_complete (pkl_ast_node type)
             if (PKL_AST_CODE (elem) == PKL_AST_STRUCT_TYPE_FIELD
                 && (PKL_AST_STRUCT_TYPE_FIELD_LABEL (elem)
                     || PKL_AST_STRUCT_TYPE_FIELD_OPTCOND (elem)
-                    || !pkl_ast_type_is_complete (PKL_AST_STRUCT_TYPE_FIELD_TYPE (elem))))
+                    || (pkl_ast_type_is_complete (PKL_AST_STRUCT_TYPE_FIELD_TYPE (elem))
+                        == PKL_AST_TYPE_COMPLETE_NO)))
               {
                 complete = PKL_AST_TYPE_COMPLETE_NO;
                 break;
@@ -1136,7 +1149,7 @@ pkl_print_type (FILE *out, pkl_ast_node type, int use_given_name)
       fprintf (out, "any");
       break;
     case PKL_TYPE_INTEGRAL:
-      if (!PKL_AST_TYPE_I_SIGNED (type))
+      if (!PKL_AST_TYPE_I_SIGNED_P (type))
         fputc ('u', out);
       fprintf (out, "int<%zd>", PKL_AST_TYPE_I_SIZE (type));
       break;
@@ -1867,6 +1880,7 @@ pkl_ast_node_free (pkl_ast_node ast)
           pvm_alloc_remove_gc_roots (&PKL_AST_TYPE_S_MAPPER (ast), 1);
           pvm_alloc_remove_gc_roots (&PKL_AST_TYPE_S_CONSTRUCTOR (ast), 1);
           pvm_alloc_remove_gc_roots (&PKL_AST_TYPE_S_COMPARATOR (ast), 1);
+          pvm_alloc_remove_gc_roots (&PKL_AST_TYPE_S_INTEGRATOR (ast), 1);
 
           for (t = PKL_AST_TYPE_S_ELEMS (ast); t; t = n)
             {
@@ -2643,7 +2657,7 @@ pkl_ast_print_1 (FILE *fp, pkl_ast_node ast, int indent)
           switch (PKL_AST_TYPE_CODE (ast))
             {
             case PKL_TYPE_INTEGRAL:
-              PRINT_AST_IMM (signed_p, TYPE_I_SIGNED, "%d");
+              PRINT_AST_IMM (signed_p, TYPE_I_SIGNED_P, "%d");
               PRINT_AST_IMM (size, TYPE_I_SIZE, "%zu");
               break;
             case PKL_TYPE_ARRAY:
@@ -2651,11 +2665,12 @@ pkl_ast_print_1 (FILE *fp, pkl_ast_node ast, int indent)
               PRINT_AST_SUBAST (etype, TYPE_A_ETYPE);
               break;
             case PKL_TYPE_STRUCT:
-              PRINT_AST_IMM (pinned, TYPE_S_PINNED, "%d");
-              PRINT_AST_IMM (union_p, TYPE_S_UNION, "%d");
+              PRINT_AST_IMM (pinned_p, TYPE_S_PINNED_P, "%d");
+              PRINT_AST_IMM (union_p, TYPE_S_UNION_P, "%d");
               PRINT_AST_IMM (nelem, TYPE_S_NELEM, "%zu");
               PRINT_AST_IMM (nfield, TYPE_S_NFIELD, "%zu");
               PRINT_AST_IMM (ndecl, TYPE_S_NDECL, "%zu");
+              PRINT_AST_SUBAST (itype, TYPE_S_ITYPE);
               IPRINTF ("elems:\n");
               PRINT_AST_SUBAST_CHAIN (TYPE_S_ELEMS);
               break;

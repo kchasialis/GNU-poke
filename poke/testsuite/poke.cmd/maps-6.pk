@@ -11,12 +11,12 @@
 /* { dg-command { .map entry remove foo, bar } } */
 /* { dg-command { .map show foo } } */
 /* { dg-output "Offset\t\t\Entry" } */
-/* { dg-output "\n2UL#B\t\tfoo::quux" } */
-/* { dg-output "\n17UL#b\t\tfoo::jorl" } */
+/* { dg-output "\n2UL#B\t\t\\\$foo::quux" } */
+/* { dg-output "\n17UL#b\t\t\\\$foo::jorl" } */
 /* { dg-command { .map entry remove foo, quux } } */
 /* { dg-command { .map show foo } } */
 /* { dg-output "\nOffset\t\tEntry" } */
-/* { dg-output "\n17UL#b\t\tfoo::jorl" } */
+/* { dg-output "\n17UL#b\t\t\\\$foo::jorl" } */
 /* { dg-command { .map entry remove foo, jorl } } */
 /* { dg-command { .map show foo } } */
 /* { dg-output "\nOffset\t\tEntry" } */

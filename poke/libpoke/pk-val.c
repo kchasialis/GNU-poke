@@ -19,7 +19,7 @@
 #include <config.h>
 
 #include "pvm.h"
-#include "pvm-val.h" /* XXX */
+#include "pvm-val.h"
 #include "libpoke.h"
 
 pk_val
@@ -164,7 +164,10 @@ pk_type_code (pk_val val)
   switch (PVM_VAL_TYP_CODE (val))
     {
     case PVM_TYPE_INTEGRAL:
-      return PK_INT;
+      if ((pk_int_value (pk_integral_type_signed_p (val))))
+        return PK_INT;
+      else
+        return PK_UINT;
     case PVM_TYPE_STRING:
       return PK_STRING;
     case PVM_TYPE_ARRAY:
@@ -182,26 +185,32 @@ pk_type_code (pk_val val)
     }
 }
 
-pk_val
-pk_make_struct (pk_val nfields, pk_val type)
+int
+pk_val_equal_p (pk_val val1, pk_val val2)
 {
-  return pvm_make_struct(nfields, pvm_make_ulong (0, 64), type);
+  return pvm_val_equal_p (val1, val2);
 }
 
 pk_val
-pk_struct_nfields (pk_val sct) 
+pk_make_struct (pk_val nfields, pk_val type)
+{
+  return pvm_make_struct (nfields, pvm_make_ulong (0, 64), type);
+}
+
+pk_val
+pk_struct_nfields (pk_val sct)
 {
   return PVM_VAL_SCT_NFIELDS (sct);
 }
 
 pk_val pk_struct_field_boffset (pk_val sct, uint64_t idx)
-{ 
+{
   if (idx < pk_uint_value (pk_struct_nfields (sct)))
-    return PVM_VAL_SCT_FIELD_OFFSET (sct, idx); 
+    return PVM_VAL_SCT_FIELD_OFFSET (sct, idx);
   else
     return PK_NULL;
 }
-   
+
 void pk_struct_set_field_boffset (pk_val sct, uint64_t idx, pk_val boffset)
 {
   if (idx < pk_uint_value (pk_struct_nfields (sct)))
@@ -209,9 +218,9 @@ void pk_struct_set_field_boffset (pk_val sct, uint64_t idx, pk_val boffset)
 }
 
 pk_val pk_struct_field_name (pk_val sct, uint64_t idx)
-{ 
+{
   if (idx < pk_uint_value (pk_struct_nfields (sct)))
-    return PVM_VAL_SCT_FIELD_NAME (sct, idx); 
+    return PVM_VAL_SCT_FIELD_NAME (sct, idx);
   else
     return PK_NULL;
 }
@@ -223,7 +232,7 @@ void pk_struct_set_field_name (pk_val sct, uint64_t idx, pk_val name)
 }
 
 pk_val pk_struct_field_value (pk_val sct, uint64_t idx)
-{ 
+{
   if (idx < pk_uint_value (pk_struct_nfields (sct)))
     return PVM_VAL_SCT_FIELD_VALUE (sct, idx);
   else
@@ -257,7 +266,7 @@ pk_integral_type_size (pk_val type)
 pk_val
 pk_integral_type_signed_p (pk_val type)
 {
-  return PVM_VAL_TYP_I_SIGNED (type);
+  return PVM_VAL_TYP_I_SIGNED_P (type);
 }
 
 pk_val
@@ -290,7 +299,7 @@ pk_make_any_type (void)
   return pvm_make_any_type ();
 }
 
-pk_val 
+pk_val
 pk_make_struct_type (pk_val nfields, pk_val name, pk_val *fnames, pk_val *ftypes)
 {
   return pvm_make_struct_type (nfields, name, fnames, ftypes);
@@ -303,7 +312,7 @@ pk_struct_type (pk_val sct)
 }
 
 void
-pk_allocate_struct_attrs (pk_val nfields, pk_val **fnames, pk_val **ftypes) 
+pk_allocate_struct_attrs (pk_val nfields, pk_val **fnames, pk_val **ftypes)
 {
   pvm_allocate_struct_attrs (nfields, fnames, ftypes);
 }
@@ -314,18 +323,18 @@ pk_struct_type_name (pk_val type)
   return PVM_VAL_TYP_S_NAME (type);
 }
 
-pk_val 
+pk_val
 pk_struct_type_nfields (pk_val type)
 {
   return PVM_VAL_TYP_S_NFIELDS (type);
 }
 
-pk_val 
+pk_val
 pk_struct_type_fname (pk_val type, uint64_t idx)
 {
   if (idx < pk_uint_value (pk_struct_type_nfields (type)))
     return PVM_VAL_TYP_S_FNAME (type, idx);
-  else 
+  else
     return PK_NULL;
 }
 
@@ -336,9 +345,9 @@ pk_struct_type_set_fname (pk_val type, uint64_t idx, pk_val field_name)
     PVM_VAL_TYP_S_FNAME (type, idx) = field_name;
 }
 
-pk_val 
+pk_val
 pk_struct_type_ftype (pk_val type, uint64_t idx)
-{ 
+{
   if (idx < pk_uint_value (pk_struct_type_nfields (type)))
     return PVM_VAL_TYP_S_FTYPE (type, idx);
   else
@@ -385,7 +394,7 @@ pk_array_nelem (pk_val array)
 pk_val
 pk_array_elem_val (pk_val array, uint64_t idx)
 {
-  if (idx < pk_uint_value (pk_array_nelem (array))) 
+  if (idx < pk_uint_value (pk_array_nelem (array)))
     return PVM_VAL_ARR_ELEM_VALUE (array, idx);
   else
     return PK_NULL;
@@ -394,14 +403,14 @@ pk_array_elem_val (pk_val array, uint64_t idx)
 void
 pk_array_set_elem_val (pk_val array, uint64_t idx, pk_val val)
 {
-  if (idx < pk_uint_value (pk_array_nelem (array))) 
+  if (idx < pk_uint_value (pk_array_nelem (array)))
     PVM_VAL_ARR_ELEM_VALUE (array, idx) = val;
 }
 
 pk_val
 pk_array_elem_boffset (pk_val array, uint64_t idx)
 {
-  if (idx < pk_uint_value (pk_array_nelem (array))) 
+  if (idx < pk_uint_value (pk_array_nelem (array)))
     return PVM_VAL_ARR_ELEM_OFFSET (array, idx);
   else
     return PK_NULL;
@@ -410,6 +419,6 @@ pk_array_elem_boffset (pk_val array, uint64_t idx)
 void
 pk_array_set_elem_boffset (pk_val array, uint64_t idx, pk_val boffset)
 {
-  if (idx < pk_uint_value (pk_array_nelem (array))) 
+  if (idx < pk_uint_value (pk_array_nelem (array)))
     PVM_VAL_ARR_ELEM_OFFSET (array, idx) = boffset;
 }

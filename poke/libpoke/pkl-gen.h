@@ -62,7 +62,8 @@
    is being generated.  0 otherwise.
 
    IN_WRITER is 1 when a writer function for an array or a struct type
-   is begin generated.  0 otherwise.
+   is begin generated.  0 otherwise.  This context is also used for
+   struct integrators.
 
    IN_CONSTRUCTOR is 1 when a struct constructor is being generated.
    0 otherwise.

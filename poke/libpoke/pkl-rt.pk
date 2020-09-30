@@ -18,7 +18,7 @@
 
 /* Compiler built-ins. */
 
-defun rand = int<32>: __PKL_BUILTIN_RAND__;
+defun rand = (uint<32> seed = 0) int<32>: __PKL_BUILTIN_RAND__;
 defun get_endian = int<32>: __PKL_BUILTIN_GET_ENDIAN__;
 defun set_endian = (int<32> endian) int<32>: __PKL_BUILTIN_SET_ENDIAN__;
 defun get_ios = int<32>: __PKL_BUILTIN_GET_IOS__;
@@ -27,6 +27,7 @@ defun open = (string handler, uint<64> flags = 0) int<32>: __PKL_BUILTIN_OPEN__;
 defun close = (int<32> ios) void: __PKL_BUILTIN_CLOSE__;
 defun iosize = (int<32> ios = get_ios) offset<uint<64>,1>: __PKL_BUILTIN_IOSIZE__;
 defun getenv = (string name) string: __PKL_BUILTIN_GETENV__;
+defun flush = (int<32> ios, offset<uint<64>,1> offset) void: __PKL_BUILTIN_FORGET__;
 
 defvar ENDIAN_LITTLE = 0;
 defvar ENDIAN_BIG = 1;

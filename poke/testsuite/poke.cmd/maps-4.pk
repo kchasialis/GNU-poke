@@ -6,4 +6,4 @@
 /* { dg-command { .map entry add foo, bar } } */
 /* { dg-command { .map show foo } } */
 /* { dg-output "Offset\t\tEntry" } */
-/* { dg-output "\n0UL#B\t\tfoo::bar" } */
+/* { dg-output "\n0UL#B\t\t\\\$foo::bar" } */

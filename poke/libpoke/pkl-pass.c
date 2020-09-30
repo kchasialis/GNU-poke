@@ -43,7 +43,8 @@
                                                                   &dobreak, \
                                                                   payloads, \
                                                                   phases,\
-                                                                  flags); \
+                                                                  flags, \
+                                                                  level); \
               *handlers_used += 1;                                      \
               if (dobreak)                                              \
                 goto _exit;                                             \
@@ -56,7 +57,8 @@
                                         parent,                         \
                                         payloads + i + 1,               \
                                         phases + i + 1,                 \
-                                        flags);                         \
+                                        flags,                          \
+                                        level);                         \
                   /* goto restart */                                    \
                   goto restart;                                         \
                 }                                                       \
@@ -88,7 +90,8 @@
                                              &dobreak,                  \
                                              payloads,                  \
                                              phases,                    \
-                                             flags);                    \
+                                             flags,                     \
+                                             level);                    \
               if (dobreak)                                              \
                 goto _exit;                                             \
                                                                         \
@@ -100,7 +103,8 @@
                                         parent,                         \
                                         payloads + i + 1,               \
                                         phases + i + 1,                 \
-                                        flags);                         \
+                                        flags,                          \
+                                        level);                         \
                   /* goto restart */                                    \
                   goto restart;                                         \
                 }                                                       \
@@ -118,7 +122,7 @@ static pkl_ast_node pkl_do_pass_1 (pkl_compiler compiler,
                                    size_t child_pos,
                                    pkl_ast_node parent,
                                    void *payloads[], struct pkl_phase *phases[],
-                                   int flags);
+                                   int flags, int level);
 
 
 #define PKL_PASS_PRE_ORDER 0
@@ -136,72 +140,110 @@ pkl_call_node_handlers (pkl_compiler compiler,
                         pkl_ast_node parent,
                         int *_dobreak,
                         int order,
-                        int flags)
+                        int flags,
+                        int level)
 {
   int node_code = PKL_AST_CODE (node);
   int dobreak = 0;
 
-  /* Call the handlers defined for specific opcodes in the given
-     order.  */
-  if (node_code == PKL_AST_EXP)
+  if (order == PKL_PASS_POST_ORDER)
     {
-      int opcode = PKL_AST_EXP_CODE (node);
+      /* In post-order, less generic handlers should be executed
+         first.  */
 
-      switch (opcode)
+      /* Call the handlers defined for specific opcodes in the given
+         order.  */
+      if (node_code == PKL_AST_EXP)
         {
-#define PKL_DEF_OP(ocode, str)                                          \
-          case ocode:                                                   \
-            if (order == PKL_PASS_PRE_ORDER)                          \
-              PKL_CALL_PHASES (op, ps, ocode);                          \
-            else if (order == PKL_PASS_POST_ORDER)                   \
-              PKL_CALL_PHASES (op, pr, ocode);                          \
-            else                                                        \
-              assert (0);                                               \
-            break;
+          int opcode = PKL_AST_EXP_CODE (node);
+
+          switch (opcode)
+            {
+#define PKL_DEF_OP(ocode, str)                          \
+              case ocode:                               \
+                PKL_CALL_PHASES (op, ps, ocode);        \
+                break;
 #include "pkl-ops.def"
 #undef PKL_DEF_OP
-        default:
-          /* Unknown operation code.  */
-          assert (0);
+            default:
+              /* Unknown operation code.  */
+              assert (0);
+            }
+
+          /* The node may have been replaced by the handler above.
+             Refresh the code.  */
+          node_code = PKL_AST_CODE (node);
         }
 
-      /* The node may have been replaced by the handler above.
-         Refresh the code.  */
-      node_code = PKL_AST_CODE (node);
-    }
+      /* Call the phase handlers defined for specific types, in the given
+         order.  */
+      if (node_code == PKL_AST_TYPE)
+        {
+          int typecode = PKL_AST_TYPE_CODE (node);
 
-  /* Call the phase handlers defined for specific types, in the given
-     order.  */
-  if (node_code == PKL_AST_TYPE)
+          PKL_CALL_PHASES (type, ps, typecode);
+          /* The node may have been replaced by the handler above.
+             Refresh the code.  */
+          node_code = PKL_AST_CODE (node);
+        }
+
+      /* Call the phase handlers defined for node codes, in the given
+         order.  */
+      PKL_CALL_PHASES (code, ps, node_code);
+
+      /* Call the phase handlers defined as default.  */
+      PKL_CALL_PHASES_SINGLE (default_ps);
+    }
+  else if (order == PKL_PASS_PRE_ORDER)
     {
-      int typecode = PKL_AST_TYPE_CODE (node);
+      /* In pre-order, more generic handlers should be executed
+         first.  */
 
-      if (order == PKL_PASS_PRE_ORDER)
-        PKL_CALL_PHASES (type, ps, typecode);
-      else if (order == PKL_PASS_POST_ORDER)
-        PKL_CALL_PHASES (type, pr, typecode);
-      else
-        assert (0);
+      /* Call the phase handlers defined as default.  */
+      PKL_CALL_PHASES_SINGLE (default_pr);
 
-      /* The node may have been replaced by the handler above.
-         Refresh the code.  */
-      node_code = PKL_AST_CODE (node);
+      /* Call the phase handlers defined for node codes, in the given
+         order.  */
+      PKL_CALL_PHASES (code, pr, node_code);
+
+      /* Call the handlers defined for specific opcodes in the given
+         order.  */
+      if (node_code == PKL_AST_EXP)
+        {
+          int opcode = PKL_AST_EXP_CODE (node);
+
+          switch (opcode)
+            {
+#define PKL_DEF_OP(ocode, str)                          \
+              case ocode:                               \
+                PKL_CALL_PHASES (op, pr, ocode);        \
+                break;
+#include "pkl-ops.def"
+#undef PKL_DEF_OP
+            default:
+              /* Unknown operation code.  */
+              assert (0);
+            }
+
+          /* The node may have been replaced by the handler above.
+             Refresh the code.  */
+          node_code = PKL_AST_CODE (node);
+        }
+
+      /* Call the phase handlers defined for specific types, in the given
+         order.  */
+      if (node_code == PKL_AST_TYPE)
+        {
+          int typecode = PKL_AST_TYPE_CODE (node);
+
+          PKL_CALL_PHASES (type, pr, typecode);
+          /* The node may have been replaced by the handler above.
+             Refresh the code.  */
+          node_code = PKL_AST_CODE (node);
+        }
     }
-
-  /* Call the phase handlers defined for node codes, in the given
-     order.  */
-  if (order == PKL_PASS_PRE_ORDER)
-    PKL_CALL_PHASES (code, ps, node_code);
-  else if (order == PKL_PASS_POST_ORDER)
-    PKL_CALL_PHASES (code, pr, node_code);
   else
     assert (0);
-
-  /* Call the phase handlers defined as default.  */
-  if (order == PKL_PASS_PRE_ORDER)
-    PKL_CALL_PHASES_SINGLE(default_ps);
-  else if (order == PKL_PASS_PRE_ORDER)
-    PKL_CALL_PHASES_SINGLE(default_pr);
 
  restart:
  _exit:
@@ -215,7 +257,7 @@ pkl_call_node_handlers (pkl_compiler compiler,
       (CHILD) = pkl_do_pass_1 (compiler, toplevel, ast,      \
                                (CHILD), 0, node,             \
                                payloads, phases,             \
-                               flags);                       \
+                               flags, level);                \
     }                                                        \
   while (0)
 
@@ -231,7 +273,7 @@ pkl_call_node_handlers (pkl_compiler compiler,
       elem = (CHAIN);                                           \
       next = PKL_AST_CHAIN (elem);                              \
       CHAIN = pkl_do_pass_1 (compiler, toplevel, ast, elem, cpos++, node, \
-                             payloads, phases, flags);                  \
+                             payloads, phases, flags, level);           \
       last = (CHAIN);                                           \
       elem = next;                                              \
                                                                 \
@@ -247,7 +289,8 @@ pkl_call_node_handlers (pkl_compiler compiler,
                                                 node,           \
                                                 payloads,       \
                                                 phases,         \
-                                                flags);         \
+                                                flags,          \
+                                                level);         \
           last = PKL_AST_CHAIN (last);                          \
           elem = next;                                          \
         }                                                       \
@@ -261,7 +304,7 @@ pkl_do_pass_1 (pkl_compiler compiler,
                size_t child_pos,
                pkl_ast_node parent,
                void *payloads[], struct pkl_phase *phases[],
-               int flags)
+               int flags, int level)
 {
   pkl_ast_node node_orig = node;
   int node_code = PKL_AST_CODE (node);
@@ -270,12 +313,18 @@ pkl_do_pass_1 (pkl_compiler compiler,
 
   /* If there are no passes then there is nothing to do. */
   if (phases == NULL)
-    return node;
+    goto _exit;
+
+  /* Check the COMPILED level in the node, and exit if the node
+     doesn't need additional processing.  */
+  if (level != 0 && PKL_AST_TYPE_COMPILED (node) >= level
+      && PKL_AST_CODE (node) == PKL_AST_TYPE)
+    goto _exit;
 
   /* Call the pre-order handlers from registered phases.  */
   node = pkl_call_node_handlers (compiler, toplevel, ast, node, payloads, phases,
                                  &handlers_used, child_pos, parent, &dobreak,
-                                 PKL_PASS_POST_ORDER, flags);
+                                 PKL_PASS_PRE_ORDER, flags, level);
   if (dobreak)
     goto _exit;
 
@@ -287,7 +336,7 @@ pkl_do_pass_1 (pkl_compiler compiler,
         PKL_AST_TYPE (node)
           = pkl_do_pass_1 (compiler, toplevel, ast,
                            PKL_AST_TYPE (node), 0, node,
-                           payloads, phases, flags);
+                           payloads, phases, flags, level);
     }
 
   switch (node_code)
@@ -535,7 +584,7 @@ pkl_do_pass_1 (pkl_compiler compiler,
   /* Call the post-order handlers from registered phases.  */
   node = pkl_call_node_handlers (compiler, toplevel, ast, node, payloads, phases,
                                  &handlers_used, child_pos, parent, &dobreak,
-                                 PKL_PASS_PRE_ORDER, flags);
+                                 PKL_PASS_POST_ORDER, flags, level);
 
   /* If no handler has been invoked, call the default handler of the
      registered phases in case they are defined.  */
@@ -551,6 +600,9 @@ pkl_do_pass_1 (pkl_compiler compiler,
     ASTREF (node);
 
  _exit:
+  if (level != 0
+      && PKL_AST_CODE (node) == PKL_AST_TYPE)
+    PKL_AST_TYPE_COMPILED (node) = level;
   return node;
 }
 
@@ -558,7 +610,7 @@ int
 pkl_do_subpass (pkl_compiler compiler,
                 pkl_ast ast, pkl_ast_node node,
                 struct pkl_phase *phases[], void *payloads[],
-                int flags)
+                int flags, int level)
 {
   jmp_buf toplevel;
 
@@ -567,7 +619,7 @@ pkl_do_subpass (pkl_compiler compiler,
     case 0:
       ast->ast = pkl_do_pass_1 (compiler, toplevel, ast, node, 0,
                                 NULL /* parent */,
-                                payloads, phases, flags);
+                                payloads, phases, flags, level);
       break;
     case 1:
       /* Non-error non-local exit.  */
@@ -585,8 +637,8 @@ int
 pkl_do_pass (pkl_compiler compiler,
              pkl_ast ast,
              struct pkl_phase *phases[], void *payloads[],
-             int flags)
+             int flags, int level)
 {
   return pkl_do_subpass (compiler, ast, ast->ast, phases,
-                         payloads, flags);
+                         payloads, flags, level);
 }

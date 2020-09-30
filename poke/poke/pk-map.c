@@ -505,11 +505,7 @@ pk_map_load_parsed_map (int ios_id, const char *mapname,
 
           if (!(pk_type_code (pk_typeof (val)) == PK_INT
                 ? pk_int_value (val) : pk_uint_value (val)))
-            {
-              process_p = 0;
-              /* Process this entry.  */
-              printf ("SKIPPING ENTRY\n");
-            }
+            process_p = 0;
         }
 
       PK_MAP_PARSED_ENTRY_SKIPPED_P (entry) = !process_p;

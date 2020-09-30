@@ -106,6 +106,10 @@ void pkl_asm_call (pkl_asm pasm, const char *funcname)
  *  ... whatever ...
  *
  *  pkl_asm_endif (pasm);
+ *
+ * Note that the condition expression EXP can be of any integral type.
+ * The macro-assembler will generate the right code for the specific
+ * type.
  */
 
 void pkl_asm_if (pkl_asm pasm, pkl_ast_node exp)
@@ -146,6 +150,9 @@ void pkl_asm_endloop (pkl_asm pasm)
  *   ... loop body ...
  *
  * pkl_asm_while_endloop (pasm);
+ *
+ * Note that the code in `... condition ...' should result in an
+ * int<32> value, and this is assumed by pkl_asm_while_loop.
  */
 
 void pkl_asm_while (pkl_asm pasm)
@@ -173,6 +180,8 @@ void pkl_asm_while_endloop (pkl_asm pasm)
  *
  * pkl_asm_for_endloop (pasm);
  *
+ * Note that the SELECTOR expression can be of any integral type. The
+ * macro-assembler will generate the right code for the specific type.
  */
 
 void pkl_asm_for (pkl_asm pasm, int container_type,

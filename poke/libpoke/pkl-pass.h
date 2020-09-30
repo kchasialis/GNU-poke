@@ -77,11 +77,18 @@
      other handler (PR or PS) has been invoked.
 
    Note that if a given node class falls in several categories as
-   implemented in the handlers tables, the more particular handler
-   will be executed first, followed by the more general handlers.  For
-   example, for a PKL_AST_TYPE node with type code PKL_TYPE_ARRAY, the
-   handler in `type_handlers' will be invoked first, followed by the
-   handler in `code_handlers'.
+   implemented in the handlers tables, the order in which the
+   different kind of handlers are executed depend on the ordering:
+
+   - Pre-order handlers are executed from more generic to more
+     particular.  For example, for a PKL_AST_TYPE node with type code
+     PKL_TYPE_ARRAY, the handler in `code_pr_handlers' will be invoked
+     first, followed by the handler in `type_pr_handlers'.
+
+   - Post-order handlers are executed from more particular to more
+     generic.  For example, for a PKL_AST_TYPE node with the type code
+     PKL_TYPE_ARRAY, the handler in `type_ps_handlers' will be invoked
+     first, followed by the handler in `code_ps_handlers'.
 
    If the `else' handler is NULL and no other handler is executed,
    then no action is performed on a node other than traversing it.  */
@@ -99,7 +106,8 @@ typedef pkl_ast_node (*pkl_phase_handler_fn) (pkl_compiler compiler,
                                               int *dobreak,
                                               void *payloads[],
                                               struct pkl_phase *phases[],
-                                              int flags);
+                                              int flags,
+                                              int level);
 
 struct pkl_phase
 {
@@ -204,17 +212,18 @@ typedef struct pkl_phase *pkl_phase;
 #define PKL_PASS_RESTART (*_restart)
 #define PKL_PASS_CHILD_POS _child_pos
 
-#define PKL_PASS_SUBPASS(NODE)                      \
-  do                                                \
-    {                                               \
-      if (!pkl_do_subpass (PKL_PASS_COMPILER,       \
-                          PKL_PASS_AST,             \
-                          (NODE),                   \
-                          _phases,                  \
-                          _payloads,                \
-                          _flags))                  \
-        PKL_PASS_ERROR;                             \
-    }                                               \
+#define PKL_PASS_SUBPASS(NODE)                            \
+  do                                                      \
+    {                                                     \
+      if (!pkl_do_subpass (PKL_PASS_COMPILER,             \
+                           PKL_PASS_AST,                  \
+                           (NODE),                        \
+                           _phases,                       \
+                           _payloads,                     \
+                           _flags,                        \
+                           _level))                       \
+        PKL_PASS_ERROR;                                   \
+    }                                                     \
   while (0)
 
 #define PKL_PASS_DONE do { goto _exit; } while (0)
@@ -245,7 +254,8 @@ typedef struct pkl_phase *pkl_phase;
                             pkl_ast_node _parent, int *_dobreak,        \
                             void *_payloads[],                          \
                             struct pkl_phase *_phases[],                \
-                            int _flags)                                 \
+                            int _flags,                                 \
+                            int _level)                                 \
   {                                                                     \
   /* printf (#name " on node %" PRIu64 "\n", PKL_AST_UID (_node)); */   \
      PKL_PASS_RESTART = 0;
@@ -321,7 +331,7 @@ pkl_phase_parent_in (pkl_ast_node parent,
 
 int pkl_do_pass (pkl_compiler compiler, pkl_ast ast,
                  struct pkl_phase *phases[], void *payloads[],
-                 int flags)
+                 int flags, int level)
   __attribute__ ((visibility ("hidden")));
 
 /* The following function is to be used by the PKL_PASS_SUBPASS macro
@@ -329,7 +339,7 @@ int pkl_do_pass (pkl_compiler compiler, pkl_ast ast,
 
 int pkl_do_subpass (pkl_compiler compiler, pkl_ast ast, pkl_ast_node node,
                     struct pkl_phase *phases[], void *payloads[],
-                    int flags)
+                    int flags, int level)
   __attribute__ ((visibility ("hidden")));
 
 /* Macros to emit a compilation error, a warning or an ICE from a

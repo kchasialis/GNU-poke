@@ -70,12 +70,10 @@ defvar ctf_kind_str =
    "typedef", "volatile", "const", "restrict"];
 
 deftype CTF_Name =
-  struct
+  struct uint<32>
   {
-    uint<1> stid
-       @ get_endian == ENDIAN_LITTLE ? 31#b : 0#b;
-    offset<uint<31>,B> offset
-       @ get_endian == ENDIAN_LITTLE ? 0#b : 31#b;
+    uint<1> stid;
+    offset<uint<31>,B> offset;
 
     method _print = void:
       {
@@ -86,12 +84,10 @@ deftype CTF_Name =
   };
 
 deftype CTF_Type_Id =
-  struct
+  struct uint<32>
   {
-    uint<31> index
-       @ get_endian == ENDIAN_LITTLE ? 1#b : 0#b;
-    uint<1> is_parent
-       @ get_endian == ENDIAN_LITTLE ? 0#b : 1#b;
+    uint<31> index;
+    uint<1> is_parent;
   };
 
 deftype CTF_Preamble =
@@ -135,14 +131,11 @@ deftype CTF_Varent =
   };
 
 deftype CTF_Info =
-  struct
+  struct uint<32>
   {
-    uint<6> kind
-      @ get_endian == ENDIAN_BIG ? 0#b : 32#b - 6#b;
-    uint<1> isroot
-      @ get_endian == ENDIAN_BIG ? 6#b : 32#b - 7#b;
-    uint<25> vlen
-      @ get_endian == ENDIAN_BIG ? 7#b : 0#b;
+    uint<6> kind;
+    uint<1> isroot;
+    uint<25> vlen;
 
     method _print = void:
       {

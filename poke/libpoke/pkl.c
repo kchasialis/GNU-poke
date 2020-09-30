@@ -242,7 +242,7 @@ rest_of_compilation (pkl_compiler compiler,
   pkl_gen_init_payload (&gen_payload, compiler);
 
   if (!pkl_do_pass (compiler, ast,
-                    frontend_phases, frontend_payloads, PKL_PASS_F_TYPES))
+                    frontend_phases, frontend_payloads, PKL_PASS_F_TYPES, 1))
     goto error;
 
   if (trans1_payload.errors > 0
@@ -256,7 +256,7 @@ rest_of_compilation (pkl_compiler compiler,
     goto error;
 
   if (!pkl_do_pass (compiler, ast,
-                    middleend_phases, middleend_payloads, PKL_PASS_F_TYPES))
+                    middleend_phases, middleend_payloads, PKL_PASS_F_TYPES, 2))
     goto error;
 
   if (trans4_payload.errors > 0
@@ -265,7 +265,7 @@ rest_of_compilation (pkl_compiler compiler,
     goto error;
 
   if (!pkl_do_pass (compiler, ast,
-                    backend_phases, backend_payloads, 0))
+                    backend_phases, backend_payloads, 0, 0))
     goto error;
 
   if (analf_payload.errors > 0)
@@ -739,7 +739,7 @@ pvm_type_to_ast_type (pkl_ast ast, pvm_val type)
     case PVM_TYPE_INTEGRAL:
       return pkl_ast_make_integral_type (ast,
                                          PVM_VAL_TYP_I_SIZE (type),
-                                         PVM_VAL_TYP_I_SIGNED (type));
+                                         PVM_VAL_TYP_I_SIGNED_P (type));
       break;
     case PVM_TYPE_STRING:
       return pkl_ast_make_string_type (ast);

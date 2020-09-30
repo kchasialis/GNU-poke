@@ -322,30 +322,14 @@ basically implements the IOD interface in ``ios-dev.h``::
 This of course depends on support for setting methods in struct
 constructors.
 
-#I1 Rationalize error codes in the IO subsystem
+#I1 Add IOS_EPERM and exception E_perm
 -----------------------------------------------
 
-There are several problems with the current error codes returned in
-the IOD API in ``src/ios-dev.h``:
+We need to incorporate an IOS_EPERM error code, to report cases where
+we attempt to write to read-only IOS.
 
-- IOD_EOF is negative, while IOD_ERROR and IOD_EINVAL are positive.
-  All of them should be negative.
-
-Also, there are several problems in ``src/ios.h``:
-
-- IOS_EIOFF and IOS_EIBOJ are somewhat redundant.  After a discussion
-  in IRC we concluded that we need just one of these.  IOS_EIOBJ shall
-  be removed.
-
-- We need to incorporate an IOS_EPERM error code, to report cases
-  where we attempt to write to read-only IOS.
-
-Finally, the peek*/poke* instructions in ``src/pvm.jitter`` shall
-raise the following exceptions when they find certain IOS error codes:
-
-- IOS_ERROR -> E_io
-- IOS_EIOFF -> E_eof
-- IOS_EPERM -> E_perm
+The peek*/poke* instructions in ``src/pvm.jitter`` shall raise E_perm
+when they get IOS_EPERM.
 
 Obviously a new exception ``E_perm`` shall be added as well.
 
@@ -359,6 +343,52 @@ into several components:
 - Time spent in the compiler.
 - Time spent in the PVM.
 - Total amount of time.
+
+#P1 Support for optional fields in integral structs
+---------------------------------------------------
+
+At the moment optional fields are not supported in integral structs.
+In particular, the lack of support is in the writer in
+pkl-gen.pks:struct_field_writer.
+
+The struct writer uses the following strategy to poke integral
+structs::
+
+  Initialize IVAL to 0
+  FOR each field
+    IF field is not absent
+      IVAL |= FIELD_VALUE << SHIFT;
+  POKE IVAL to the corresponding offset
+
+The problem with this approach is that if a field is not absent, the
+portion in IVAL corresponding to its value is 0, and not the value
+that currently exists in that portion in IO space.
+
+Fixing this probably involves:
+1. Initializing IVAL to the current contents in IO space instead of 0.
+2. hacking ``struct_field_inserter`` in order to zero the portion of the
+   field in IVAL before inserting it.
+
+Once support is ready in ``struct_writer`` the compile-time check
+forbiding optional fields in ``pkl_typify1_ps_type_struct`` should be
+removed accordingly.
+
+#C2 Implement .info type TYPE
+-----------------------------
+
+This command, given the name of a type, should print an informative
+description on the fields and methods that the type defines:
+
+Fields:
+ f1, f2, f3, f4...
+Methods:
+ m1, m2, m3, ...
+
+The implementation should use the libpoke services in order to get the
+declaration of TYPE, and then to inspect the returned ``pk_type``.
+ 
+Once we support docstrings in both fields and methods, the output of
+``.info type`` can be expanded to use them.
 
 
 This file is part of GNU poke.

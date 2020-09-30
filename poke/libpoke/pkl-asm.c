@@ -287,13 +287,13 @@ pkl_asm_insn_nton  (pkl_asm pasm,
                     pkl_ast_node to_type)
 {
   size_t from_type_size = PKL_AST_TYPE_I_SIZE (from_type);
-  int from_type_sign = PKL_AST_TYPE_I_SIGNED (from_type);
+  int from_type_signed_p = PKL_AST_TYPE_I_SIGNED_P (from_type);
 
   size_t to_type_size = PKL_AST_TYPE_I_SIZE (to_type);
-  int to_type_sign = PKL_AST_TYPE_I_SIGNED (to_type);
+  int to_type_signed_p = PKL_AST_TYPE_I_SIGNED_P (to_type);
 
   if (from_type_size == to_type_size
-      && from_type_sign == to_type_sign)
+      && from_type_signed_p == to_type_signed_p)
     {
       /* Wheee, nothing to convert.  Just dup.  */
       pkl_asm_insn (pasm, PKL_INSN_DUP);
@@ -332,9 +332,9 @@ pkl_asm_insn_nton  (pkl_asm pasm,
         };
 
       int fl = !!((from_type_size - 1) & ~0x1f);
-      int fs = from_type_sign;
+      int fs = from_type_signed_p;
       int tl = !!((to_type_size - 1) & ~0x1f);
-      int ts = to_type_sign;
+      int ts = to_type_signed_p;
 
       pkl_asm_insn (pasm,
                     cast_table [fl][tl][fs][ts],
@@ -379,7 +379,7 @@ pkl_asm_insn_peek (pkl_asm pasm, pkl_ast_node type,
   if (type_code == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int sign = PKL_AST_TYPE_I_SIGNED_P (type);
 
       static const int peek_table[2][2] =
         {
@@ -416,7 +416,7 @@ pkl_asm_insn_peekd (pkl_asm pasm, pkl_ast_node type)
   if (type_code == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int sign = PKL_AST_TYPE_I_SIGNED_P (type);
 
       static const int peekd_table[2][2] =
         {
@@ -449,7 +449,7 @@ pkl_asm_insn_print (pkl_asm pasm, pkl_ast_node type, int base)
   else if (type_code == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
       static const int print_table[2][2] =
         {
@@ -459,7 +459,7 @@ pkl_asm_insn_print (pkl_asm pasm, pkl_ast_node type, int base)
 
       int tl = !!((size - 1) & ~0x1f);
 
-      pkl_asm_insn (pasm, print_table[tl][sign],
+      pkl_asm_insn (pasm, print_table[tl][signed_p],
                     (unsigned int) size, (unsigned int) base);
 
     }
@@ -482,7 +482,7 @@ pkl_asm_insn_poke (pkl_asm pasm, pkl_ast_node type,
   if (type_code == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
       static const int poke_table[2][2] =
         {
@@ -492,12 +492,12 @@ pkl_asm_insn_poke (pkl_asm pasm, pkl_ast_node type,
 
       int tl = !!((size - 1) & ~0x1f);
 
-      if (sign)
-        pkl_asm_insn (pasm, poke_table[tl][sign],
+      if (signed_p)
+        pkl_asm_insn (pasm, poke_table[tl][signed_p],
                       nenc, endian,
                       (unsigned int) size);
       else
-        pkl_asm_insn (pasm, poke_table[tl][sign],
+        pkl_asm_insn (pasm, poke_table[tl][signed_p],
                       endian,
                       (unsigned int) size);
     }
@@ -520,7 +520,7 @@ pkl_asm_insn_poked (pkl_asm pasm, pkl_ast_node type)
   if (type_code == PKL_TYPE_INTEGRAL)
     {
       size_t size = PKL_AST_TYPE_I_SIZE (type);
-      int sign = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
       static const int poked_table[2][2] =
         {
@@ -530,7 +530,7 @@ pkl_asm_insn_poked (pkl_asm pasm, pkl_ast_node type)
 
       int tl = !!((size - 1) & ~0x1f);
 
-      pkl_asm_insn (pasm, poked_table[tl][sign],
+      pkl_asm_insn (pasm, poked_table[tl][signed_p],
                     (unsigned int) size);
     }
   else
@@ -629,7 +629,7 @@ pkl_asm_insn_binop (pkl_asm pasm,
                                     { PKL_INSN_POWLU, PKL_INSN_POWL }};
 
       uint64_t size = PKL_AST_TYPE_I_SIZE (type);
-      int signed_p = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
       int tl = !!((size - 1) & ~0x1f);
 
       switch (insn)
@@ -742,7 +742,7 @@ pkl_asm_insn_cdiv (pkl_asm pasm,
 {
   pvm_val one = pvm_make_integral (1,
                                    PKL_AST_TYPE_I_SIZE (type),
-                                   PKL_AST_TYPE_I_SIGNED (type));
+                                   PKL_AST_TYPE_I_SIGNED_P (type));
 
   RAS_MACRO_CDIV (one, type);
 }
@@ -827,7 +827,7 @@ pkl_asm_insn_cmp (pkl_asm pasm,
                                    { PKL_INSN_LELU, PKL_INSN_LEL }};
 
       uint64_t size = PKL_AST_TYPE_I_SIZE (type);
-      int signed_p = PKL_AST_TYPE_I_SIGNED (type);
+      int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
       int tl = !!((size - 1) & ~0x1f);
 
       switch (insn)
@@ -1017,10 +1017,10 @@ pkl_asm_insn_swapgt (pkl_asm pasm, pkl_ast_node type)
                                    {PKL_INSN_SWAPGTLU, PKL_INSN_SWAPGTL}};
 
   size_t size = PKL_AST_TYPE_I_SIZE (type);
-  int sign = PKL_AST_TYPE_I_SIGNED (type);
+  int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
   int tl = !!((size - 1) & ~0x1f);
-  pkl_asm_insn (pasm, swapgt_table[tl][sign]);
+  pkl_asm_insn (pasm, swapgt_table[tl][signed_p]);
 }
 
 /* Macro-instruction: BZ type, label
@@ -1038,11 +1038,11 @@ pkl_asm_insn_bz (pkl_asm pasm,
                                {PKL_INSN_BZLU, PKL_INSN_BZL}};
 
   size_t size = PKL_AST_TYPE_I_SIZE (type);
-  int sign = PKL_AST_TYPE_I_SIGNED (type);
+  int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
   int tl = !!((size - 1) & ~0x1f);
 
-  pkl_asm_insn (pasm, bz_table[tl][sign], label);
+  pkl_asm_insn (pasm, bz_table[tl][signed_p], label);
 }
 
 /* Macro-instruction: BNZ type, label
@@ -1060,11 +1060,11 @@ pkl_asm_insn_bnz (pkl_asm pasm,
                                 {PKL_INSN_BNZLU, PKL_INSN_BNZL}};
 
   size_t size = PKL_AST_TYPE_I_SIZE (type);
-  int sign = PKL_AST_TYPE_I_SIGNED (type);
+  int signed_p = PKL_AST_TYPE_I_SIGNED_P (type);
 
   int tl = !!((size - 1) & ~0x1f);
 
-  pkl_asm_insn (pasm, bnz_table[tl][sign], label);
+  pkl_asm_insn (pasm, bnz_table[tl][signed_p], label);
 }
 
 /* Macro-instruction: AIS type

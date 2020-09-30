@@ -223,7 +223,7 @@ char *pk_ios_completion_function (pk_compiler pkc,
 const char *pk_ios_handler (pk_ios ios);
 
 /* Return the current IO space, or NULL if there are open spaces in
-   the given poke compiler.  */
+   the given Poke compiler.  */
 
 pk_ios pk_ios_cur (pk_compiler pkc);
 
@@ -232,12 +232,12 @@ pk_ios pk_ios_cur (pk_compiler pkc);
 void pk_ios_set_cur (pk_compiler pkc, pk_ios ios);
 
 /* Return the IO space operating the given HANDLER.  Return NULL if no
-   such space exist in the given poke incremental compiler.  */
+   such space exist in the given Poke incremental compiler.  */
 
 pk_ios pk_ios_search (pk_compiler pkc, const char *handler);
 
 /* Return the IO space having the given ID.  Return NULL if no such
-   space exist in the given poke incremental compiler.  */
+   space exist in the given Poke incremental compiler.  */
 
 pk_ios pk_ios_search_by_id (pk_compiler pkc, int id);
 
@@ -290,7 +290,7 @@ void pk_ios_map (pk_compiler pkc, pk_ios_map_fn cb, void *data);
 /* Map over the declarations defined in the given incremental
    compiler, executing a handler.
 
-   PKC is a poke incremental compiler.
+   PKC is a Poke incremental compiler.
 
    KIND is one of the PK_DECL_KIND_* values defined below.  It
    determines what subset of declarations will be processed by the
@@ -399,80 +399,81 @@ void pk_set_nenc (pk_compiler pkc, enum pk_nenc nenc);
 int pk_pretty_print (pk_compiler pkc);
 void pk_set_pretty_print (pk_compiler pkc, int pretty_print_p);
 
-/*** API for manipulating poke values.  ***/
+/*** API for manipulating Poke values.  ***/
 
-/* PK_NULL is an invalid pk_val.  */
+/* PK_NULL is an invalid pk_val.
+   This value should be the same than PVM_NULL in pvm.h.  */
 
 #define PK_NULL 0x7ULL
 
 /* Signed integers.  */
 
-/* Build and return a poke integer.
+/* Build and return a Poke integer.
 
    VALUE is the numerical value for the new integer.
    SIZE is the number of bits composing the integer.
 
    Return PK_NULL if SIZE exceeds the maximum number of bits supported
-   in poke integers.  */
+   in Poke integers.  */
 
 pk_val pk_make_int (int64_t value, int size);
 
-/* Return the numerical value stored in the given poke integer.
-   VAL should be a poke value of the right type.  */
+/* Return the numerical value stored in the given Poke integer.
+   VAL should be a Poke value of the right type.  */
 
 int64_t pk_int_value (pk_val val);
 
-/* Return the size (in bits) of the given poke integer.
-   VAL should be a poke value of the right type.  */
+/* Return the size (in bits) of the given Poke integer.
+   VAL should be a Poke value of the right type.  */
 
 int pk_int_size (pk_val val);
 
 /* Unsigned integers.  */
 
-/* Build and return a poke unsigned integer.
+/* Build and return a Poke unsigned integer.
 
    VALUE is the numerical value for the new integer.
    SIZE is the number of bits composing the integer.
 
    Return NULL if SIZE exceeds the maximum number of bits supported in
-   poke integers.  */
+   Poke integers.  */
 
 pk_val pk_make_uint (uint64_t value, int size);
 
-/* Return the numerical value stored in the given poke unsigned
+/* Return the numerical value stored in the given Poke unsigned
    integer.
 
-   VAL should be a poke value of the right type.  */
+   VAL should be a Poke value of the right type.  */
 
 uint64_t pk_uint_value (pk_val val);
 
-/* Return the size (in bits) of the given poke unsigned integer.
-   VAL should be a poke value of the right type.  */
+/* Return the size (in bits) of the given Poke unsigned integer.
+   VAL should be a Poke value of the right type.  */
 
 int pk_uint_size (pk_val val);
 
 /* Strings.  */
 
-/* Build and return a poke string.
+/* Build and return a Poke string.
 
    STR is a NULL-terminated string, a copy of which will become the
-   value of the poke string.  */
+   value of the Poke string.  */
 
 pk_val pk_make_string (const char *str);
 
-/* Return a NULL-terminated string with the value of the given poke
+/* Return a NULL-terminated string with the value of the given Poke
    string.  */
 
 const char *pk_string_str (pk_val val);
 
 /* Offsets.  */
 
-/* Build and return a poke offset.
+/* Build and return a Poke offset.
 
-   MAGNITUDE is either a poke integer or a poke unsigned integer, with
+   MAGNITUDE is either a Poke integer or a Poke unsigned integer, with
    the magnitude of the offset.
 
-   UNIT is an unsigned 64-bit poke integer specifying the unit of the
+   UNIT is an unsigned 64-bit Poke integer specifying the unit of the
    offset, i.e. the multiple of the base unit, which is the bit.
 
    If any of the arguments is not of the right type return PK_NULL.
@@ -480,25 +481,25 @@ const char *pk_string_str (pk_val val);
 
 pk_val pk_make_offset (pk_val magnitude, pk_val unit);
 
-/* Return the magnitude of the given poke offset.  */
+/* Return the magnitude of the given Poke offset.  */
 
 pk_val pk_offset_magnitude (pk_val val);
 
-/* Return the unit of the given poke offset.  */
+/* Return the unit of the given Poke offset.  */
 
 pk_val pk_offset_unit (pk_val val);
 
 /* Structs. */
 
-/* Build and return a poke struct.
-   
-   NFIELDS is an uint<64> PK value specifying the number of fields
+/* Build and return a Poke struct.
+
+   NFIELDS is an uint<64> Poke value specifying the number of fields
    in the struct.  This can be uint<64>0 for an empty struct.
 
-   TYPE is a type PK value specifying the type of the struct.
+   TYPE is a type Poke value specifying the type of the struct.
 
    The fields and methods in the created struct are initialized to
-   PK_NULL.*/
+   PK_NULL.  */
 
 pk_val pk_make_struct (pk_val nfields, pk_val type);
 
@@ -512,8 +513,8 @@ pk_val pk_struct_nfields (pk_val sct);
    SCT is the struct value.
    IDX is the index of the field in the struct.
 
-   The returned bit-offset is an uint<64>.  
-   
+   The returned bit-offset is an uint<64>.
+
    If IDX is invalid, PK_NULL is returned. */
 
 pk_val pk_struct_field_boffset (pk_val sct, uint64_t idx);
@@ -522,43 +523,43 @@ pk_val pk_struct_field_boffset (pk_val sct, uint64_t idx);
    beginning of the struct.
 
    ARRAY is the struct value.
-   
+
    IDX is the index of the field in the struct.
-   
-   BOFFSET is an uint<64> value with the bit-offset of the field.  
-   
+
+   BOFFSET is an uint<64> value with the bit-offset of the field.
+
    If IDX is invalid, struct remains unchanged. */
 
 void pk_struct_set_field_boffset (pk_val sct, uint64_t idx, pk_val boffset);
 
 /* Get the NAME of the struct field.
-   
+
    SCT is the struct value.
-   
-   IDX is the index of the field in the struct. 
-   
+
+   IDX is the index of the field in the struct.
+
    If IDX is invalid, PK_NULL is returned. */
 
 pk_val pk_struct_field_name (pk_val sct, uint64_t idx);
 
-/* Set the NAME of the struct field. 
-   
+/* Set the NAME of the struct field.
+
    SCT is the struct value.
-   
+
    IDX is the index of the field in the struct.
-   
-   NAME is the string name for this field. 
-   
+
+   NAME is the string name for this field.
+
    If IDX is invalid, struct remains unchanged. */
 
 void pk_struct_set_field_name (pk_val sct, uint64_t idx, pk_val name);
 
-/* Get the VALUE of the struct field. 
-   
+/* Get the VALUE of the struct field.
+
    SCT is the struct value.
-   
-   IDX is the index of the field in the struct. 
-   
+
+   IDX is the index of the field in the struct.
+
    If IDX is invalid, PK_NULL is returned. */
 
 pk_val pk_struct_field_value (pk_val sct, uint64_t idx);
@@ -566,18 +567,18 @@ pk_val pk_struct_field_value (pk_val sct, uint64_t idx);
 /* Set the VALUE of the struct field.
 
    SCT is the struct value.
-   
+
    IDX is the index of the field in the struct.
-   
-   VALUE is the new value for this field. 
-   
+
+   VALUE is the new value for this field.
+
    If IDX is invalid, struct remains unchanged. */
 
 void pk_struct_set_field_value (pk_val sct, uint64_t idx, pk_val value);
 
 /* Arrays.  */
 
-/* Build and return a poke array.
+/* Build and return a Poke array.
 
    NELEM is the number of the elements in the array.
    ARRAY_TYPE is the type of the array.
@@ -594,8 +595,8 @@ pk_val pk_array_nelem (pk_val array);
 /* Get the value of the element of an array.
 
    ARRAY is the array value.
-   IDX is the index of the element in the array.  
-   
+   IDX is the index of the element in the array.
+
    If IDX is invalid, PK_NULL is returned. */
 
 pk_val pk_array_elem_val (pk_val array, uint64_t idx);
@@ -607,8 +608,8 @@ pk_val pk_array_elem_val (pk_val array, uint64_t idx);
    VAL is the new value for the array element.
 
    Note that the type of the element is not checked by this function,
-   so be careful.  
-   
+   so be careful.
+
    If IDX is invalid, array remains unchanged. */
 
 void pk_array_set_elem_val (pk_val array, uint64_t idx, pk_val val);
@@ -619,8 +620,8 @@ void pk_array_set_elem_val (pk_val array, uint64_t idx, pk_val val);
    ARRAY is the array value.
    IDX is the index of the element in the array.
 
-   The returned bit-offset is an uint<64>.  
-   
+   The returned bit-offset is an uint<64>.
+
    If IDX is invalid, PK_NULL is returned. */
 
 pk_val pk_array_elem_boffset (pk_val array, uint64_t idx);
@@ -630,8 +631,8 @@ pk_val pk_array_elem_boffset (pk_val array, uint64_t idx);
 
    ARRAY is the array value.
    IDX is the index of the element in the array.
-   BOFFSET is an uint<64> value with the bit-offset of the element.  
-   
+   BOFFSET is an uint<64> value with the bit-offset of the element.
+
    If IDX is invalid, array remains unchanged. */
 
 void pk_array_set_elem_boffset (pk_val array, uint64_t idx, pk_val boffset);
@@ -693,14 +694,16 @@ pk_val pk_offset_type_unit (pk_val type);
 /* Build and return a struct type.
 
    NFIELDS is the number of struct fields on this struct.
-   
+
    NAME is a string containing the name of a struct type.
-   
+
    FNAMES is a C array containing the name of each struct field.
 
    FTYPES is a C array containing the types of each struct field. */
 
-pk_val pk_make_struct_type (pk_val nfields, pk_val name, pk_val *fnames, pk_val *ftypes);
+pk_val pk_make_struct_type (pk_val nfields,
+pk_val name, pk_val *fnames,
+            pk_val *ftypes);
 
 /* Get the type of a struct.  */
 
@@ -708,59 +711,67 @@ pk_val pk_struct_type (pk_val sct);
 
 /* Allocate space for struct fields names and field types. */
 
-void pk_allocate_struct_attrs (pk_val nfields, pk_val **fnames, pk_val **ftypes);
+void pk_allocate_struct_attrs (pk_val nfields,
+pk_val **fnames, pk_val **ftypes);
 
-/* Get the name of a struct type.  */
+/* Get the name of a struct type.
+
+   If the struct type is anonymous, PK_NULL is returned.  */
 
 pk_val pk_struct_type_name (pk_val type);
 
-/* Get the number of fields of a struct type.  */
+/* Get the number of fields of a struct type.
+
+   The returned value is an uint<64> */
 
 pk_val pk_struct_type_nfields (pk_val type);
 
-/* Get the name of a field in a struct type. 
-   
+/* Get the name of a field in a struct type.
+
    TYPE is a struct type.
-   
-   IDX is the index of the field in a struct type. 
-   
-   If IDX is invalid, PK_NULL is returned.  */
+
+   IDX is the index of the field in a struct type.
+
+   If IDX is invalid, PK_NULL is returned.
+
+   If the struct field is anonymous, PK_NULL is returned.  */
 
 pk_val pk_struct_type_fname (pk_val type, uint64_t idx);
 
-/* Set the name of a field of a struct type.  
-   
+/* Set the name of a field of a struct type.
+
    TYPE is a struct type.
-   
-   IDX is the index of the field in a struct type. 
-   
-   NAME is a string containing the name of the field in a struct type. 
-   
+
+   IDX is the index of the field in a struct type.
+
+   NAME is a string containing the name of the field in a struct type.
+
    If IDX is invalid, type remains unchanged.  */
 
 void pk_struct_type_set_fname (pk_val type, uint64_t idx, pk_val field_name);
 
 /* Get type of a field in the struct.
-  
+
    TYPE is a struct type.
-   
-   IDX is the index of the struct field.  
-   
-   If IDX is invalid, PK_NULL is returned.  */   
+
+   IDX is the index of the struct field.
+
+   If IDX is invalid, PK_NULL is returned.  */
 
 pk_val pk_struct_type_ftype (pk_val type, uint64_t idx);
 
-/* Set the type of a field of a struct type.  
-   
+/* Set the type of a field of a struct type.
+
    TYPE is a struct type.
-   
+
    IDX is the index of the field in a struct type.
-   
-   TYPE is the type of the field in a struct type. 
-   
+
+   TYPE is the type of the field in a struct type.
+
    If IDX is invalid, type remains unchanged.  */
 
-void pk_struct_type_set_ftype (pk_val type, uint64_t idx, pk_val field_type);
+void pk_struct_type_set_ftype
+(pk_val type, uint64_t idx, pk_val field_type);
 
 /* Array types.  */
 
@@ -781,7 +792,6 @@ pk_val pk_array_type_etype (pk_val type);
 /* Get the bound of the given array type.  */
 
 pk_val pk_array_type_bound (pk_val type);
-
 
 /* Mapped values.  */
 
@@ -819,6 +829,12 @@ pk_val pk_typeof (pk_val val);
 #define PK_ANY     8
 
 int pk_type_code (pk_val val);
+
+/* Compare two Poke values.
+
+   Returns 1 if they match, 0 otherwise.  */
+
+int pk_val_equal_p (pk_val val1, pk_val val2);
 
 /* Print the given value.   */
 

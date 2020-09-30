@@ -187,23 +187,26 @@ deftype BPF_Insn_Opcode =
            print ">";
           }
       } ldst;
+
+      /* Return the instruction class denoted by this opcode.  */
+      method class = BPF_Insn_Class:
+        {
+          try return alujmp.class;
+          catch if E_elem
+          {
+            return ldst.class;
+          }
+        }
+
+      /* Return a boolean indicating whether the instruction featuring
+         this opcode uses a 64-bit immediate field.  */
+      method imm64_p = int:
+        {
+          return (class == BPF_INSN_CLASS_LD
+                  && ldst.mode == BPF_LDST_INSN_MODE_IMM
+                  && ldst.size == BPF_LDST_INSN_SIZE_DW);
+        }
   };
-
-defun bpf_opcode_class = (BPF_Insn_Opcode opcode) BPF_Insn_Class:
-  {
-    try return opcode.alujmp.class;
-    catch if E_elem
-    {
-      return opcode.ldst.class;
-    }
-  }
-
-defun bpf_opcode_imm64_p = (BPF_Insn_Opcode opcode) BPF_Insn_Class:
-  {
-    return (bpf_opcode_class (opcode) == BPF_INSN_CLASS_LD
-            && opcode.ldst.mode == BPF_LDST_INSN_MODE_IMM
-            && opcode.ldst.size == BPF_LDST_INSN_SIZE_DW);
-  }
 
 deftype BPF_Insn_Regs =
   struct
@@ -235,14 +238,14 @@ deftype BPF_Insn =
            printf "%<integer:%v%>", hi:::lo;
            print ">";
           }
-      } imm64 : bpf_opcode_imm64_p (opcode);
+      } imm64 : opcode.imm64_p ();
 
       int<32> imm32;
     } imm;
 
     method imm_value = int<64>:
       {
-        if (bpf_opcode_imm64_p (opcode))
+        if (opcode.imm64_p ())
          return imm.imm64.hi:::imm.imm64.lo;
        else
          return imm.imm32;

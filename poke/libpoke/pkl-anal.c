@@ -75,14 +75,11 @@ PKL_PHASE_BEGIN_HANDLER (pkl_anal_pr_program)
 }
 PKL_PHASE_END_HANDLER
 
+/* Sanity check for context management.  */
 
-/* The following handler is used in all the analysis phases to avoid
-   re-analyzing already processed AST type nodes.  */
-
-PKL_PHASE_BEGIN_HANDLER (pkl_anal_pr_type)
+PKL_PHASE_BEGIN_HANDLER (pkl_anal_ps_program)
 {
-  if (PKL_AST_TYPE_COMPILED (PKL_PASS_NODE))
-    PKL_PASS_BREAK;
+  assert (PKL_ANAL_PAYLOAD->next_context == 0);
 }
 PKL_PHASE_END_HANDLER
 
@@ -138,7 +135,9 @@ PKL_PHASE_END_HANDLER
    struct fields.
 
    Also, declarations in unions are only allowed before any of the
-   alternatives.
+   alternatives, but methods can appear anywhere.
+
+   Integral structs cannot be pinned.
 
    Also, pop the analysis context.  */
 
@@ -149,24 +148,35 @@ PKL_PHASE_BEGIN_HANDLER (pkl_anal1_ps_type_struct)
     = PKL_AST_TYPE_S_ELEMS (struct_type);
   pkl_ast_node t;
 
-  if (PKL_AST_TYPE_S_UNION (struct_type))
+  if (PKL_AST_TYPE_S_UNION_P (struct_type))
     {
       int found_field = 0;
 
       for (t = struct_type_elems; t; t = PKL_AST_CHAIN (t))
         {
           if (found_field
-              && PKL_AST_CODE (t) != PKL_AST_STRUCT_TYPE_FIELD)
+              && PKL_AST_CODE (t) != PKL_AST_STRUCT_TYPE_FIELD
+              && !(PKL_AST_CODE (t) == PKL_AST_DECL
+                   && PKL_AST_DECL_KIND (t) == PKL_AST_DECL_KIND_FUNC
+                   && PKL_AST_FUNC_METHOD_P (PKL_AST_DECL_INITIAL (t))))
             {
               PKL_ERROR (PKL_AST_LOC (t),
-                         "declarations and methods are not supported\n"
-                         "after union fields");
+                         "declarations are not supported after union fields");
               PKL_ANAL_PAYLOAD->errors++;
               PKL_PASS_ERROR;
             }
           else
             found_field = 1;
         }
+    }
+
+  if (PKL_AST_TYPE_S_ITYPE (struct_type)
+      && PKL_AST_TYPE_S_PINNED_P (struct_type))
+    {
+      PKL_ERROR (PKL_AST_LOC (PKL_AST_TYPE_S_ITYPE (struct_type)),
+                 "integral structs cannot be pinned");
+      PKL_ANAL_PAYLOAD->errors++;
+      PKL_PASS_ERROR;
     }
 
   for (t = struct_type_elems; t; t = PKL_AST_CHAIN (t))
@@ -452,6 +462,12 @@ PKL_PHASE_BEGIN_HANDLER (pkl_anal1_ps_op_sl)
 
   assert (value_type != NULL);
 
+  /* The operand may be an integral struct, and promo hasn't been
+     performed yet for this node.  */
+  if (PKL_AST_TYPE_CODE (value_type) == PKL_TYPE_STRUCT
+      && PKL_AST_TYPE_S_ITYPE (value_type))
+    value_type = PKL_AST_TYPE_S_ITYPE (value_type);
+
   if (PKL_AST_CODE (count) == PKL_AST_INTEGER
       && PKL_AST_INTEGER_VALUE (count) >= PKL_AST_TYPE_I_SIZE (value_type))
     {
@@ -626,6 +642,7 @@ struct pkl_phase pkl_phase_anal1
   __attribute__ ((visibility ("hidden"))) =
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_anal_pr_program),
+   PKL_PHASE_PS_HANDLER (PKL_AST_PROGRAM, pkl_anal_ps_program),
    PKL_PHASE_PS_HANDLER (PKL_AST_STRUCT, pkl_anal1_ps_struct),
    PKL_PHASE_PS_HANDLER (PKL_AST_COMP_STMT, pkl_anal1_ps_comp_stmt),
    PKL_PHASE_PS_HANDLER (PKL_AST_BREAK_STMT, pkl_anal1_ps_break_stmt),
@@ -638,7 +655,6 @@ struct pkl_phase pkl_phase_anal1
    PKL_PHASE_PS_HANDLER (PKL_AST_DECL, pkl_anal1_ps_decl),
    PKL_PHASE_PS_HANDLER (PKL_AST_VAR, pkl_anal1_ps_var),
    PKL_PHASE_PS_HANDLER (PKL_AST_ASS_STMT, pkl_anal1_ps_ass_stmt),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_anal_pr_type),
    PKL_PHASE_PR_TYPE_HANDLER (PKL_TYPE_STRUCT, pkl_anal1_pr_type_struct),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_STRUCT, pkl_anal1_ps_type_struct),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_FUNCTION, pkl_anal1_ps_type_function),
@@ -803,7 +819,7 @@ PKL_PHASE_BEGIN_HANDLER (pkl_anal2_ps_type_struct)
   pkl_ast_node t;
   pkl_ast_node last_unconditional_alternative = NULL;
 
-  if (!PKL_AST_TYPE_S_UNION (struct_type))
+  if (!PKL_AST_TYPE_S_UNION_P (struct_type))
     PKL_PASS_DONE;
 
   for (t = struct_type_elems; t; t = PKL_AST_CHAIN (t))
@@ -887,13 +903,13 @@ struct pkl_phase pkl_phase_anal2
   __attribute__ ((visibility ("hidden"))) =
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_anal_pr_program),
+   PKL_PHASE_PS_HANDLER (PKL_AST_PROGRAM, pkl_anal_ps_program),
    PKL_PHASE_PS_HANDLER (PKL_AST_EXP, pkl_anal2_ps_checktype),
    PKL_PHASE_PS_HANDLER (PKL_AST_ARRAY, pkl_anal2_ps_checktype),
    PKL_PHASE_PS_HANDLER (PKL_AST_STRUCT, pkl_anal2_ps_checktype),
    PKL_PHASE_PS_HANDLER (PKL_AST_OFFSET, pkl_anal2_ps_offset),
    PKL_PHASE_PS_HANDLER (PKL_AST_RETURN_STMT, pkl_anal2_ps_return_stmt),
    PKL_PHASE_PS_HANDLER (PKL_AST_FUNCALL, pkl_anal2_ps_funcall),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_anal_pr_type),
    PKL_PHASE_PS_HANDLER (PKL_AST_STRUCT_TYPE_FIELD, pkl_anal2_ps_struct_type_field),
    PKL_PHASE_PS_HANDLER (PKL_AST_ARRAY, pkl_anal2_ps_array),
    PKL_PHASE_PS_TYPE_HANDLER (PKL_TYPE_STRUCT, pkl_anal2_ps_type_struct),
@@ -939,7 +955,7 @@ struct pkl_phase pkl_phase_analf
   __attribute__ ((visibility ("hidden"))) =
   {
    PKL_PHASE_PR_HANDLER (PKL_AST_PROGRAM, pkl_anal_pr_program),
+   PKL_PHASE_PS_HANDLER (PKL_AST_PROGRAM, pkl_anal_ps_program),
    PKL_PHASE_PS_HANDLER (PKL_AST_OFFSET, pkl_analf_ps_array_initializer),
    PKL_PHASE_PS_HANDLER (PKL_AST_ASS_STMT, pkl_analf_ps_ass_stmt),
-   PKL_PHASE_PR_HANDLER (PKL_AST_TYPE, pkl_anal_pr_type),
   };

@@ -242,6 +242,8 @@ S ::
    if (yyextra->bootstrapped) REJECT; return BUILTIN_IOSIZE; }
 "__PKL_BUILTIN_GETENV__" {
    if (yyextra->bootstrapped) REJECT; return BUILTIN_GETENV; }
+"__PKL_BUILTIN_FORGET__" {
+   if (yyextra->bootstrapped) REJECT; return BUILTIN_FORGET; }
 
 "uint<"         { return UINTCONSTR; }
 "int<"          { return INTCONSTR; }

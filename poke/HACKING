@@ -39,103 +39,7 @@ along with GNU poke.  If not, see <https://www.gnu.org/licenses/>.
        2.6  Building Release Tarballs
        2.7  Installing Obvious Changes
        2.8  The Bugzilla
-	 2.8.1  Dealing with spam in the Bugzilla
-     3  Development Environment
-       3. 1  Autotools
-       3. 2  Dejagnu
-       3. 3  Flex
-       3. 4  Bison
-       3. 5  readline
-       3. 6  Boehm GC
-       3. 7  Jitter
-       3. 8  JSON-C
-       3. 9  Tcl and Tk
-       3.10  libtextstyle
-       3.11  libnbd
-       3.12  Building
-       3.13  Building the GUI
-       3.14  Building a 32-bit poke
-       3.15  Gettext
-       3.16  Running an Uninstalled Poke
-       3.17  Continuous Integration
-     4  Coding Style and Conventions
-       4.1  Writing C
-	 4.1.1  Avoid Tabs
-	 4.1.2  Avoid bool
-	 4.1.3  Use _p for Predicates
-	 4.1.4  Documenting Functions in Public Headers
-       4.2  Writing Poke
-       4.3  Writing RAS
-     5  Writing Tests
-       5. 1  Test framework
-       5. 2  Naming Tests
-       5. 3  Always set obase
-       5. 4  Put each test in its own file
-       5. 5  dg-output may require a newline
-       5. 6  Using data files in tests
-       5. 7  Using NBD connections in tests
-       5. 8  Writing tests that depend on a certain capability
-       5. 9  Writing REPL tests
-       5.10  Testing Pickles
-	 5.10.1  Command REPL tests
-	 5.10.2  General REPL tests
-     6  Writing Documentation
-       6.1  Documenting Pickles
-     7  Fuzzing poke
-       7.1  Grammarinator
-     8  Deciding on What to Work on
-     9  Submitting a Patch
-    10  Maintenance
-    11  Poke Architecture
-    12  The Poke Compiler
-      12.1  Compiler Overview
-      12.2  The bison Parser in pkl-tab.y
-      12.3  The AST
-	12.3.1  Loop Statements
-      12.4  Compiler Passes and Phases
-	12.4.1  Naming Conventions for Phases
-	12.4.2  Naming Conventions for Handlers
-	12.4.3  Transformation Phases
-	12.4.4  Analysis Phases
-	12.4.5  Type System Phases
-	12.4.6  Front and Middle End Handlers should be Re-entrant
-      12.5  The Type System
-	12.5.1  Type Expressions
-      12.6  Adding Compiler Built-Ins
-    13  The Poke Virtual Machine
-      13.1  Exception Handling
-      13.2  Signal Handling
-      13.3  Offsets and bit-offsets in the PVM
-    14  Memory Management
-      14.1  Using ASTREF
-      14.2  Using ASTDEREF
-      14.3  PVM values in PVM programs
-      14.4  PVM values in AST nodes
-    15  Terminal Handling
-      15.1  pk-term
-      15.2  Styling Classes
-      15.3  Debugging Styling
-    16  Debugging Poke
-      16.1  Building with Debugging support
-      16.2  Invoking GDB to debug an uninstalled poke
-      16.3  Using GDB extensions
-      16.4  Valgrind and Poke
-      16.5  Debugging PVM Assembly Code
-    17  Future Developments
-    18  Appendix: The Source Tree
-      18.1  Common Code
-      18.2  The poke library
-	18.2.1  Public Library Services
-	18.2.2  The Compiler
-	18.2.3  The Poke Virtual Machine
-	18.2.4  The IO Subsystem
-	18.2.5  Poke Standard Library
-	18.2.6  Internal Services
-      18.3  The poke utility
-      18.4  Pickles
-      18.5  Test Suite
-      18.6  Documentation
-      18.7  Other Stuff
+         2.8.1  Dealing with spam in the Bugzilla
      3  Development Environment
        3. 1  Autotools
        3. 2  Dejagnu
@@ -164,17 +68,19 @@ along with GNU poke.  If not, see <https://www.gnu.org/licenses/>.
        4.3  Writing RAS
      5  Writing Tests
        5. 1  Test framework
-       5. 2  Naming Tests
-       5. 3  Always set obase
-       5. 4  Put each test in its own file
-       5. 5  dg-output may require a newline
-       5. 6  Using data files in tests
-       5. 7  Using NBD connections in tests
-       5. 8  Writing tests that depend on a certain capability
-       5. 9  Writing REPL tests
-       5.10  Testing Pickles
-         5.10.1  Command REPL tests
-         5.10.2  General REPL tests
+       5. 2  Unit Tests
+       5. 3  Naming Tests
+       5. 4  Always set obase
+       5. 5  Put each test in its own file
+       5. 6  List the test files in testsuite/Makefile.am
+       5. 7  dg-output may require a newline
+       5. 8  Using data files in tests
+       5. 9  Using NBD connections in tests
+       5.10  Writing tests that depend on a certain capability
+       5.11  Writing REPL tests
+       5.12  Testing Pickles
+         5.12.1  Command REPL tests
+         5.12.2  General REPL tests
      6  Writing Documentation
        6.1  Documenting Pickles
      7  Fuzzing poke
@@ -229,9 +135,10 @@ along with GNU poke.  If not, see <https://www.gnu.org/licenses/>.
         18.2.6  Internal Services
       18.3  The poke utility
       18.4  Pickles
-      18.5  Test Suite
-      18.6  Documentation
-      18.7  Other Stuff
+      18.5  Poke Utilities
+      18.6  Test Suite
+      18.7  Documentation
+      18.8  Other Stuff
 
 
 Nomenclature
@@ -657,8 +564,35 @@ write ``.pk`` files.
 Writing RAS
 ~~~~~~~~~~~
 
+RAS Emacs mode
+..............
+
 We recommend to use the Emacs mode in ``etc/poke-ras-mode.el`` to
 write ``.pks`` files.
+
+Calling compiled Poke from RAS
+..............................
+
+A big part of the code generated by the PKL code generator is written
+by hand, in ``.pks`` files.  Sometimes it is convenient to call
+compiled Poke code from that code;  for example, to execute complex
+formulae or to perform some operation defined recursively.
+
+In these situations, the solution is to first write a Poke function in
+the compiler's runtime library, ``pkl-rt.pk``, like::
+
+  defun _pkl_foo = (uint<64> ival, uint<64> eval,
+                    uint<32> ivalw, uint<32> fieldw) uint<64>:
+  {
+    return ival | (eval <<. (ivalw - fieldw));
+  }
+
+Then, the function can be invoked from the hand-written RAS file using
+the ``.call`` directive::
+
+  .call _pkl_foo
+
+Note how the compiler internal functions use the ``_pkl_`` prefix.
 
 Writing Tests
 -------------
@@ -677,6 +611,13 @@ The documentation of specific DejaGnu directives is at
   https://gcc.gnu.org/onlinedocs/gccint/Directives.html
   https://gcc.gnu.org/wiki/HowToPrepareATestcase
 
+Unit Tests
+~~~~~~~~~~
+
+We are using DejaGnu's support for unit tests.  See
+``testsuite/poke.libpoke`` for an example on how to write C unit
+tests.
+  
 Naming Tests
 ~~~~~~~~~~~~
 
@@ -722,6 +663,12 @@ test log file.
 
 It is better to put each test in its own file: ``foo-1.pk``,
 ``foo-2.pk`` and so on.
+
+List the test files in testsuite/Makefile.am
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+So that the tests get distributed, you need to list each newly added
+test file in testsuite/Makefile.am.
 
 dg-output may require a newline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2240,6 +2187,12 @@ Pickles
 Pickles
   ``pickles/elf.pk``, ``pickles/ctf.pk``
 
+Poke Utilities
+~~~~~~~~~~~~~~
+
+Example utilities written as Poke scripts
+ ``utils/elfextractor``
+
 Test Suite
 ~~~~~~~~~~
 Target-specific dejagnu configuration
@@ -2259,6 +2212,12 @@ Standard library test suite
 
 Tests for Poke commands
   ``testsuite/poke.cmd/cmd.exp``, ``testsuite/poke.cmd/*.pk``
+
+Unit tests for the libpoke API
+  ``testsuite/poke.libpoke/*``
+
+Unit tests for the pk-mi-json module
+  ``testsuite/poke.mi-json/*``
 
 Documentation
 ~~~~~~~~~~~~~

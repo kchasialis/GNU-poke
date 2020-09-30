@@ -19,17 +19,17 @@
 /* LEB128 or Little Endian Base 128 is a variable-length encoding for
    arbitrarily large integers.  It is used in DWARF.  */
 
+deftype LEB128_Byte =
+  struct uint<8>
+  {
+    uint<1> hi : hi == 1;
+    uint<7> lo;
+  };
+
 deftype ULEB128 =
   struct
   {
-    deftype ULEB_128_Byte =
-      struct
-      {
-        byte b : b < 0x7f;
-        method _print = void: { printf "%v", b; }
-      };
-
-    ULEB_128_Byte[] variable;
+    LEB128_Byte[] variable;
     byte last;
 
     method value = uint<64>:
@@ -44,10 +44,59 @@ deftype ULEB128 =
 
        for (v in variable)
          {
-           result = result | extract (v.b);
+           result = result | extract (v);
            shift = shift + 7;
          }
        result = extract (last);
+
+       return result;
+      }
+
+    method _print = void:
+      {
+       defvar val = 0UL;
+
+       try val = value;
+       catch
+       {
+         print "#<uleb128:";
+         for (b in variable)
+           printf "%v,", b;
+         printf "%v", last;
+         print ">";
+         return;
+       }
+
+       printf ("%<leb128:#<uleb128:%<integer:%u64d%>>%>",
+               value);
+      }
+  };
+
+deftype LEB128 =
+  struct
+  {
+    LEB128_Byte[] variable;
+    byte last;
+
+    method value = int<64>:
+      {
+       defvar shift = 0;
+       defvar result = 0UL;
+       defun extract = (byte b) byte: { return (b & 0x7f) <<. shift; }
+
+       /* poke supports up to 64-bit integers.  */
+       if (variable'length > 8)
+         raise E_generic;
+
+       for (v in variable)
+         {
+           result = result | extract (v);
+           shift = shift + 7;
+         }
+       result = extract (last);
+
+       if (shift < (variable'size/#B) && last & 0b1000_0000)
+         result = result | (!0 <<. shift);
 
        return result;
       }

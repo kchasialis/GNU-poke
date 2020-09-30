@@ -94,7 +94,7 @@ typedef int64_t ios_off;
 
 #define IOS_ERROR -1   /* An unspecified error condition happened.  */
 
-#define IOS_ENOMEM -5  /* Memory allocation failure.  */
+#define IOS_ENOMEM -4  /* Memory allocation failure.  */
 
 /* **************** IOS flags ******************************
 
@@ -268,15 +268,10 @@ void ios_set_bias (ios io, ios_off bias)
                          underlying IO device, or when a negative
                          offset is provided in the wrong context.  */
 
-#define IOS_EIOBJ -3  /* A valid object couldn't be found at the
-                         requested offset.  This happens for example
-                         when an end-of-file condition happens in the
-                         underlying IO device.  */
-
 /* The following error code is returned when the IO backend can't
    handle the specified flags in ios_open. */
 
-#define IOS_EFLAGS -4 /* Invalid flags specified.  */
+#define IOS_EFLAGS -3 /* Invalid flags specified.  */
 
 /* When reading and writing integers from/to IO spaces, it is needed
    to specify some details on how the integers values are encoded in
@@ -350,6 +345,14 @@ int ios_write_uint (ios io, ios_off offset, int flags,
 
 int ios_write_string (ios io, ios_off offset, int flags,
                       const char *value)
+  __attribute__ ((visibility ("hidden")));
+
+/* If the current IOD is a write stream, write out the data in the buffer
+   till OFFSET.  If the current IOD is a stream IOD, free (if allowed by the
+   embedded buffering strategy) bytes up to OFFSET.  This function has no
+   impact when called on other IO devices.  */
+
+int ios_flush (ios io, ios_off offset)
   __attribute__ ((visibility ("hidden")));
 
 /* **************** Update API **************** */

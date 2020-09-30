@@ -26,7 +26,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <wordexp.h> /* For tilde-expansion.  */
+#include <glob.h> /* For tilde-expansion.  */
 #include <xalloc.h>
 #include <xstrndup.h>
 #include <ctype.h>
@@ -428,29 +428,36 @@ pk_cmd_exec_1 (const char *str, struct pk_trie *cmds_trie, char *prefix)
                   }
                 case 'f':
                   {
-                    wordexp_t exp_result;
-                    exp_result.we_wordv = 0;
+                    glob_t exp_result;
+                    char *fname;
+
                     if (p[0] == '\0')
                       GOTO_USAGE();
 
-                    switch (wordexp (p, &exp_result, 0))
+                    fname = xstrdup (p);
+                    pk_str_trim (&fname);
+                    switch (glob (fname, GLOB_TILDE,
+                                  NULL /* errfunc */,
+                                  &exp_result))
                       {
                       case 0: /* Successful.  */
                         break;
                       default:
-                        if (exp_result.we_wordv)
-                          wordfree (&exp_result);
+                        free (fname);
                         GOTO_USAGE();
                         break;
                       }
-                    if (exp_result.we_wordc != 1)
+                    if (exp_result.gl_pathc != 1)
                       {
-                        wordfree (&exp_result);
+                        free (fname);
+                        globfree (&exp_result);
                         GOTO_USAGE();
                       }
 
-                    char *filename = xstrdup (exp_result.we_wordv[0]);
-                    wordfree (&exp_result);
+                    char *filename = xstrdup (exp_result.gl_pathv[0]);
+
+                    free (fname);
+                    globfree (&exp_result);
 
                     argv[argc].type = PK_CMD_ARG_STR;
                     argv[argc].val.str = filename;

@@ -1,4 +1,4 @@
-ACLOCAL_AMFLAGS = -I m4
+ACLOCAL_AMFLAGS = -I m4 -I m4/libpoke -I m4/gui
 SUBDIRS = jitter gl maps pickles gl-libpoke gl-gui libpoke poke gui doc \
           man testsuite etc po
 

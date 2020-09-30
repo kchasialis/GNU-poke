@@ -41,9 +41,9 @@
 
 #define IOS_PUT_C_ERR_CHCK(c, io, len, off)                \
   {                                                        \
-    if ((io)->dev_if->pwrite ((io)->dev, c, len, off)        \
+    if ((io)->dev_if->pwrite ((io)->dev, c, len, off)      \
         == IOD_EOF)                                        \
-      return IOS_EIOBJ;                                        \
+      return IOS_EIOFF;                                    \
   }
 
 /* The following struct implements an instance of an IO space.
@@ -134,7 +134,7 @@ ios_open (const char *handler, uint64_t flags, int set_cur)
      handler.  */
   for (dev_if = ios_dev_ifs; *dev_if; ++dev_if)
     {
-      io->handler = (*dev_if)->handler_normalize (handler);
+      io->handler = (*dev_if)->handler_normalize (handler, flags);
       if (io->handler)
         break;
     }
@@ -1119,7 +1119,7 @@ ios_write_int_fast (ios io, ios_off offset, int flags,
     }
 
   if (io->dev_if->pwrite (io->dev, c, bits / 8, offset / 8) == IOD_EOF)
-    return IOS_EIOBJ;
+    return IOS_EIOFF;
   return IOS_OK;
 }
 
@@ -1516,4 +1516,10 @@ uint64_t
 ios_size (ios io)
 {
   return io->dev_if->size (io->dev) * 8;
+}
+
+int
+ios_flush (ios io, ios_off offset)
+{
+  return io->dev_if->flush (io->dev, offset);
 }

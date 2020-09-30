@@ -337,7 +337,7 @@ token <integer> UNION    _("keyword `union'")
 %token LOAD              _("keyword `load'")
 %token BUILTIN_RAND BUILTIN_GET_ENDIAN BUILTIN_SET_ENDIAN
 %token BUILTIN_GET_IOS BUILTIN_SET_IOS BUILTIN_OPEN BUILTIN_CLOSE
-%token BUILTIN_IOSIZE BUILTIN_GETENV
+%token BUILTIN_IOSIZE BUILTIN_GETENV BUILTIN_FORGET
 
 /* Compiler builtins.  */
 
@@ -398,9 +398,9 @@ token <integer> UNION    _("keyword `union'")
 /* Operator tokens and their precedences, in ascending order.  */
 
 %right '?' ':'
-%left IN
 %left OR
 %left AND
+%left IN
 %left '|'
 %left '^'
 %left '&'
@@ -436,6 +436,7 @@ token <integer> UNION    _("keyword `union'")
 %type <ast> function_specifier function_arg_list function_arg function_arg_initial
 %type <ast> comp_stmt stmt_decl_list stmt print_stmt_arg_list
 %type <ast> funcall_stmt funcall_stmt_arg_list funcall_stmt_arg
+%type <ast> integral_struct
 %type <integer> struct_type_pinned integral_type_sign struct_or_union
 %type <integer> builtin endianness defun_or_method
 
@@ -966,6 +967,10 @@ primary:
                   PKL_AST_LOC ($$) = @$;
                 }
         | funcall
+        | '(' funcall_stmt ')'
+                {
+                  $$ = $2;
+                }
         ;
 
 funcall:
@@ -1199,7 +1204,6 @@ simple_type_specifier:
 integral_type_specifier:
           integral_type_sign INTEGER '>'
                 {
-                    /* XXX: $3 can be any expression!.  */
                     $$ = pkl_ast_make_integral_type (pkl_parser->ast,
                                                      PKL_AST_INTEGER_VALUE ($2),
                                                      $1);
@@ -1327,12 +1331,14 @@ function_type_arg:
         ;
 
 struct_type_specifier:
-          pushlevel struct_type_pinned struct_or_union '{' '}'
+          pushlevel struct_type_pinned struct_or_union
+          integral_struct '{' '}'
                   {
                     $$ = pkl_ast_make_struct_type (pkl_parser->ast,
                                                    0 /* nelem */,
                                                    0 /* nfield */,
                                                    0 /* ndecl */,
+                                                   $4,
                                                    NULL /* elems */,
                                                    $2, $3);
                     PKL_AST_LOC ($$) = @$;
@@ -1343,11 +1349,12 @@ struct_type_specifier:
                        rule.  */
                     pkl_parser->env = pkl_env_pop_frame (pkl_parser->env);
                 }
-        | pushlevel struct_type_pinned struct_or_union '{'
+        | pushlevel struct_type_pinned struct_or_union
+          integral_struct '{'
                 {
                   /* Register dummies for the locals used in
                      pkl-gen.pks:struct_mapper.  */
-                  pkl_register_dummies (pkl_parser, 3);
+                  pkl_register_dummies (pkl_parser, 4);
                 }
           struct_type_elem_list '}'
                 {
@@ -1355,7 +1362,8 @@ struct_type_specifier:
                                                    0 /* nelem */,
                                                    0 /* nfield */,
                                                    0 /* ndecl */,
-                                                   $6,
+                                                   $4,
+                                                   $7,
                                                    $2, $3);
                     PKL_AST_LOC ($$) = @$;
 
@@ -1366,12 +1374,17 @@ struct_type_specifier:
 
 struct_or_union:
           STRUCT        { $$ = 0; }
-        | UNION                { $$ = 1; }
+        | UNION         { $$ = 1; }
         ;
 
 struct_type_pinned:
-        %empty                { $$ = 0; }
+        %empty          { $$ = 0; }
         | PINNED        { $$ = 1; }
+        ;
+
+integral_struct:
+        %empty           { $$ = NULL; }
+        | simple_type_specifier { $$ = $1; }
         ;
 
 struct_type_elem_list:
@@ -1565,15 +1578,9 @@ declaration:
                                          PKL_AST_IDENTIFIER_POINTER ($2),
                                          $<ast>$))
                     {
-                      /* XXX: in the top-level, rename the old
-                         declaration to "" and add the new one.  */
                       pkl_error (pkl_parser->compiler, pkl_parser->ast, @2,
                                  "function or variable `%s' already defined",
                                  PKL_AST_IDENTIFIER_POINTER ($2));
-                      /* XXX: also, annotate the decl to be renaming a
-                         toplevel variable, so the code generator can
-                         do the right thing: to generate a POPVAR
-                         instruction instead of a REGVAR.  */
                       YYERROR;
                     }
 
@@ -1627,8 +1634,6 @@ declaration:
                                          PKL_AST_IDENTIFIER_POINTER ($2),
                                          $$))
                     {
-                      /* XXX: in the top-level, rename the old
-                         declaration to "" and add the new one.  */
                       pkl_error (pkl_parser->compiler, pkl_parser->ast, @2,
                                  "the variable `%s' is already defined",
                                  PKL_AST_IDENTIFIER_POINTER ($2));
@@ -1650,8 +1655,6 @@ declaration:
                                          PKL_AST_IDENTIFIER_POINTER ($2),
                                          $$))
                     {
-                      /* XXX: in the top-level, rename the old
-                         declaration to "" and add the new one.  */
                       pkl_error (pkl_parser->compiler, pkl_parser->ast, @2,
                                  "the type `%s' is already defined",
                                  PKL_AST_IDENTIFIER_POINTER ($2));
@@ -1739,6 +1742,7 @@ builtin:
         | BUILTIN_CLOSE                { $$ = PKL_AST_BUILTIN_CLOSE; }
         | BUILTIN_IOSIZE        { $$ = PKL_AST_BUILTIN_IOSIZE; }
         | BUILTIN_GETENV        { $$ = PKL_AST_BUILTIN_GETENV; }
+        | BUILTIN_FORGET        { $$ = PKL_AST_BUILTIN_FORGET; }
         ;
 
 stmt_decl_list:

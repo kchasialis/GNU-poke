@@ -33,6 +33,8 @@ struct pk_compiler
 {
   pkl_compiler compiler;
   pvm vm;
+
+  pkl_ast_node complete_type;
 };
 
 struct pk_term_if libpoke_term_if
@@ -55,6 +57,7 @@ pk_compiler_new (const char *rtpath,
       pkc->compiler = pkl_new (pkc->vm, rtpath);
       if (pkc->compiler == NULL)
         goto error;
+      pkc->complete_type = NULL;
 
       pvm_set_compiler (pkc->vm, pkc->compiler);
     }
@@ -151,8 +154,8 @@ static char *
 complete_struct (pk_compiler pkc,
                  int *idx, const char *x, size_t len, int state)
 {
-  /* XXX put state in pkc instead of a global.  */
-  static pkl_ast_node type;
+  char *ret = NULL;
+  pkl_ast_node type = pkc->complete_type;
   pkl_ast_node t;
   size_t trunk_len;
   int j;
@@ -176,7 +179,10 @@ complete_struct (pk_compiler pkc,
       type = PKL_AST_TYPE (PKL_AST_DECL_INITIAL (type));
       type = pkl_struct_type_traverse (type, x);
       if (type == NULL)
-        return NULL;
+        {
+          ret = NULL;
+          goto exit;
+        }
     }
 
   trunk_len = len - strlen (strrchr (x, '.')) + 1;
@@ -211,15 +217,21 @@ complete_struct (pk_compiler pkc,
               char *name;
 
               if (asprintf (&name, "%.*s%s", (int) trunk_len, x, elem) == -1)
-                return NULL;
+                {
+                  ret = NULL;
+                  goto exit;
+                }
 
               (*idx)++;
-              return name;
+              ret = name;
+              goto exit;
             }
         }
     }
 
-  return NULL;
+ exit:
+  pkc->complete_type = type;
+  return ret;
 }
 
 /* This function is called repeatedly by the readline library, when
